@@ -11,6 +11,12 @@ interface BackcountryMapProps {
   onMapLoad?: (map: maplibregl.Map) => void;
 }
 
+export const OVERLAY_LAYERS = [
+  { id: 'wilderness-fill', label: 'BLM Wilderness', color: '#DC2626', description: 'Designated BLM wilderness — landing prohibited' },
+  { id: 'wsa-fill', label: 'Wilderness Study Area', color: '#DC2626', description: 'WSA — special restrictions apply' },
+  { id: 'fs-wilderness-fill', label: 'USFS Wilderness', color: '#2D5016', description: 'Forest Service wilderness areas' },
+] as const;
+
 export function BackcountryMap({
   initialCenter = [-98.5795, 39.8283],
   initialZoom = 4,
@@ -20,6 +26,16 @@ export function BackcountryMap({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
+
+  const setOverlayVisibility = (layerId: string, visible: boolean) => {
+    if (!map.current) return;
+    const ids = [layerId, layerId + '-outline'];
+    ids.forEach((id) => {
+      if (map.current?.getLayer(id)) {
+        map.current.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+      }
+    });
+  };
 
   const loadOverlay = async (
     url: string,
@@ -105,6 +121,8 @@ export function BackcountryMap({
         });
       }
 
+      // Attach visibility control to map instance so parent can call map.setOverlayVisibility(layerId, visible)
+      ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
       if (onMapLoad) onMapLoad(map.current);
     });
 

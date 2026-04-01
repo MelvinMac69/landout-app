@@ -1,10 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { MapLegend } from '@/components/map';
+import { useRef, useState, useCallback } from 'react';
+import maplibregl from 'maplibre-gl';
+import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
 import { Search } from 'lucide-react';
 
-const BackcountryMap = dynamic(
+const BackcountryMapClient = dynamic(
   () => import('@/components/map/BackcountryMap').then((mod) => mod.BackcountryMap),
   { ssr: false, loading: () => <Loading /> }
 );
@@ -18,10 +20,37 @@ function Loading() {
 }
 
 export default function MapPage() {
+  const mapRef = useRef<maplibregl.Map | null>(null);
+
+  // All overlays start visible
+  const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
+  );
+
+  const handleMapLoad = useCallback((map: maplibregl.Map) => {
+    mapRef.current = map;
+  }, []);
+
+  const handleToggle = useCallback(
+    (layerId: string) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const next = !activeLayers[layerId];
+      // setOverlayVisibility is attached to the map instance in BackcountryMap
+      const fn = (map as typeof map & { setOverlayVisibility: (id: string, v: boolean) => void }).setOverlayVisibility;
+      if (fn) fn(layerId, next);
+      setActiveLayers((prev) => ({ ...prev, [layerId]: next }));
+    },
+    [activeLayers]
+  );
+
+  const layers = OVERLAY_LAYERS.map((l) => ({ ...l, visible: activeLayers[l.id] ?? true }));
+
   return (
     <div className="h-[calc(100vh-3.5rem)] relative">
-      <BackcountryMap />
+      <BackcountryMapClient onMapLoad={handleMapLoad} />
 
+      <MapLayerToggle layers={layers} onToggle={handleToggle} />
       <MapLegend />
 
       {/* Search bar */}
