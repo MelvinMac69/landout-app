@@ -17,12 +17,12 @@
     "import:faa:dry-run": "echo 'Requires --base flag: npm run import:faa:dry-run -- --base ./path/to/APT_BASE.csv'"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
     "@supabase/ssr": "^0.5.0",
+    "@supabase/supabase-js": "^2.45.0",
     "@turf/turf": "^7.0.0",
     "lucide-react": "^0.400.0",
     "maplibre-gl": "^4.5.0",
-    "next": "14.2.35",
+    "next": "^14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "stripe": "^16.0.0"
@@ -35,6 +35,7 @@
     "eslint": "^8.0.0",
     "eslint-config-next": "14.2.35",
     "postcss": "^8.4.0",
+    "shapefile": "^0.6.6",
     "tailwindcss": "^3.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.0.0"

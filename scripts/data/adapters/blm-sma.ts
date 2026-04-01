@@ -39,8 +39,10 @@ export const SMA_UNIT_COLORS: Record<string, string> = {
 interface SMAGeoJSONProperties {
   ADMIN_AGENCY_CODE: string;
   ADMIN_UNIT_NAME: string;
+  ADMIN_UNIT_TYPE: string;
   GIS_ACRES: number;
   ADMIN_ST: string;
+  SHAPE_Area?: number;
 }
 
 type SMAFeature = GeoJSON.Feature<GeoJSON.Geometry, SMAGeoJSONProperties>;

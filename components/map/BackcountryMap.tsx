@@ -92,6 +92,7 @@ export function BackcountryMap({
       await Promise.all([
         loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.6),
         loadOverlay('/data/wsa.geojson', 'wsa-src', 'wsa-fill', '#DC2626', 0.6),
+        loadOverlay('/data/fs-wilderness.geojson', 'fs-wilderness-src', 'fs-wilderness-fill', '#2D5016', 0.55),
       ]);
 
       if (routesGeoJson?.features?.length) {
