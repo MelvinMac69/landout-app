@@ -32,9 +32,14 @@ export function BackcountryMap({
     if (!map.current) return;
     try {
       const res = await fetch(url);
+      console.log(`[BackcountryMap] fetch ${url} → ${res.status} ${res.statusText}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: GeoJSON.FeatureCollection = await res.json();
-      if (!data.features?.length) return;
+      console.log(`[BackcountryMap] ${url}: ${data.features?.length ?? 0} features, type=${data.type}`);
+      if (!data.features?.length) {
+        console.warn(`[BackcountryMap] ${url} has no features — skipping layer`);
+        return;
+      }
 
       if (map.current.getSource(sourceId)) {
         (map.current.getSource(sourceId) as maplibregl.GeoJSONSource).setData(data);
@@ -48,7 +53,7 @@ export function BackcountryMap({
         });
       }
     } catch (err) {
-      console.warn(`Could not load overlay ${url}:`, err);
+      console.error(`[BackcountryMap] ERROR loading overlay ${url}:`, err);
     }
   };
 
