@@ -44,21 +44,21 @@ export default function MapPage() {
       label: 'Forest Service',
       color: '#2D5016',
       description: 'US Forest Service Land',
-      visible: false,
+      visible: true,
     },
     {
       id: 'wilderness-fill',
       label: 'Wilderness Areas',
-      color: '#1D4D1D',
-      description: 'Designated wilderness areas',
+      color: '#DC2626',
+      description: 'Designated wilderness — avoid landing',
       visible: true,
     },
     {
       id: 'wsa-fill',
       label: 'Wilderness Study Areas',
-      color: '#7B3F00',
+      color: '#DC2626',
       description: 'WSA — not yet designated',
-      visible: false,
+      visible: true,
     },
   ]);
 

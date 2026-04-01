@@ -2,10 +2,8 @@ export function MapLegend() {
   const items = [
     { color: '#8B6914', label: 'BLM Land', agency: 'Bureau of Land Management' },
     { color: '#2D5016', label: 'USFS Land', agency: 'Forest Service' },
-    { color: '#6B3FA0', label: 'NPS Land', agency: 'National Park Service' },
-    { color: '#1E5A8A', label: 'FWS Land', agency: 'Fish & Wildlife Service' },
-    { color: '#1D4D1D', label: 'Wilderness', agency: 'Designated wilderness area' },
-    { color: '#7B3F00', label: 'WSA', agency: 'Wilderness Study Area' },
+    { color: '#DC2626', label: 'Wilderness', agency: 'Designated wilderness — avoid' },
+    { color: '#DC2626', label: 'WSA', agency: 'Wilderness Study Area' },
   ];
 
   return (

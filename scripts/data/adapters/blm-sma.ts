@@ -38,7 +38,7 @@ export const SMA_UNIT_COLORS: Record<string, string> = {
   BOR: '#1A7A7A',
   DOE: '#C45A00',
   DOD: '#4A4A4A',
-  PRIVATE: 'transparent',
+  PRIVATE: '#C45A00',
   STATE: 'transparent',
   PRIUNK: 'transparent',
 };
