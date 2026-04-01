@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Overlay Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://unpkg.com/maplibre-gl@4.5.0/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.5.0/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0}
+body{font-family:system-ui}
+#map{width:100vw;height:100vh}
+#info{position:fixed;top:10px;left:10px;background:rgba(0,0,0,0.8);color:#fff;padding:12px;border-radius:8px;z-index:9999;font-size:13px;max-width:300px}
+#info h3{margin:0 0 8px;font-size:14px}
+#info p{margin:4px 0;opacity:0.8}
+button{background:#dc2626;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:12px;margin-top:8px}
+#log{position:fixed;bottom:0;left:0;right:0;background:#000;color:#0f0;font:12px monospace;padding:8px;max-height:120px;overflow-y:auto;z-index:9999}
+#log .err{color:#f66}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="info">
+<h3>Overlay Test</h3>
+<p>Center: Utah/Colorado</p>
+<p>Zoom: 8</p>
+<button onclick="map.setZoom(8);map.setCenter([-109.5,38.8])">Reset view</button>
+</div>
+<div id="log" id="log"></div>
+<script>
+var logEl = document.getElementById('log');
+function log(msg, type) {
+  var d = document.createElement('div');
+  d.className = type === 'err' ? 'err' : '';
+  d.textContent = msg;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+  console.log(msg);
+}
+
+var map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: {
+      osm: { type: 'raster', tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OSM' }
+    },
+    layers: [{ id: 'osm', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 22 }]
+  },
+  center: [-109.5, 38.8],
+  zoom: 8
+});
+
+map.addControl(new maplibregl.NavigationControl());
+
+map.on('load', async function() {
+  log('Map loaded');
+
+  var layers = [
+    { url: '/data/wilderness.geojson', sourceId: 'wilderness-src', layerId: 'wilderness-fill', color: '#DC2626', opacity: 0.7 },
+    { url: '/data/wsa.geojson', sourceId: 'wsa-src', layerId: 'wsa-fill', color: '#DC2626', opacity: 0.7 }
+  ];
+
+  for (var i = 0; i < layers.length; i++) {
+    var l = layers[i];
+    try {
+      log('Fetching ' + l.url);
+      var res = await fetch(l.url);
+      if (!res.ok) { log('HTTP ' + res.status, 'err'); continue; }
+      var data = await res.json();
+      var count = data.features ? data.features.length : 0;
+      log('  → ' + count + ' features');
+      if (!count) { log('  SKIP — empty', 'err'); continue; }
+
+      var firstType = data.features[0].geometry.type;
+      log('  First geom type: ' + firstType);
+
+      map.addSource(l.sourceId, { type: 'geojson', data: data });
+      map.addLayer({
+        id: l.layerId,
+        type: 'fill',
+        source: l.sourceId,
+        paint: {
+          'fill-color': l.color,
+          'fill-opacity': l.opacity
+        }
+      });
+      log('  ✓ Added fill layer: ' + l.layerId + ' (color=' + l.color + ', opacity=' + l.opacity + ')');
+
+      // Also add outline for visibility
+      map.addLayer({
+        id: l.layerId + '-outline',
+        type: 'line',
+        source: l.sourceId,
+        paint: {
+          'line-color': l.color,
+          'line-width': 2
+        }
+      });
+      log('  ✓ Added outline layer: ' + l.layerId + '-outline');
+
+    } catch(e) {
+      log('ERROR: ' + e.message, 'err');
+    }
+  }
+
+  log('Done — zoom in to see overlays');
+});
+</script>
+</body>
+</html>
