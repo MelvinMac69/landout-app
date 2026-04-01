@@ -21,25 +21,19 @@ export function BackcountryMap({
   const map = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  // Fetch and load a GeoJSON overlay file into the map
   const loadOverlay = async (
     url: string,
     sourceId: string,
     layerId: string,
     color: string,
-    opacity = 0.4
+    opacity = 0.6
   ) => {
     if (!map.current) return;
     try {
       const res = await fetch(url);
-      console.log(`[BackcountryMap] fetch ${url} → ${res.status} ${res.statusText}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data: GeoJSON.FeatureCollection = await res.json();
-      console.log(`[BackcountryMap] ${url}: ${data.features?.length ?? 0} features, type=${data.type}`);
-      if (!data.features?.length) {
-        console.warn(`[BackcountryMap] ${url} has no features — skipping layer`);
-        return;
-      }
+      if (!data.features?.length) return;
 
       if (map.current.getSource(sourceId)) {
         (map.current.getSource(sourceId) as maplibregl.GeoJSONSource).setData(data);
@@ -51,9 +45,15 @@ export function BackcountryMap({
           source: sourceId,
           paint: { 'fill-color': color, 'fill-opacity': opacity },
         });
+        map.current.addLayer({
+          id: layerId + '-outline',
+          type: 'line',
+          source: sourceId,
+          paint: { 'line-color': color, 'line-width': 2 },
+        });
       }
     } catch (err) {
-      console.error(`[BackcountryMap] ERROR loading overlay ${url}:`, err);
+      console.error('[BackcountryMap] load error ' + url + ':', err);
     }
   };
 
@@ -89,31 +89,19 @@ export function BackcountryMap({
       if (!map.current) return;
       setLoaded(true);
 
-      // Load overlays from /public/data/
       await Promise.all([
-        loadOverlay('/data/blm-sma.geojson', 'blm-source', 'blm-fill', '#8B6914', 0.35),
-        loadOverlay('/data/wilderness.geojson', 'wilderness-source', 'wilderness-fill', '#DC2626', 0.45),
-        loadOverlay('/data/wsa.geojson', 'wsa-source', 'wsa-fill', '#DC2626', 0.45),
+        loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.6),
+        loadOverlay('/data/wsa.geojson', 'wsa-src', 'wsa-fill', '#DC2626', 0.6),
       ]);
 
-      // Load route layer if provided
       if (routesGeoJson?.features?.length) {
-        if (!map.current.getSource('routes-source')) {
-          map.current.addSource('routes-source', { type: 'geojson', data: routesGeoJson });
-          map.current.addLayer({
-            id: 'routes-line',
-            type: 'line',
-            source: 'routes-source',
-            paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-dasharray': [2, 1] },
-          });
-          map.current.addLayer({
-            id: 'routes-points',
-            type: 'circle',
-            source: 'routes-source',
-            filter: ['==', '$type', 'Point'],
-            paint: { 'circle-radius': 5, 'circle-color': '#dc2626', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' },
-          });
-        }
+        map.current.addSource('routes-source', { type: 'geojson', data: routesGeoJson });
+        map.current.addLayer({
+          id: 'routes-line',
+          type: 'line',
+          source: 'routes-source',
+          paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-dasharray': [2, 1] },
+        });
       }
 
       if (onMapLoad) onMapLoad(map.current);
@@ -123,7 +111,7 @@ export function BackcountryMap({
       map.current?.remove();
       map.current = null;
     };
-  }, [initialCenter, initialZoom, onMapLoad]);
+  }, [initialCenter, initialZoom, routesGeoJson, onMapLoad]);
 
   return (
     <div className="relative w-full h-full">
