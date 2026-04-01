@@ -1,0 +1,42 @@
+{
+  "name": "backcountry-map",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:migrate": "supabase db push",
+    "db:reset": "supabase db reset",
+    "import:all": "npx tsx scripts/data/import-all.ts",
+    "import:overlays": "npx tsx scripts/data/import-all.ts --overlays",
+    "import:blm": "npx tsx scripts/data/adapters/blm-sma.ts",
+    "import:wilderness": "npx tsx scripts/data/adapters/wilderness.ts",
+    "import:faa": "echo 'Requires --base flag: npm run import:faa -- --base ./path/to/APT_BASE.csv'",
+    "import:faa:dry-run": "echo 'Requires --base flag: npm run import:faa:dry-run -- --base ./path/to/APT_BASE.csv'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "@supabase/ssr": "^0.5.0",
+    "@turf/turf": "^7.0.0",
+    "lucide-react": "^0.400.0",
+    "maplibre-gl": "^4.5.0",
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "stripe": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "14.2.5",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.0.0"
+  }
+}
