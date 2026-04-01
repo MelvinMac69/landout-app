@@ -1,21 +1,17 @@
 /**
  * BLM Surface Management Agency (SMA) Adapter
  *
- * Fetches BLM National SMA polygons from the ArcGIS Limited Scale MapServer.
- *
- * IMPORTANT: We use the "LimitedScale" service (pre-generalized for overview
- * mapping) which is the correct choice for a nationwide web app at zoom levels 4-12.
- * The full-detail service (scheme level 14+) would be too large for nationwide
- * rendering performance.
- *
  * Service: https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_LimitedScale/MapServer
- * Layer: 1 (Surface Management Agency polygons — Layer 0 is a group/identify layer)
+ * Layer: 1 (Surface Management Agency polygons)
  *
- * Source verified: 2026-03-31 via BLM ArcGIS services directory
- *   https://gis.blm.gov/arcgis/rest/services/lands
+ * Important findings from service inspection (2026-04-01):
+ * - Most features have ADMIN_AGENCY_CODE = 'UND' (state/private/unknown land)
+ * - Federal agency land uses codes: BLM, FS, NPS, FWS, BOR, DOE, DOD
+ * - Correct field names: ADMIN_AGENCY_CODE, ADMIN_UNIT_NAME, GIS_ACRES, ADMIN_ST
+ * - Filter with: ADMIN_AGENCY_CODE<>'UND' to get only federal agency lands
  *
- * Alternative: manual download from
- *   https://gbp-blm-egis.hub.arcgis.com/datasets/blm-national-sma-surface-management-agency-area-polygons
+ * Why LimitedScale: pre-generalized for nationwide overview mapping (zoom 4-12)
+ * Full-detail service would be too large for web rendering.
  */
 
 import * as fs from 'fs';
@@ -25,64 +21,54 @@ import * as crypto from 'crypto';
 const ARCGIS_SERVICE =
   'https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_LimitedScale/MapServer';
 
-const LAYER_INDEX = 1; // Layer 1 = Surface Management Agency
+const LAYER_INDEX = 1;
 
 const OUTPUT_PATH = path.join(process.cwd(), 'public', 'data', 'blm-sma.geojson');
 
-// Color mapping — matches data-sources.md
+// Map agency codes to display colors — matches data-sources.md
 export const SMA_UNIT_COLORS: Record<string, string> = {
-  BLM: '#8B6914',
-  FS: '#2D5016',
-  NPS: '#6B3FA0',
-  FWS: '#1E5A8A',
-  BOR: '#1A7A7A',
-  DOE: '#C45A00',
-  DOD: '#4A4A4A',
-  PRIVATE: '#C45A00',
-  STATE: 'transparent',
-  PRIUNK: 'transparent',
+  BLM: '#8B6914',    // Bureau of Land Management — amber
+  FS: '#2D5016',    // Forest Service — forest green
+  NPS: '#6B3FA0',   // National Park Service — purple
+  FWS: '#1E5A8A',   // Fish & Wildlife Service — blue
+  BOR: '#1A7A7A',   // Bureau of Reclamation — teal
+  DOE: '#C45A00',   // Dept. of Energy — dark orange
+  DOD: '#4A4A4A',   // Dept. of Defense — gray
 };
 
-// Properties exposed by the BLM SMA ArcGIS service
 interface SMAGeoJSONProperties {
-  SMA_UNIT?: string;
-  UNIT?: string;
-  SMA_NAME?: string;
-  NAME?: string;
-  ADMIN_UNIT_NAME?: string;
-  GIS_ACRES?: number;
+  ADMIN_AGENCY_CODE: string;
+  ADMIN_UNIT_NAME: string;
+  GIS_ACRES: number;
+  ADMIN_ST: string;
 }
 
 type SMAFeature = GeoJSON.Feature<GeoJSON.Geometry, SMAGeoJSONProperties>;
 
 /**
- * Fetch all features from an ArcGIS MapServer layer with pagination.
- * Using f=geojson returns GeoJSON format directly.
- * ArcGIS MapServer has a default max of 1000 features per request.
+ * Fetch all features from the BLM SMA ArcGIS service, filtering to only
+ * federal agency lands (excluding UND = state/private/unknown).
  */
 async function fetchAllSMARecords(): Promise<SMAFeature[]> {
   const allFeatures: SMAFeature[] = [];
   let resultOffset = 0;
-  const batchSize = 1000;
+  const batchSize = 200;
   let hasMore = true;
 
+  // Filter to only federal agency lands (exclude UND = state/private/undetermined)
+  const whereClause = "ADMIN_AGENCY_CODE<>'UND'";
+
   while (hasMore) {
-    const url = new URL(`${ARCGIS_SERVICE}/${LAYER_INDEX}/query`);
-    url.searchParams.set('where', '1=1');
-    url.searchParams.set('outFields', '*');
-    url.searchParams.set('f', 'geojson');
-    url.searchParams.set('resultOffset', resultOffset.toString());
-    url.searchParams.set('resultRecordCount', batchSize.toString());
-    url.searchParams.set('outSR', '4326'); // WGS84
+    const fetchUrl = `${ARCGIS_SERVICE}/${LAYER_INDEX}/query?where=${encodeURIComponent(whereClause)}&outFields=ADMIN_AGENCY_CODE,ADMIN_UNIT_NAME,ADMIN_UNIT_TYPE,SHAPE_Area,ADMIN_ST&f=geojson&resultOffset=${resultOffset}&resultRecordCount=${batchSize}&outSR=4326`;
 
     console.log(`  Fetching offset ${resultOffset}...`);
-    const response = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(60000),
+    const response = await fetch(fetchUrl, {
+      signal: AbortSignal.timeout(120000),
     });
 
     if (!response.ok) {
       throw new Error(
-        `ArcGIS fetch failed: ${response.status} ${response.statusText}\nURL: ${url.toString()}`
+        `ArcGIS fetch failed: ${response.status} ${response.statusText}`
       );
     }
 
@@ -102,7 +88,6 @@ async function fetchAllSMARecords(): Promise<SMAFeature[]> {
 
 /**
  * Main import function.
- * Fetches BLM SMA data and writes GeoJSON to public/data/.
  */
 export async function importBLMSMA(): Promise<{
   totalFeatures: number;
@@ -116,49 +101,58 @@ export async function importBLMSMA(): Promise<{
   console.log(`Service: ${ARCGIS_SERVICE}`);
   console.log(`Layer: ${LAYER_INDEX}`);
   console.log(`Output: ${OUTPUT_PATH}`);
+  console.log(`Filter: ADMIN_AGENCY_CODE<>'UND' (federal agency lands only)`);
 
-  console.log('\nFetching features from ArcGIS service (paginated)...');
+  console.log('\nFetching features (paginated)...');
 
   let features: SMAFeature[];
   try {
     features = await fetchAllSMARecords();
   } catch (err) {
     console.error('\nFailed to fetch from ArcGIS service.');
-    console.error('If the service is unavailable, download manually from:');
-    console.error('  https://gbp-blm-egis.hub.arcgis.com/datasets/blm-national-sma-surface-management-agency-area-polygons');
+    console.error('Manual download: https://gbp-blm-egis.hub.arcgis.com/datasets/blm-national-sma-surface-management-agency-area-polygons');
     throw err;
   }
 
-  console.log(`\nTotal features fetched: ${features.length}`);
+  console.log(`\nTotal federal agency features: ${features.length}`);
 
-  // Build output GeoJSON with standardized properties
+  // Count by agency
+  const agencyCounts: Record<string, number> = {};
+  for (const f of features) {
+    const agency = f.properties?.ADMIN_AGENCY_CODE || 'UNKNOWN';
+    agencyCounts[agency] = (agencyCounts[agency] || 0) + 1;
+  }
+  console.log('Agency breakdown:', agencyCounts);
+
   const geojson: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
     features: features.map((f) => {
       const props = f.properties || {};
-      const unit = (props.SMA_UNIT || props.UNIT || 'UNKNOWN').toUpperCase();
+      const agency = (props.ADMIN_AGENCY_CODE || 'UNKNOWN').toUpperCase();
+      // SHAPE_Area is in square meters — convert to acres
+      const sqMeters = props.SHAPE_Area || 0;
+      const acres = sqMeters / 4046.86;
       return {
         type: 'Feature' as const,
         geometry: f.geometry,
         properties: {
-          unit,
-          unit_name: props.SMA_NAME || props.NAME || null,
-          admin_unit: props.ADMIN_UNIT_NAME || null,
-          acres: props.GIS_ACRES || null,
-          color: SMA_UNIT_COLORS[unit] || '#888888',
+          unit: agency,
+          unit_name: props.ADMIN_UNIT_NAME || null,
+          state: props.ADMIN_ST || null,
+          unit_type: props.ADMIN_UNIT_TYPE || null,
+          acres: Math.round(acres),
+          color: SMA_UNIT_COLORS[agency] || '#888888',
         },
       };
     }),
   };
 
-  // Compute hash of source data for change detection (sample of first 1000)
   const sourceHash = crypto
     .createHash('sha256')
     .update(JSON.stringify(features.slice(0, 1000)))
     .digest('hex')
     .slice(0, 16);
 
-  // Write output
   const outputDir = path.dirname(OUTPUT_PATH);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -171,7 +165,6 @@ export async function importBLMSMA(): Promise<{
   console.log(`\nWritten: ${OUTPUT_PATH}`);
   console.log(`Features: ${features.length}`);
   console.log(`File size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
-  console.log(`Source hash (sample): ${sourceHash}`);
 
   return {
     totalFeatures: features.length,
@@ -181,7 +174,6 @@ export async function importBLMSMA(): Promise<{
   };
 }
 
-// CLI entry point
 if (require.main === module) {
   importBLMSMA()
     .then((result) => {
