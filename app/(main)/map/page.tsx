@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
+import { MapLegend, MapLayerToggle, BackcountryMap, BasemapToggle, OVERLAY_LAYERS } from '@/components/map';
 import { Search } from 'lucide-react';
 
 export default function MapPage() {
@@ -43,6 +43,7 @@ export default function MapPage() {
     <div className="h-[calc(100vh-3.5rem)] relative">
       <BackcountryMap onMapLoad={handleMapLoad} />
 
+      <BasemapToggle />
       <MapLayerToggle layers={layers} onToggle={handleToggle} />
       <MapLegend />
 

@@ -18,7 +18,6 @@ interface BackcountryMapProps {
   initialZoom?: number;
   routesGeoJson?: GeoJSON.FeatureCollection;
   onMapLoad?: (map: maplibregl.Map) => void;
-  onInspectorUpdate?: (info: MapFeatureInfo | null) => void;
 }
 
 export const OVERLAY_LAYERS = [
@@ -31,6 +30,45 @@ export const OVERLAY_LAYERS = [
   { id: 'sma-blm-fill', label: 'BLM Land', color: '#8B6914', description: 'Bureau of Land Management — multiple use' },
 ] as const;
 
+export type BasemapId = 'osm' | 'topo' | 'satellite';
+
+export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> = {
+  osm:      { label: 'Map',     icon: '🗺️' },
+  topo:     { label: 'Topo',    icon: '⛰️' },
+  satellite:{ label: 'Satellite', icon: '🛰️' },
+};
+
+function getBasemapStyle(basemap: BasemapId) {
+  return {
+    version: 8,
+    sources: {
+      osm: {
+        type: 'raster',
+        tiles: basemap === 'osm'
+          ? [
+              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            ]
+          : basemap === 'topo'
+          ? [
+              'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+            ]
+          : [
+              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            ],
+        tileSize: 256,
+        attribution: basemap === 'osm'
+          ? '© OpenStreetMap contributors'
+          : basemap === 'topo'
+          ? '© OpenStreetMap contributors, © OpenTopoMap'
+          : '© Esri',
+      },
+    },
+    layers: [{ id: 'basemap', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }],
+  };
+}
+
 export function BackcountryMap({
   initialCenter = [-98.5795, 39.8283],
   initialZoom = 4,
@@ -41,8 +79,8 @@ export function BackcountryMap({
   const map = useRef<maplibregl.Map | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [basemap, setBasemap] = useState<BasemapId>('osm');
 
-  // Keep onMapLoad stable
   const onMapLoadRef = useRef(onMapLoad);
   useEffect(() => { onMapLoadRef.current = onMapLoad; });
 
@@ -92,27 +130,43 @@ export function BackcountryMap({
     }
   };
 
+  const switchBasemap = (newBasemap: BasemapId) => {
+    if (!map.current || newBasemap === basemap) return;
+    const newStyle = getBasemapStyle(newBasemap);
+    map.current.setStyle(newStyle);
+
+    // Reload overlays after style switch — MapLibre destroys layers on setStyle
+    map.current.once('style.load', async () => {
+      if (!map.current) return;
+      await Promise.all([
+        loadOverlay('/data/sma-blm.geojson', 'sma-blm-src', 'sma-blm-fill', '#8B6914', 0.5),
+        loadOverlay('/data/sma-usfs.geojson', 'sma-usfs-src', 'sma-usfs-fill', '#2D5016', 0.55),
+        loadOverlay('/data/sma-fws.geojson', 'sma-fws-src', 'sma-fws-fill', '#DC2626', 0.55),
+        loadOverlay('/data/sma-nps.geojson', 'sma-nps-src', 'sma-nps-fill', '#DC2626', 0.55),
+        loadOverlay('/data/fs-wilderness.geojson', 'fs-wilderness-src', 'fs-wilderness-fill', '#DC2626', 0.6),
+        loadOverlay('/data/wsa.geojson', 'wsa-src', 'wsa-fill', '#DC2626', 0.6),
+        loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.6),
+      ]);
+      if (routesGeoJson?.features?.length) {
+        map.current.addSource('routes-source', { type: 'geojson', data: routesGeoJson });
+        map.current.addLayer({
+          id: 'routes-line',
+          type: 'line',
+          source: 'routes-source',
+          paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-dasharray': [2, 1] },
+        });
+      }
+    });
+
+    setBasemap(newBasemap);
+  };
+
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: 'raster',
-            tiles: [
-              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            ],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors',
-          },
-        },
-        layers: [{ id: 'osm', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }],
-      },
+      style: getBasemapStyle(basemap),
       center: initialCenter,
       zoom: initialZoom,
     });
@@ -120,11 +174,9 @@ export function BackcountryMap({
     map.current.addControl(new maplibregl.NavigationControl(), 'top-left');
     map.current.addControl(new maplibregl.ScaleControl(), 'bottom-left');
 
-    // Create popup once, reuse it
     popup.current = new maplibregl.Popup({
       closeButton: true,
       closeOnClick: false,
-      className: 'landout-popup',
     });
 
     map.current.on('load', async () => {
@@ -153,7 +205,6 @@ export function BackcountryMap({
 
       ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
 
-      // Click/tap inspector — find ALL layers at click point, pick most restrictive
       map.current.on('click', (e) => {
         if (!map.current || !popup.current) return;
 
@@ -163,13 +214,9 @@ export function BackcountryMap({
 
         const allFeatures = map.current.queryRenderedFeatures(e.point);
         if (allFeatures.length === 0) {
-          console.log('[click] -> Unknown/Private');
           popup.current.remove();
           return;
         }
-
-        const hitLayers = allFeatures.map((f) => f.layer!.id);
-        console.log('[click] hit layers:', hitLayers.join(', '));
 
         const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
           'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
@@ -197,10 +244,7 @@ export function BackcountryMap({
           }
         }
 
-        if (!bestLayer) {
-          popup.current.remove();
-          return;
-        }
+        if (!bestLayer) { popup.current.remove(); return; }
 
         const props = bestFeature.properties || {};
         const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
@@ -224,10 +268,8 @@ export function BackcountryMap({
         `;
 
         popup.current.setLngLat(e.lngLat).setHTML(html).addTo(map.current);
-        console.log('[click] ->', bestLayer.agency, '|', bestLayer.label, '|', bestLayer.restriction);
       });
 
-      // Hover cursor
       map.current.on('mousemove', (e) => {
         if (!map.current) return;
         const features = map.current.queryRenderedFeatures(e.point);
@@ -243,6 +285,12 @@ export function BackcountryMap({
       popup.current = null;
     };
   }, [initialCenter, initialZoom, routesGeoJson]);
+
+  // Expose basemap switcher via window so parent can call it
+  useEffect(() => {
+    (window as typeof window & { landoutSwitchBasemap: typeof switchBasemap }).landoutSwitchBasemap = switchBasemap;
+    (window as typeof window & { landoutGetBasemap: () => BasemapId }).landoutGetBasemap = () => basemap;
+  });
 
   return (
     <div className="relative w-full h-full">
