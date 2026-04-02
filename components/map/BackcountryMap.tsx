@@ -230,6 +230,7 @@ export function BackcountryMap({
         for (const [layerId, layer] of Object.entries(LAYER_CONFIG)) {
           const features = map.current!.queryRenderedFeatures({ layers: [layerId] });
           const hit = features.find((f) => f.geometry && f.geometry.type !== 'GeometryCollection');
+          console.log('[debug] layer:', layerId, '| hits:', features.length, '| valid geom:', hit ? 'YES -> ' + layer.label : 'no');
           if (hit) {
             const props = hit.properties || {};
             const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME ||
