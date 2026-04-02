@@ -29,7 +29,7 @@ export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> 
   satellite:{ label: 'Satellite', icon: '🛰️' },
 };
 
-function getBasemapStyle(basemap: BasemapId) {
+function buildStyle(basemap: BasemapId) {
   let tiles: string[];
   let attribution: string;
   if (basemap === 'osm') {
@@ -48,8 +48,10 @@ function getBasemapStyle(basemap: BasemapId) {
   }
   return {
     version: 8 as const,
-    sources: { osm: { type: 'raster' as const, tiles, tileSize: 256 as const, attribution } },
-    layers: [{ id: 'basemap', type: 'raster' as const, source: 'osm', minzoom: 0, maxzoom: 19 }],
+    sources: {
+      basemap: { type: 'raster' as const, tiles, tileSize: 256 as const, attribution },
+    },
+    layers: [{ id: 'basemap', type: 'raster' as const, source: 'basemap', minzoom: 0, maxzoom: 19 }],
   };
 }
 
@@ -64,16 +66,14 @@ export function BackcountryMap({
   const [loaded, setLoaded] = useState(false);
   const [basemap, setBasemap] = useState<BasemapId>('osm');
 
-  // Track active popups so we can close them
   const activePopups = useRef<maplibregl.Popup[]>([]);
 
-  // Stable refs — prevent useEffect deps from growing
   const onMapLoadRef = useRef(onMapLoad);
   useEffect(() => { onMapLoadRef.current = onMapLoad; });
   const routesRef = useRef(routesGeoJson);
   useEffect(() => { routesRef.current = routesGeoJson; });
 
-  // Overlay visibility
+  // Overlay visibility — tracked in ref, applied directly to map (no state = no re-render)
   const overlayVis = useRef<Record<string, boolean>>(
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
@@ -89,6 +89,28 @@ export function BackcountryMap({
   function closeAllPopups() {
     activePopups.current.forEach((p) => p.remove());
     activePopups.current = [];
+  }
+
+  // Load a single overlay GeoJSON — sources survive basemap changes via shared style
+  async function loadOverlay(url: string, sourceId: string, layerId: string, color: string, opacity = 0.6) {
+    if (!map.current) return;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data: GeoJSON.FeatureCollection = await res.json();
+      if (!data.features?.length) return;
+      if (map.current.getSource(sourceId)) {
+        (map.current.getSource(sourceId) as maplibregl.GeoJSONSource).setData(data);
+      } else {
+        map.current.addSource(sourceId, { type: 'geojson', data });
+        map.current.addLayer({ id: layerId, type: 'fill', source: sourceId, paint: { 'fill-color': color, 'fill-opacity': opacity } });
+        map.current.addLayer({ id: layerId + '-outline', type: 'line', source: sourceId, paint: { 'line-color': color, 'line-width': 2 } });
+        if (!overlayVis.current[layerId]) {
+          map.current.setLayoutProperty(layerId, 'visibility', 'none');
+          map.current.setLayoutProperty(layerId + '-outline', 'visibility', 'none');
+        }
+      }
+    } catch (err) { console.error('[load]', url, err); }
   }
 
   async function loadAllOverlays() {
@@ -111,27 +133,6 @@ export function BackcountryMap({
     }
   }
 
-  async function loadOverlay(url: string, sourceId: string, layerId: string, color: string, opacity = 0.6) {
-    if (!map.current) return;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data: GeoJSON.FeatureCollection = await res.json();
-      if (!data.features?.length) return;
-      if (map.current.getSource(sourceId)) {
-        (map.current.getSource(sourceId) as maplibregl.GeoJSONSource).setData(data);
-      } else {
-        map.current.addSource(sourceId, { type: 'geojson', data });
-        map.current.addLayer({ id: layerId, type: 'fill', source: sourceId, paint: { 'fill-color': color, 'fill-opacity': opacity } });
-        map.current.addLayer({ id: layerId + '-outline', type: 'line', source: sourceId, paint: { 'line-color': color, 'line-width': 2 } });
-        if (!overlayVis.current[layerId]) {
-          map.current.setLayoutProperty(layerId, 'visibility', 'none');
-          map.current.setLayoutProperty(layerId + '-outline', 'visibility', 'none');
-        }
-      }
-    } catch (err) { console.error('[load]', url, err); }
-  }
-
   // Inject popup styles
   useEffect(() => {
     const style = document.createElement('style');
@@ -139,7 +140,7 @@ export function BackcountryMap({
       .landout-popup .maplibregl-popup-content { padding: 10px 14px; font-family: -apple-system, sans-serif; min-width: 180px; max-width: 240px; }
       .landout-popup-body { }
       .landout-popup-body.collapsed { display: none; }
-      .landout-popup-minbtn { position: absolute; top: 6px; right: 28px; background: none; border: none; cursor: pointer; color: #94A3B8; font-size: 16px; line-height: 1; padding: 0 2px; z-index: 2; }
+      .landout-popup-minbtn { position: absolute; top: 6px; right: 28px; background: none; border: none; cursor: pointer; color: #94A3B8; font-size: 16px; line-height: 1; z-index: 2; }
     `;
     document.head.appendChild(style);
     return () => { document.head.removeChild(style); };
@@ -150,7 +151,7 @@ export function BackcountryMap({
 
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
-      style: getBasemapStyle(basemap),
+      style: buildStyle(basemap),
       center: initialCenter,
       zoom: initialZoom,
     });
@@ -176,13 +177,12 @@ export function BackcountryMap({
     };
     const RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2 };
 
-    // Click on map → close all open popups, then show new one if over a feature
+    // Click → close all popups, then show new one for topmost land-restriction feature
     mapInstance.on('click', (e) => {
       closeAllPopups();
 
       const allFeatures = mapInstance.queryRenderedFeatures(e.point);
       if (!allFeatures.length) return;
-
       mapInstance.getCanvas().style.cursor = 'pointer';
 
       let best = allFeatures[0];
@@ -249,7 +249,7 @@ export function BackcountryMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // EMPTY DEPS — map only mounts once
 
-  // Expose window API
+  // Expose window API — basemap switch patches the existing tile source, no style reload needed
   useEffect(() => {
     const win = window as typeof window & {
       landoutSwitchBasemap: (id: BasemapId) => void;
@@ -259,15 +259,13 @@ export function BackcountryMap({
     const switchTo = (id: BasemapId) => {
       if (!map.current || id === basemap) return;
       closeAllPopups();
-      // Save current overlay visibility
-      const saved = { ...overlayVis.current };
-      map.current.setStyle(getBasemapStyle(id));
-      map.current.once('style.load', () => {
-        if (!map.current) return;
-        // Restore visibility before reloading so layers respect current state
-        Object.assign(overlayVis.current, saved);
-        loadAllOverlays();
-      });
+      // Patch tile URLs in the existing 'basemap' raster source — no style reload, no overlay loss
+      const src = map.current.getSource('basemap') as maplibregl.RasterTileSource;
+      if (!src) return;
+      const newStyle = buildStyle(id);
+      const newSrc = newStyle.sources.basemap as maplibregl.RasterTileSource;
+      src.setTiles(newSrc.tiles);
+      src.setAttribution(newSrc.attribution ?? '');
       setBasemap(id);
     };
     win.landoutSwitchBasemap = switchTo;
