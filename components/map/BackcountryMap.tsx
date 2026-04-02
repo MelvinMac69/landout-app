@@ -30,33 +30,39 @@ export const OVERLAY_LAYERS = [
   { id: 'sma-blm-fill', label: 'BLM Land', color: '#8B6914', description: 'Bureau of Land Management — multiple use' },
 ] as const;
 
-export type BasemapId = 'osm' | 'topo' | 'satellite';
+export type BasemapId = 'osm' | 'topo' | 'satellite' | 'vfr';
 
 export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> = {
-  osm:      { label: 'Map',     icon: '🗺️' },
-  topo:     { label: 'Topo',    icon: '⛰️' },
+  osm:      { label: 'Map',      icon: '🗺️' },
+  topo:     { label: 'Topo',     icon: '⛰️' },
   satellite:{ label: 'Satellite', icon: '🛰️' },
+  vfr:      { label: 'VFR Chart', icon: '✈️' },
 };
 
 function getBasemapStyle(basemap: BasemapId) {
-  const tiles = basemap === 'osm'
-    ? [
-        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      ]
-    : basemap === 'topo'
-    ? [
-        'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-      ]
-    : [
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      ];
-  const attribution = basemap === 'osm'
-    ? '© OpenStreetMap contributors'
-    : basemap === 'topo'
-    ? '© OpenStreetMap contributors, © OpenTopoMap'
-    : '© Esri';
+  let tiles: string[];
+  let attribution: string;
+
+  if (basemap === 'osm') {
+    tiles = [
+      'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    ];
+    attribution = '© OpenStreetMap contributors';
+  } else if (basemap === 'topo') {
+    tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
+    attribution = '© OpenStreetMap contributors, © OpenTopoMap';
+  } else if (basemap === 'satellite') {
+    tiles = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
+    attribution = '© Esri';
+  } else {
+    // VFR Sectional Charts — FAA data via ArcGIS
+    tiles = [
+      'https://tiles.arcgisonline.com/ArcGIS/rest/services/Aviation/World_VFR_Sectional/MapServer/tile/{z}/{y}/{x}',
+    ];
+    attribution = '© Esri / FAA VFR Charts — For planning only, not for navigation';
+  }
 
   return {
     version: 8 as const,
