@@ -13,83 +13,6 @@ export interface MapFeatureInfo {
   layerId: string;
 }
 
-interface MapInspectorProps {
-  info: MapFeatureInfo | null;
-  x: number;
-  y: number;
-  onClose: () => void;
-}
-
-function MapInspector({ info, x, y, onClose }: MapInspectorProps) {
-  if (!info) return null;
-  const isTop = y > window.innerHeight / 2;
-  const style: React.CSSProperties = {
-    position: 'absolute',
-    left: Math.min(x - 100, window.innerWidth - 220),
-    top: isTop ? y - 10 : y + 10,
-    transform: isTop ? 'translateY(-100%)' : 'none',
-    zIndex: 10,
-    background: 'white',
-    borderRadius: 10,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
-    padding: '10px 14px',
-    minWidth: 180,
-    maxWidth: 220,
-    fontSize: 13,
-    pointerEvents: 'auto',
-  };
-  const dotStyle: React.CSSProperties = {
-    display: 'inline-block',
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    backgroundColor: info.agencyColor,
-    marginRight: 8,
-    flexShrink: 0,
-  };
-  const restrictionColor =
-    info.restriction === 'no-landing' ? '#DC2626' :
-    '#94A3B8';
-  const restrictionText =
-    info.restriction === 'no-landing' ? '🚫 No landing' :
-    info.restriction === 'restricted' ? (info.agency === 'Unknown / Private Land' ? '⚠️ Private land — landing not authorized' : '⚠️ Restricted — verify before landing') :
-    '✅ Multiple use — landing generally OK';
-  return (
-    <div style={style}>
-      <button
-        onClick={onClose}
-        style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
-        aria-label="Close"
-      >
-        ×
-      </button>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
-        <span style={dotStyle} />
-        <span style={{ fontWeight: 600, color: '#1E293B' }}>{info.agency}</span>
-      </div>
-      {info.layerLabel && (
-        <div style={{ color: '#64748B', fontSize: 12, marginBottom: 3, paddingLeft: 18, fontStyle: 'italic' }}>{info.layerLabel}</div>
-      )}
-      {info.unitName && (
-        <div style={{ color: '#475569', marginBottom: 3, paddingLeft: 18, fontSize: 12 }}>{info.unitName}</div>
-      )}
-      <div style={{
-        marginTop: 4,
-        padding: '4px 8px',
-        borderRadius: 6,
-        backgroundColor: info.restriction === 'no-landing' ? '#FEE2E2' :
-                        info.restriction === 'restricted' ? '#FEF3C7' : '#DCFCE7',
-        color: restrictionColor,
-        fontSize: 11,
-        fontWeight: 600,
-        textAlign: 'center',
-      }}>
-        {restrictionText}
-      </div>
-    </div>
-  );
-}
-
 interface BackcountryMapProps {
   initialCenter?: [number, number];
   initialZoom?: number;
@@ -116,10 +39,10 @@ export function BackcountryMap({
 }: BackcountryMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const popup = useRef<maplibregl.Popup | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [inspector, setInspector] = useState<{ info: MapFeatureInfo | null; x: number; y: number } | null>(null);
 
-  // Keep onMapLoad stable — don't put it in useEffect deps or map will re-init on parent re-render
+  // Keep onMapLoad stable
   const onMapLoadRef = useRef(onMapLoad);
   useEffect(() => { onMapLoadRef.current = onMapLoad; });
 
@@ -197,13 +120,17 @@ export function BackcountryMap({
     map.current.addControl(new maplibregl.NavigationControl(), 'top-left');
     map.current.addControl(new maplibregl.ScaleControl(), 'bottom-left');
 
+    // Create popup once, reuse it
+    popup.current = new maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: false,
+      className: 'landout-popup',
+    });
+
     map.current.on('load', async () => {
       if (!map.current) return;
       setLoaded(true);
 
-      // Layer ORDER matters: layers added last render on TOP
-      // Add specific land types first (NFS, BLM), then broad overlays (wilderness, WSA) last
-      // This way wilderness/WSA visually covers BLM land and gets detected first by queryRenderedFeatures
       await Promise.all([
         loadOverlay('/data/sma-blm.geojson', 'sma-blm-src', 'sma-blm-fill', '#8B6914', 0.5),
         loadOverlay('/data/sma-usfs.geojson', 'sma-usfs-src', 'sma-usfs-fill', '#2D5016', 0.55),
@@ -224,36 +151,26 @@ export function BackcountryMap({
         });
       }
 
-      // Attach visibility control to map instance so parent can call map.setOverlayVisibility(layerId, visible)
       ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
 
       // Click/tap inspector — find ALL layers at click point, pick most restrictive
       map.current.on('click', (e) => {
-        // Prevent zoom/pan from being triggered by this click
-        e.originalEvent.stopPropagation();
-        e.originalEvent.preventDefault();
+        if (!map.current || !popup.current) return;
 
-        setInspector(null);
-
-        const lat = e.lngLat.lat.toFixed(4);
         const lng = e.lngLat.lng.toFixed(4);
+        const lat = e.lngLat.lat.toFixed(4);
         console.log('[click]', lng + ',' + lat);
 
-        // Query ALL features at this pixel (no layer filter)
-        const allFeatures = map.current!.queryRenderedFeatures(e.point);
+        const allFeatures = map.current.queryRenderedFeatures(e.point);
         if (allFeatures.length === 0) {
-          console.log('[click] -> Unknown/Private (no overlay hits)');
-          setInspector({ x: e.point.x, y: e.point.y, info: {
-            agency: 'Unknown / Private Land', unitName: '', restriction: 'restricted',
-            agencyColor: '#94A3B8', layerLabel: 'Unknown', layerId: '',
-          }});
+          console.log('[click] -> Unknown/Private');
+          popup.current.remove();
           return;
         }
 
         const hitLayers = allFeatures.map((f) => f.layer!.id);
         console.log('[click] hit layers:', hitLayers.join(', '));
 
-        // Map layer IDs to agency info with restriction priority
         const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
           'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
           'wsa-fill':           { agency: 'Bureau of Land Management', label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
@@ -264,12 +181,10 @@ export function BackcountryMap({
           'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
         };
 
-        // Find the MOST restrictive layer among all hits
-        // Priority: no-landing > restricted > multiple-use
         const RESTRICTION_RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2 };
         let bestFeature = allFeatures[0];
-        let bestLayer = LAYER_INFO[bestFeature.layer!.id] || LAYER_INFO['sma-blm-fill'];
-        let bestRank = RESTRICTION_RANK[bestLayer.restriction] ?? 3;
+        let bestLayer = LAYER_INFO[bestFeature.layer!.id];
+        let bestRank = RESTRICTION_RANK[bestLayer?.restriction] ?? 3;
 
         for (const feat of allFeatures) {
           const info = LAYER_INFO[feat.layer!.id];
@@ -282,17 +197,41 @@ export function BackcountryMap({
           }
         }
 
+        if (!bestLayer) {
+          popup.current.remove();
+          return;
+        }
+
         const props = bestFeature.properties || {};
         const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
-        console.log('[click] ->', bestLayer.agency, '|', bestLayer.label, '|', bestLayer.restriction, '|', name);
-        setInspector({ x: e.point.x, y: e.point.y, info: {
-          agency: bestLayer.agency,
-          unitName: typeof name === 'string' ? name : '',
-          restriction: bestLayer.restriction,
-          agencyColor: bestLayer.color,
-          layerLabel: bestLayer.label,
-          layerId: bestFeature.layer!.id,
-        }});
+
+        const restrictionColor = bestLayer.restriction === 'no-landing' ? '#DC2626' : bestLayer.restriction === 'restricted' ? '#D97706' : '#16A34A';
+        const restrictionBg = bestLayer.restriction === 'no-landing' ? '#FEE2E2' : bestLayer.restriction === 'restricted' ? '#FEF3C7' : '#DCFCE7';
+        const restrictionText = bestLayer.restriction === 'no-landing' ? '🚫 No landing' : bestLayer.restriction === 'restricted' ? '⚠️ Restricted — verify before landing' : '✅ Multiple use — landing generally OK';
+
+        const html = `
+          <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;min-width:180px;max-width:220px">
+            <div style="display:flex;align-items:center;margin-bottom:4px">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bestLayer.color};margin-right:8px;flex-shrink:0"></span>
+              <span style="font-weight:600;color:#1E293B">${bestLayer.agency}</span>
+            </div>
+            ${bestLayer.label ? `<div style="color:#64748B;font-size:12px;font-style:italic;margin-bottom:3px;padding-left:18px">${bestLayer.label}</div>` : ''}
+            ${name ? `<div style="color:#475569;font-size:12px;margin-bottom:3px;padding-left:18px">${name}</div>` : ''}
+            <div style="margin-top:4px;padding:4px 8px;border-radius:6px;background:${restrictionBg};color:${restrictionColor};font-size:11px;font-weight:600;text-align:center">
+              ${restrictionText}
+            </div>
+          </div>
+        `;
+
+        popup.current.setLngLat(e.lngLat).setHTML(html).addTo(map.current);
+        console.log('[click] ->', bestLayer.agency, '|', bestLayer.label, '|', bestLayer.restriction);
+      });
+
+      // Hover cursor
+      map.current.on('mousemove', (e) => {
+        if (!map.current) return;
+        const features = map.current.queryRenderedFeatures(e.point);
+        map.current.getCanvas().style.cursor = features.length ? 'pointer' : '';
       });
 
       if (onMapLoadRef.current) onMapLoadRef.current(map.current);
@@ -301,8 +240,9 @@ export function BackcountryMap({
     return () => {
       map.current?.remove();
       map.current = null;
+      popup.current = null;
     };
-  }, [initialCenter, initialZoom, routesGeoJson, onMapLoad]);
+  }, [initialCenter, initialZoom, routesGeoJson]);
 
   return (
     <div className="relative w-full h-full">
@@ -311,14 +251,6 @@ export function BackcountryMap({
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>
         </div>
-      )}
-      {inspector && (
-        <MapInspector
-          info={inspector.info}
-          x={inspector.x}
-          y={inspector.y}
-          onClose={() => setInspector(null)}
-        />
       )}
     </div>
   );
