@@ -39,33 +39,36 @@ export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> 
 };
 
 function getBasemapStyle(basemap: BasemapId) {
+  const tiles = basemap === 'osm'
+    ? [
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      ]
+    : basemap === 'topo'
+    ? [
+        'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+      ]
+    : [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      ];
+  const attribution = basemap === 'osm'
+    ? '© OpenStreetMap contributors'
+    : basemap === 'topo'
+    ? '© OpenStreetMap contributors, © OpenTopoMap'
+    : '© Esri';
+
   return {
     version: 8 as const,
     sources: {
       osm: {
-        type: 'raster',
-        tiles: basemap === 'osm'
-          ? [
-              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            ]
-          : basemap === 'topo'
-          ? [
-              'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-            ]
-          : [
-              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            ],
-        tileSize: 256,
-        attribution: basemap === 'osm'
-          ? '© OpenStreetMap contributors'
-          : basemap === 'topo'
-          ? '© OpenStreetMap contributors, © OpenTopoMap'
-          : '© Esri',
+        type: 'raster' as const,
+        tiles,
+        tileSize: 256 as const,
+        attribution,
       },
     },
-    layers: [{ id: 'basemap', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }],
+    layers: [{ id: 'basemap', type: 'raster' as const, source: 'osm', minzoom: 0, maxzoom: 19 }],
   };
 }
 
