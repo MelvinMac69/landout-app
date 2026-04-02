@@ -37,8 +37,8 @@ export default function MapPage() {
     <div className="h-[calc(100vh-3.5rem)] relative">
       <BackcountryMap onMapLoad={handleMapLoad} />
 
-      {/* Search — bottom of screen, above disclaimer */}
-      <div className="absolute bottom-28 left-4 right-4 md:left-4 md:w-80 z-10">
+      {/* Search — bottom-center, below basemap buttons */}
+      <div className="absolute bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-80 md:mx-auto z-10">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-slate-400" />
@@ -51,10 +51,10 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Basemap toggle — bottom-left, always accessible */}
+      {/* Basemap toggle — bottom-left, above search */}
       <BasemapToggle />
 
-      {/* Disclaimer — bottom-right, always visible */}
+      {/* Disclaimer — bottom-right, aligned with basemap buttons */}
       <div className="absolute bottom-8 right-4 z-10 max-w-xs">
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800">
           <strong>⚠️ NOT FOR NAVIGATION</strong>
@@ -63,10 +63,10 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Layer toggle — top-right, above map legend */}
+      {/* Layer toggle — top-right */}
       <MapLayerToggle layers={layers} onToggle={handleToggle} />
 
-      {/* Map legend — top-right below layer panel */}
+      {/* Map legend — top-right below layer panel (stacked below it) */}
       <MapLegend />
     </div>
   );
