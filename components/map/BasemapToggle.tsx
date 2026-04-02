@@ -1,24 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import { BASEMAP_STYLES, type BasemapId } from './BackcountryMap';
 
-declare global {
-  interface Window {
-    landoutSwitchBasemap: (basemap: BasemapId) => void;
-    landoutGetBasemap: () => BasemapId;
-  }
-}
-
 export function BasemapToggle() {
-  const current = typeof window !== 'undefined' ? window.landoutGetBasemap?.() ?? 'osm' : 'osm';
+  // Track active state locally — stays in sync after user clicks
+  const [active, setActive] = useState<BasemapId>('osm');
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: 8,
-        right: 180,
-        zIndex: 20,
+        top: 56,
+        right: 8,
+        zIndex: 30,
         display: 'flex',
         gap: 4,
         background: 'white',
@@ -30,7 +25,11 @@ export function BasemapToggle() {
       {(Object.entries(BASEMAP_STYLES) as [BasemapId, typeof BASEMAP_STYLES[BasemapId]][]).map(([id, { label, icon }]) => (
         <button
           key={id}
-          onClick={() => window.landoutSwitchBasemap?.(id)}
+          onClick={() => {
+            setActive(id);
+            const fn = (window as typeof window & { landoutSwitchBasemap: (b: BasemapId) => void }).landoutSwitchBasemap;
+            if (fn) fn(id);
+          }}
           style={{
             padding: '6px 10px',
             borderRadius: 6,
@@ -38,8 +37,8 @@ export function BasemapToggle() {
             cursor: 'pointer',
             fontSize: 12,
             fontWeight: 600,
-            background: current === id ? '#1E293B' : 'transparent',
-            color: current === id ? 'white' : '#475569',
+            background: active === id ? '#1E293B' : 'transparent',
+            color: active === id ? 'white' : '#475569',
             transition: 'all 0.15s',
           }}
           title={label}

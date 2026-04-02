@@ -84,10 +84,22 @@ export function BackcountryMap({
   const [loaded, setLoaded] = useState(false);
   const [basemap, setBasemap] = useState<BasemapId>('osm');
 
+  // Stable refs — never change, so useEffect deps stay empty and map never re-mounts
+  const initialCenterRef = useRef(initialCenter);
+  const initialZoomRef = useRef(initialZoom);
+  const routesGeoJsonRef = useRef(routesGeoJson);
   const onMapLoadRef = useRef(onMapLoad);
   useEffect(() => { onMapLoadRef.current = onMapLoad; });
+  useEffect(() => { initialCenterRef.current = initialCenter; });
+  useEffect(() => { initialZoomRef.current = initialZoom; });
+  useEffect(() => { routesGeoJsonRef.current = routesGeoJson; });
+
+  const overlayVisibilityRef = useRef<Record<string, boolean>>(
+    Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
+  );
 
   const setOverlayVisibility = (layerId: string, visible: boolean) => {
+    overlayVisibilityRef.current[layerId] = visible;
     if (!map.current) return;
     const ids = [layerId, layerId + '-outline'];
     ids.forEach((id) => {
@@ -127,6 +139,10 @@ export function BackcountryMap({
           source: sourceId,
           paint: { 'line-color': color, 'line-width': 2 },
         });
+        // Apply current visibility state
+        const visible = overlayVisibilityRef.current[layerId] ?? true;
+        map.current.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+        map.current.setLayoutProperty(layerId + '-outline', 'visibility', visible ? 'visible' : 'none');
       }
     } catch (err) {
       console.error('[BackcountryMap] load error ' + url + ':', err);
@@ -149,8 +165,8 @@ export function BackcountryMap({
         loadOverlay('/data/wsa.geojson', 'wsa-src', 'wsa-fill', '#DC2626', 0.6),
         loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.6),
       ]);
-      if (routesGeoJson?.features?.length) {
-        map.current.addSource('routes-source', { type: 'geojson', data: routesGeoJson });
+      if (routesGeoJsonRef.current?.features?.length) {
+        map.current.addSource('routes-source', { type: 'geojson', data: routesGeoJsonRef.current });
         map.current.addLayer({
           id: 'routes-line',
           type: 'line',
@@ -169,8 +185,8 @@ export function BackcountryMap({
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: getBasemapStyle(basemap),
-      center: initialCenter,
-      zoom: initialZoom,
+      center: initialCenterRef.current,
+      zoom: initialZoomRef.current,
     });
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-left');
@@ -195,8 +211,8 @@ export function BackcountryMap({
         loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.6),
       ]);
 
-      if (routesGeoJson?.features?.length) {
-        map.current.addSource('routes-source', { type: 'geojson', data: routesGeoJson });
+      if (routesGeoJsonRef.current?.features?.length) {
+        map.current.addSource('routes-source', { type: 'geojson', data: routesGeoJsonRef.current });
         map.current.addLayer({
           id: 'routes-line',
           type: 'line',
@@ -205,88 +221,98 @@ export function BackcountryMap({
         });
       }
 
-      (map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
+      if (onMapLoadRef.current) onMapLoadRef.current(map.current);
+    });
 
-      map.current.on('click', (e) => {
-        if (!map.current || !popup.current) return;
+    map.current.on('click', (e) => {
+      if (!map.current || !popup.current) return;
 
-        const lng = e.lngLat.lng.toFixed(4);
-        const lat = e.lngLat.lat.toFixed(4);
-        console.log('[click]', lng + ',' + lat);
+      const allFeatures = map.current.queryRenderedFeatures(e.point);
+      if (allFeatures.length === 0) {
+        popup.current.remove();
+        return;
+      }
 
-        const allFeatures = map.current.queryRenderedFeatures(e.point);
-        if (allFeatures.length === 0) {
-          popup.current.remove();
-          return;
+      const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
+        'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
+        'wsa-fill':           { agency: 'Bureau of Land Management', label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
+        'fs-wilderness-fill': { agency: 'US Forest Service',         label: 'USFS Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
+        'sma-nps-fill':      { agency: 'National Park Service',     label: 'National Park',         restriction: 'no-landing',   color: '#DC2626' },
+        'sma-fws-fill':      { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',       restriction: 'restricted',   color: '#DC2626' },
+        'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
+        'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
+      };
+
+      const RESTRICTION_RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2 };
+      let bestFeature = allFeatures[0];
+      let bestLayer = LAYER_INFO[bestFeature.layer!.id];
+      let bestRank = RESTRICTION_RANK[bestLayer?.restriction] ?? 3;
+
+      for (const feat of allFeatures) {
+        const info = LAYER_INFO[feat.layer!.id];
+        if (!info) continue;
+        const rank = RESTRICTION_RANK[info.restriction] ?? 3;
+        if (rank < bestRank) {
+          bestFeature = feat;
+          bestLayer = info;
+          bestRank = rank;
         }
+      }
 
-        const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
-          'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
-          'wsa-fill':           { agency: 'Bureau of Land Management', label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
-          'fs-wilderness-fill': { agency: 'US Forest Service',         label: 'USFS Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
-          'sma-nps-fill':      { agency: 'National Park Service',     label: 'National Park',         restriction: 'no-landing',   color: '#DC2626' },
-          'sma-fws-fill':      { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',       restriction: 'restricted',   color: '#DC2626' },
-          'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
-          'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
-        };
+      if (!bestLayer) { popup.current.remove(); return; }
 
-        const RESTRICTION_RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2 };
-        let bestFeature = allFeatures[0];
-        let bestLayer = LAYER_INFO[bestFeature.layer!.id];
-        let bestRank = RESTRICTION_RANK[bestLayer?.restriction] ?? 3;
+      const props = bestFeature.properties || {};
+      const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
 
-        for (const feat of allFeatures) {
-          const info = LAYER_INFO[feat.layer!.id];
-          if (!info) continue;
-          const rank = RESTRICTION_RANK[info.restriction] ?? 3;
-          if (rank < bestRank) {
-            bestFeature = feat;
-            bestLayer = info;
-            bestRank = rank;
-          }
-        }
+      const restrictionColor = bestLayer.restriction === 'no-landing' ? '#DC2626' : bestLayer.restriction === 'restricted' ? '#D97706' : '#16A34A';
+      const restrictionBg = bestLayer.restriction === 'no-landing' ? '#FEE2E2' : bestLayer.restriction === 'restricted' ? '#FEF3C7' : '#DCFCE7';
+      const restrictionText = bestLayer.restriction === 'no-landing' ? '🚫 No landing' : bestLayer.restriction === 'restricted' ? '⚠️ Restricted — verify before landing' : '✅ Multiple use — landing generally OK';
 
-        if (!bestLayer) { popup.current.remove(); return; }
-
-        const props = bestFeature.properties || {};
-        const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
-
-        const restrictionColor = bestLayer.restriction === 'no-landing' ? '#DC2626' : bestLayer.restriction === 'restricted' ? '#D97706' : '#16A34A';
-        const restrictionBg = bestLayer.restriction === 'no-landing' ? '#FEE2E2' : bestLayer.restriction === 'restricted' ? '#FEF3C7' : '#DCFCE7';
-        const restrictionText = bestLayer.restriction === 'no-landing' ? '🚫 No landing' : bestLayer.restriction === 'restricted' ? '⚠️ Restricted — verify before landing' : '✅ Multiple use — landing generally OK';
-
-        const html = `
-          <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;min-width:180px;max-width:240px;position:relative">
-            <button
-              id="landout-popup-minimize"
-              onclick="var b=document.getElementById('landout-popup-body');var m=document.getElementById('landout-popup-minimize');if(b.style.display==='none'){b.style.display='block';m.textContent='−'}else{b.style.display='none';m.textContent='+'};event.stopPropagation();"
-              style="position:absolute;top:2px;right:22px;background:none;border:none;cursor:pointer;color:#94A3B8;font-size:16px;line-height:1;padding:0 2px;"
-              title="Minimize"
-            >−</button>
-            <div id="landout-popup-body">
-              <div style="display:flex;align-items:center;margin-bottom:4px">
-                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bestLayer.color};margin-right:8px;flex-shrink:0"></span>
-                <span style="font-weight:600;color:#1E293B">${bestLayer.agency}</span>
-              </div>
-              ${bestLayer.label ? `<div style="color:#64748B;font-size:12px;font-style:italic;margin-bottom:3px;padding-left:18px">${bestLayer.label}</div>` : ''}
-              ${name ? `<div style="color:#475569;font-size:12px;margin-bottom:3px;padding-left:18px">${name}</div>` : ''}
-              <div style="margin-top:4px;padding:4px 8px;border-radius:6px;background:${restrictionBg};color:${restrictionColor};font-size:11px;font-weight:600;text-align:center">
-                ${restrictionText}
-              </div>
+      const html = `
+        <div id="landout-popup-root" style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;min-width:180px;max-width:240px;position:relative;cursor:default">
+          <div id="landout-popup-body">
+            <div style="display:flex;align-items:center;margin-bottom:4px">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bestLayer.color};margin-right:8px;flex-shrink:0"></span>
+              <span style="font-weight:600;color:#1E293B">${bestLayer.agency}</span>
+            </div>
+            ${bestLayer.label ? `<div style="color:#64748B;font-size:12px;font-style:italic;margin-bottom:3px;padding-left:18px">${bestLayer.label}</div>` : ''}
+            ${name ? `<div style="color:#475569;font-size:12px;margin-bottom:3px;padding-left:18px">${name}</div>` : ''}
+            <div style="margin-top:4px;padding:4px 8px;border-radius:6px;background:${restrictionBg};color:${restrictionColor};font-size:11px;font-weight:600;text-align:center">
+              ${restrictionText}
             </div>
           </div>
-        `;
+        </div>
+      `;
 
-        popup.current.setLngLat(e.lngLat).setHTML(html).addTo(map.current);
-      });
+      popup.current.setLngLat(e.lngLat).setHTML(html).addTo(map.current);
 
-      map.current.on('mousemove', (e) => {
-        if (!map.current) return;
-        const features = map.current.queryRenderedFeatures(e.point);
-        map.current.getCanvas().style.cursor = features.length ? 'pointer' : '';
-      });
+      // Add minimize toggle via event delegation on the popup container
+      const root = document.getElementById('landout-popup-root');
+      if (root) {
+        root.addEventListener('click', (ev) => {
+          const target = ev.target as HTMLElement;
+          if (target.id === 'landout-popup-minimize') {
+            ev.stopPropagation();
+            const body = document.getElementById('landout-popup-body');
+            const btn = document.getElementById('landout-popup-minimize');
+            if (body && btn) {
+              if (body.style.display === 'none') {
+                body.style.display = 'block';
+                btn.textContent = '−';
+              } else {
+                body.style.display = 'none';
+                btn.textContent = '+';
+              }
+            }
+          }
+        });
+      }
+    });
 
-      if (onMapLoadRef.current) onMapLoadRef.current(map.current);
+    map.current.on('mousemove', (e) => {
+      if (!map.current) return;
+      const features = map.current.queryRenderedFeatures(e.point);
+      map.current.getCanvas().style.cursor = features.length ? 'pointer' : '';
     });
 
     return () => {
@@ -294,13 +320,21 @@ export function BackcountryMap({
       map.current = null;
       popup.current = null;
     };
-  }, [initialCenter, initialZoom, routesGeoJson]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps — map only mounts once, refs handle prop changes
 
-  // Expose functions via window so parent can call without React state
+  // Expose functions via window — stable refs, no stale closures
   useEffect(() => {
-    (window as typeof window & { landoutSwitchBasemap: typeof switchBasemap }).landoutSwitchBasemap = switchBasemap;
-    (window as typeof window & { landoutGetBasemap: () => BasemapId }).landoutGetBasemap = () => basemap;
-    (window as typeof window & { landoutSetOverlayVisibility: typeof setOverlayVisibility }).landoutSetOverlayVisibility = setOverlayVisibility;
+    const api = window as typeof window & {
+      landoutSwitchBasemap: typeof switchBasemap;
+      landoutGetBasemap: () => BasemapId;
+      landoutSetOverlayVisibility: typeof setOverlayVisibility;
+      landoutGetOverlayVisibility: () => Record<string, boolean>;
+    };
+    api.landoutSwitchBasemap = switchBasemap;
+    api.landoutGetBasemap = () => basemap;
+    api.landoutSetOverlayVisibility = setOverlayVisibility;
+    api.landoutGetOverlayVisibility = () => ({ ...overlayVisibilityRef.current });
   });
 
   return (

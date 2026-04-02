@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, BasemapToggle, OVERLAY_LAYERS } from '@/components/map';
 import { Search } from 'lucide-react';
 
@@ -15,12 +15,12 @@ export default function MapPage() {
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
 
-  const handleMapLoad = useCallback((map: import('maplibre-gl').Map) => {
-    // Store map ref if needed for future use
+  const handleMapLoad = useCallback(() => {
+    // Map is now managed entirely in BackcountryMap — no ref needed
   }, []);
 
   const handleToggle = useCallback((layerId: string) => {
-    // Call directly via window — bypasses all React state and re-renders
+    // Call directly via window — no React state change touches the map
     const fn = (window as typeof window & { landoutSetOverlayVisibility: (id: string, v: boolean) => void }).landoutSetOverlayVisibility;
     if (fn) fn(layerId, !activeLayers[layerId]);
     setActiveLayers((prev) => ({ ...prev, [layerId]: !prev[layerId] }));
@@ -40,9 +40,10 @@ export default function MapPage() {
     <div className="h-[calc(100vh-3.5rem)] relative">
       <BackcountryMap onMapLoad={handleMapLoad} />
 
-      {/* Basemap above layer panel so it's clickable when panel is open */}
+      {/* Basemap buttons — top-right, above layer panel */}
       <BasemapToggle />
 
+      {/* Layer toggle — below basemap buttons */}
       <MapLayerToggle layers={layers} onToggle={handleToggle} />
       <MapLegend />
 
