@@ -211,30 +211,31 @@ export function BackcountryMap({
       // Attach visibility control to map instance so parent can call map.setOverlayVisibility(layerId, visible)
       ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
 
-      // Click/tap inspector — query each priority layer individually, return first hit
-      // Skips layers with no geometry (e.g. sma-usfs which has mostly null geom)
+      // Click/tap inspector — check layers in priority order (most specific first)
       map.current.on('click', (e) => {
-        e.originalEvent.stopPropagation(); // prevent any parent handlers from firing
+        e.originalEvent.stopPropagation();
 
-        const LAYER_CONFIG: Record<string, { agency: string; label: string; restriction: MapFeatureInfo['restriction']; color: string }> = {
-          'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
-          'wsa-fill':           { agency: 'Bureau of Land Management', label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
-          'fs-wilderness-fill': { agency: 'US Forest Service',         label: 'USFS Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
-          'sma-nps-fill':      { agency: 'National Park Service',     label: 'National Park',         restriction: 'no-landing',   color: '#DC2626' },
-          'sma-fws-fill':      { agency: 'Fish & Wildlife Service',    label: 'Wildlife Refuge',       restriction: 'restricted',   color: '#DC2626' },
-          'sma-blm-fill':      { agency: 'Bureau of Land Management',  label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
-          'sma-usfs-fill':     { agency: 'US Forest Service',          label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
+        // Priority: specific land types FIRST, broad wilderness designations LAST
+        // This prevents large wilderness polygons from swallowing every click
+        const LAYER_CONFIG: Record<string, { agency: string; label: string; restriction: MapFeatureInfo['restriction']; color: string; priority: number }> = {
+          'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',            restriction: 'multiple-use', color: '#8B6914',  priority: 1 },
+          'sma-usfs-fill':    { agency: 'US Forest Service',         label: 'National Forest',    restriction: 'multiple-use', color: '#2D5016',  priority: 2 },
+          'sma-fws-fill':     { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',    restriction: 'restricted',  color: '#DC2626',  priority: 3 },
+          'sma-nps-fill':     { agency: 'National Park Service',      label: 'National Park',      restriction: 'no-landing',  color: '#DC2626',  priority: 4 },
+          'fs-wilderness-fill': { agency: 'US Forest Service',        label: 'USFS Wilderness',    restriction: 'no-landing',  color: '#DC2626',  priority: 5 },
+          'wsa-fill':         { agency: 'Bureau of Land Management',  label: 'Wilderness Study Area', restriction: 'no-landing', color: '#DC2626', priority: 6 },
+          'wilderness-fill':  { agency: 'Bureau of Land Management',  label: 'BLM Wilderness',     restriction: 'no-landing',  color: '#DC2626',  priority: 7 },
         };
 
-        // Query each layer individually — skip if no hits or null geometry
-        for (const [layerId, layer] of Object.entries(LAYER_CONFIG)) {
+        // Sort by priority so we check specific land types before broad overlays
+        const sorted = Object.entries(LAYER_CONFIG).sort((a, b) => a[1].priority - b[1].priority);
+        for (const [layerId, layer] of sorted) {
           const features = map.current!.queryRenderedFeatures({ layers: [layerId] });
           const hit = features.find((f) => f.geometry && f.geometry.type !== 'GeometryCollection');
-          console.log('[debug] layer:', layerId, '| hits:', features.length, '| valid geom:', hit ? 'YES -> ' + layer.label : 'no');
+          console.log('[debug]', layer.label, 'hits:', features.length, hit ? '✓' : '✗');
           if (hit) {
             const props = hit.properties || {};
-            const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME ||
-                         props.Wilderness || props.unit_name || '';
+            const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
             setInspector({ x: e.point.x, y: e.point.y, info: {
               agency: layer.agency,
               unitName: typeof name === 'string' ? name : '',
