@@ -227,27 +227,22 @@ export function BackcountryMap({
       // Attach visibility control to map instance so parent can call map.setOverlayVisibility(layerId, visible)
       ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
 
-      // Click/tap inspector — query all layers at the click point, find the topmost rendered one
+      // Click/tap inspector — find ALL layers at click point, pick most restrictive
       map.current.on('click', (e) => {
+        // Prevent zoom/pan from being triggered by this click
         e.originalEvent.stopPropagation();
+        e.originalEvent.preventDefault();
 
-        // Always clear previous inspector first
         setInspector(null);
 
-        const clickPoint = e.point;
-        console.log('[click] at', e.lngLat.lng.toFixed(4) + ',' + e.lngLat.lat.toFixed(4));
+        const lat = e.lngLat.lat.toFixed(4);
+        const lng = e.lngLat.lng.toFixed(4);
+        console.log('[click]', lng + ',' + lat);
 
-        // Query ALL rendered features at this click point
-        // queryRenderedFeatures(point: PointLike) returns all features at that pixel
+        // Query ALL features at this pixel (no layer filter)
         const allFeatures = map.current!.queryRenderedFeatures(e.point);
-        console.log('[click] total rendered hits:', allFeatures.length);
-        if (allFeatures.length > 0) {
-          console.log('[click] top feature layer:', allFeatures[0].layer?.id);
-        }
-
         if (allFeatures.length === 0) {
-          // No overlay hit — private/unknown land
-          console.log('[click] -> Unknown/Private');
+          console.log('[click] -> Unknown/Private (no overlay hits)');
           setInspector({ x: e.point.x, y: e.point.y, info: {
             agency: 'Unknown / Private Land', unitName: '', restriction: 'restricted',
             agencyColor: '#94A3B8', layerLabel: 'Unknown', layerId: '',
@@ -255,13 +250,11 @@ export function BackcountryMap({
           return;
         }
 
-        // Use the TOPMOST rendered feature (first in the returned array — MapLibre returns in render order)
-        const topFeature = allFeatures[0];
-        const topLayerId = topFeature.layer!.id;
-        console.log('[click] -> showing layer:', topLayerId);
+        const hitLayers = allFeatures.map((f) => f.layer!.id);
+        console.log('[click] hit layers:', hitLayers.join(', '));
 
-        // Map layer IDs to agency info
-        const LAYER_INFO: Record<string, { agency: string; label: string; restriction: MapFeatureInfo['restriction']; color: string }> = {
+        // Map layer IDs to agency info with restriction priority
+        const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
           'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
           'wsa-fill':           { agency: 'Bureau of Land Management', label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
           'fs-wilderness-fill': { agency: 'US Forest Service',         label: 'USFS Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
@@ -271,26 +264,34 @@ export function BackcountryMap({
           'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
         };
 
-        const layer = LAYER_INFO[topLayerId];
-        if (!layer) {
-          console.log('[click] -> layer not in LAYER_INFO, showing Unknown');
-          setInspector({ x: e.point.x, y: e.point.y, info: {
-            agency: 'Unknown / Private Land', unitName: '', restriction: 'restricted',
-            agencyColor: '#94A3B8', layerLabel: 'Unknown', layerId: '',
-          }});
-          return;
+        // Find the MOST restrictive layer among all hits
+        // Priority: no-landing > restricted > multiple-use
+        const RESTRICTION_RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2 };
+        let bestFeature = allFeatures[0];
+        let bestLayer = LAYER_INFO[bestFeature.layer!.id] || LAYER_INFO['sma-blm-fill'];
+        let bestRank = RESTRICTION_RANK[bestLayer.restriction] ?? 3;
+
+        for (const feat of allFeatures) {
+          const info = LAYER_INFO[feat.layer!.id];
+          if (!info) continue;
+          const rank = RESTRICTION_RANK[info.restriction] ?? 3;
+          if (rank < bestRank) {
+            bestFeature = feat;
+            bestLayer = info;
+            bestRank = rank;
+          }
         }
 
-        const props = topFeature.properties || {};
+        const props = bestFeature.properties || {};
         const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
-        console.log('[click] -> agency:', layer.agency, '| label:', layer.label, '| name:', name);
+        console.log('[click] ->', bestLayer.agency, '|', bestLayer.label, '|', bestLayer.restriction, '|', name);
         setInspector({ x: e.point.x, y: e.point.y, info: {
-          agency: layer.agency,
+          agency: bestLayer.agency,
           unitName: typeof name === 'string' ? name : '',
-          restriction: layer.restriction,
-          agencyColor: layer.color,
-          layerLabel: layer.label,
-          layerId: topLayerId,
+          restriction: bestLayer.restriction,
+          agencyColor: bestLayer.color,
+          layerLabel: bestLayer.label,
+          layerId: bestFeature.layer!.id,
         }});
       });
 
