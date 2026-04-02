@@ -21,13 +21,12 @@ export const OVERLAY_LAYERS = [
   { id: 'sma-blm-fill', label: 'BLM Land', color: '#8B6914', description: 'Bureau of Land Management — multiple use' },
 ] as const;
 
-export type BasemapId = 'osm' | 'topo' | 'satellite' | 'vfr';
+export type BasemapId = 'osm' | 'topo' | 'satellite';
 
 export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> = {
-  osm:      { label: 'Map',       icon: '🗺️' },
-  topo:     { label: 'Topo',      icon: '⛰️' },
-  satellite:{ label: 'Satellite',  icon: '🛰️' },
-  vfr:      { label: 'VFR Chart', icon: '✈️' },
+  osm:      { label: 'Map',      icon: '🗺️' },
+  topo:     { label: 'Topo',     icon: '⛰️' },
+  satellite:{ label: 'Satellite', icon: '🛰️' },
 };
 
 function getBasemapStyle(basemap: BasemapId) {
@@ -43,13 +42,9 @@ function getBasemapStyle(basemap: BasemapId) {
   } else if (basemap === 'topo') {
     tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
     attribution = '© OpenStreetMap contributors, © OpenTopoMap';
-  } else if (basemap === 'satellite') {
+  } else {
     tiles = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
     attribution = '© Esri World Imagery';
-  } else {
-    // VFR Sectional Charts via Esri — FAA aeronautical data
-    tiles = ['https://server.arcgisonline.com/ArcGIS/rest/services/Specialty/World_Aeronautical_Chart/MapServer/tile/{z}/{y}/{x}'];
-    attribution = '© FAA / Esri — For planning only, not for navigation';
   }
   return {
     version: 8 as const,
@@ -69,17 +64,16 @@ export function BackcountryMap({
   const [loaded, setLoaded] = useState(false);
   const [basemap, setBasemap] = useState<BasemapId>('osm');
 
+  // Track active popups so we can close them
+  const activePopups = useRef<maplibregl.Popup[]>([]);
+
   // Stable refs — prevent useEffect deps from growing
   const onMapLoadRef = useRef(onMapLoad);
   useEffect(() => { onMapLoadRef.current = onMapLoad; });
   const routesRef = useRef(routesGeoJson);
   useEffect(() => { routesRef.current = routesGeoJson; });
-  const centerRef = useRef(initialCenter);
-  useEffect(() => { centerRef.current = initialCenter; });
-  const zoomRef = useRef(initialZoom);
-  useEffect(() => { zoomRef.current = initialZoom; });
 
-  // Overlay visibility — tracked in ref, applied directly to map (no state = no re-render)
+  // Overlay visibility
   const overlayVis = useRef<Record<string, boolean>>(
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
@@ -90,6 +84,11 @@ export function BackcountryMap({
     for (const id of [layerId, layerId + '-outline']) {
       if (map.current.getLayer(id)) map.current.setLayoutProperty(id, 'visibility', vis);
     }
+  }
+
+  function closeAllPopups() {
+    activePopups.current.forEach((p) => p.remove());
+    activePopups.current = [];
   }
 
   async function loadAllOverlays() {
@@ -125,7 +124,6 @@ export function BackcountryMap({
         map.current.addSource(sourceId, { type: 'geojson', data });
         map.current.addLayer({ id: layerId, type: 'fill', source: sourceId, paint: { 'fill-color': color, 'fill-opacity': opacity } });
         map.current.addLayer({ id: layerId + '-outline', type: 'line', source: sourceId, paint: { 'line-color': color, 'line-width': 2 } });
-        // Apply current visibility state
         if (!overlayVis.current[layerId]) {
           map.current.setLayoutProperty(layerId, 'visibility', 'none');
           map.current.setLayoutProperty(layerId + '-outline', 'visibility', 'none');
@@ -134,7 +132,7 @@ export function BackcountryMap({
     } catch (err) { console.error('[load]', url, err); }
   }
 
-  // Minimized state via DOM — toggle body visibility with CSS class
+  // Inject popup styles
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
@@ -153,8 +151,8 @@ export function BackcountryMap({
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       style: getBasemapStyle(basemap),
-      center: centerRef.current,
-      zoom: zoomRef.current,
+      center: initialCenter,
+      zoom: initialZoom,
     });
 
     mapInstance.addControl(new maplibregl.NavigationControl(), 'top-left');
@@ -167,25 +165,25 @@ export function BackcountryMap({
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
     });
 
-    // Click → show land info popup
-    mapInstance.on('click', (e) => {
-      const allFeatures = mapInstance.queryRenderedFeatures(e.point);
-      if (!allFeatures.length) {
-        mapInstance.getCanvas().style.cursor = '';
-        return;
-      }
-      mapInstance.getCanvas().style.cursor = 'pointer';
+    const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
+      'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
+      'wsa-fill':           { agency: 'Bureau of Land Management', label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
+      'fs-wilderness-fill': { agency: 'US Forest Service',         label: 'USFS Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
+      'sma-nps-fill':      { agency: 'National Park Service',     label: 'National Park',         restriction: 'no-landing',   color: '#DC2626' },
+      'sma-fws-fill':      { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',       restriction: 'restricted',   color: '#DC2626' },
+      'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
+      'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
+    };
+    const RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2 };
 
-      const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
-        'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
-        'wsa-fill':           { agency: 'Bureau of Land Management', label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
-        'fs-wilderness-fill': { agency: 'US Forest Service',         label: 'USFS Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
-        'sma-nps-fill':      { agency: 'National Park Service',     label: 'National Park',         restriction: 'no-landing',   color: '#DC2626' },
-        'sma-fws-fill':      { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',       restriction: 'restricted',   color: '#DC2626' },
-        'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
-        'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
-      };
-      const RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2 };
+    // Click on map → close all open popups, then show new one if over a feature
+    mapInstance.on('click', (e) => {
+      closeAllPopups();
+
+      const allFeatures = mapInstance.queryRenderedFeatures(e.point);
+      if (!allFeatures.length) return;
+
+      mapInstance.getCanvas().style.cursor = 'pointer';
 
       let best = allFeatures[0];
       let bestInfo = LAYER_INFO[best.layer?.id ?? ''];
@@ -222,7 +220,8 @@ export function BackcountryMap({
         `)
         .addTo(mapInstance);
 
-      // Minimize button — use map's click event with delegation
+      activePopups.current.push(popup);
+
       popup.getElement().addEventListener('click', (ev) => {
         const target = ev.target as HTMLElement;
         if (target.classList.contains('landout-popup-minbtn')) {
@@ -247,22 +246,6 @@ export function BackcountryMap({
       mapInstance.getCanvas().style.cursor = features.length ? 'pointer' : '';
     });
 
-    // Expose window API after map is ready
-    const switchTo = (id: BasemapId) => {
-      if (!map.current || id === basemap) return;
-      map.current.setStyle(getBasemapStyle(id));
-      map.current.once('style.load', () => {
-        if (!map.current) return;
-        overlayVis.current = Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]));
-        loadAllOverlays();
-      });
-      setBasemap(id);
-    };
-    const setOverlayVis = (id: string, vis: boolean) => {
-      overlayVis.current[id] = vis;
-      applyVisibility(id);
-    };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // EMPTY DEPS — map only mounts once
 
@@ -275,10 +258,14 @@ export function BackcountryMap({
     };
     const switchTo = (id: BasemapId) => {
       if (!map.current || id === basemap) return;
+      closeAllPopups();
+      // Save current overlay visibility
+      const saved = { ...overlayVis.current };
       map.current.setStyle(getBasemapStyle(id));
       map.current.once('style.load', () => {
         if (!map.current) return;
-        overlayVis.current = Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]));
+        // Restore visibility before reloading so layers respect current state
+        Object.assign(overlayVis.current, saved);
         loadAllOverlays();
       });
       setBasemap(id);

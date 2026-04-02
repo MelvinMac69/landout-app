@@ -15,6 +15,8 @@ export default function MapPage() {
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
 
+  const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
+
   const handleMapLoad = useCallback(() => {}, []);
 
   const handleToggle = useCallback((layerId: string) => {
@@ -37,7 +39,7 @@ export default function MapPage() {
     <div className="h-[calc(100vh-3.5rem)] relative">
       <BackcountryMap onMapLoad={handleMapLoad} />
 
-      {/* Search — bottom-center, below basemap buttons */}
+      {/* Search — bottom-center */}
       <div className="absolute bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-80 md:mx-auto z-10">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
           <div className="flex items-center gap-2">
@@ -51,23 +53,29 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Basemap toggle — bottom-left, above search */}
+      {/* Basemap toggle — bottom-left */}
       <BasemapToggle />
-
-      {/* Disclaimer — bottom-right, aligned with basemap buttons */}
-      <div className="absolute bottom-8 right-4 z-10 max-w-xs">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800">
-          <strong>⚠️ NOT FOR NAVIGATION</strong>
-          <br />
-          Shows land status context only. Does not authorize landings.
-        </div>
-      </div>
 
       {/* Layer toggle — top-right */}
       <MapLayerToggle layers={layers} onToggle={handleToggle} />
 
-      {/* Map legend — top-right below layer panel (stacked below it) */}
+      {/* Map legend — top-right below layer panel (defaults to collapsed) */}
       <MapLegend />
+
+      {/* NOT FOR NAVIGATION — click to dismiss */}
+      {!disclaimerDismissed && (
+        <div
+          className="absolute bottom-8 right-4 z-10 max-w-xs cursor-pointer"
+          onClick={() => setDisclaimerDismissed(true)}
+          title="Click to dismiss"
+        >
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800 hover:bg-amber-100 transition-colors">
+            <strong>⚠️ NOT FOR NAVIGATION</strong>
+            <br />
+            Shows land status context only. Does not authorize landings.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
