@@ -63,14 +63,27 @@ function MapInspector({ info, x, y, onClose }: MapInspectorProps) {
       >
         ×
       </button>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
         <span style={dotStyle} />
         <span style={{ fontWeight: 600, color: '#1E293B' }}>{info.agency}</span>
       </div>
-      {info.unitName && (
-        <div style={{ color: '#475569', marginBottom: 4, paddingLeft: 18 }}>{info.unitName}</div>
+      {info.layerLabel && (
+        <div style={{ color: '#64748B', fontSize: 12, marginBottom: 3, paddingLeft: 18, fontStyle: 'italic' }}>{info.layerLabel}</div>
       )}
-      <div style={{ fontSize: 11, color: restrictionColor, fontWeight: 500, paddingLeft: 18 }}>
+      {info.unitName && (
+        <div style={{ color: '#475569', marginBottom: 3, paddingLeft: 18, fontSize: 12 }}>{info.unitName}</div>
+      )}
+      <div style={{
+        marginTop: 4,
+        padding: '4px 8px',
+        borderRadius: 6,
+        backgroundColor: info.restriction === 'no-landing' ? '#FEE2E2' :
+                        info.restriction === 'restricted' ? '#FEF3C7' : '#DCFCE7',
+        color: restrictionColor,
+        fontSize: 11,
+        fontWeight: 600,
+        textAlign: 'center',
+      }}>
         {restrictionText}
       </div>
     </div>
