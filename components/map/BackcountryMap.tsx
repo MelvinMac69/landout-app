@@ -270,9 +270,8 @@ export function BackcountryMap({
       const src = map.current.getSource('basemap') as maplibregl.RasterTileSource;
       if (!src) return;
       const newStyle = buildStyle(id);
-      const newSrc = newStyle.sources.basemap as maplibregl.RasterTileSource;
-      src.setTiles(newSrc.tiles);
-      src.setAttribution(newSrc.attribution ?? '');
+      src.setTiles((newStyle.sources.basemap as unknown as { tiles: string[] }).tiles);
+      src.setAttribution((newStyle.sources.basemap as unknown as { attribution?: string }).attribution ?? '');
       setBasemap(id);
     };
     win.landoutSwitchBasemap = switchTo;
