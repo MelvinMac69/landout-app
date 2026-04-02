@@ -106,6 +106,7 @@ export function BackcountryMap({
   const [loaded, setLoaded] = useState(false);
   const [inspector, setInspector] = useState<{ info: MapFeatureInfo | null; x: number; y: number } | null>(null);
 
+
   // Keep onMapLoad stable — don't put it in useEffect deps or map will re-init on parent re-render
   const onMapLoadRef = useRef(onMapLoad);
   useEffect(() => { onMapLoadRef.current = onMapLoad; });
@@ -215,8 +216,11 @@ export function BackcountryMap({
       map.current.on('click', (e) => {
         e.originalEvent.stopPropagation();
 
+        // Always clear previous inspector popup first so stale data doesn't persist
+        setInspector(null);
+        console.log('[click] at', e.lngLat.lng.toFixed(4) + ',' + e.lngLat.lat.toFixed(4));
+
         // Priority: specific land types FIRST, broad wilderness designations LAST
-        // This prevents large wilderness polygons from swallowing every click
         const LAYER_CONFIG: Record<string, { agency: string; label: string; restriction: MapFeatureInfo['restriction']; color: string; priority: number }> = {
           'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',            restriction: 'multiple-use', color: '#8B6914',  priority: 1 },
           'sma-usfs-fill':    { agency: 'US Forest Service',         label: 'National Forest',    restriction: 'multiple-use', color: '#2D5016',  priority: 2 },
@@ -232,7 +236,7 @@ export function BackcountryMap({
         for (const [layerId, layer] of sorted) {
           const features = map.current!.queryRenderedFeatures({ layers: [layerId] });
           const hit = features.find((f) => f.geometry && f.geometry.type !== 'GeometryCollection');
-          console.log('[debug]', layer.label, 'hits:', features.length, hit ? '✓' : '✗');
+          console.log('[click]', layer.label, 'hits:', features.length, hit ? '✓ SHOW' : '✗ skip');
           if (hit) {
             const props = hit.properties || {};
             const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
@@ -249,6 +253,7 @@ export function BackcountryMap({
         }
 
         // No overlay hit — private/unknown land
+        console.log('[click] Unknown/Private');
         setInspector({ x: e.point.x, y: e.point.y, info: {
           agency: 'Unknown / Private Land', unitName: '', restriction: 'restricted',
           agencyColor: '#94A3B8', layerLabel: 'Unknown', layerId: '',
