@@ -138,7 +138,6 @@ export function BackcountryMap({
     const newStyle = getBasemapStyle(newBasemap);
     map.current.setStyle(newStyle);
 
-    // Reload overlays after style switch — MapLibre destroys layers on setStyle
     map.current.once('style.load', async () => {
       if (!map.current) return;
       await Promise.all([
@@ -206,7 +205,7 @@ export function BackcountryMap({
         });
       }
 
-      ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
+      (map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
 
       map.current.on('click', (e) => {
         if (!map.current || !popup.current) return;
@@ -257,15 +256,23 @@ export function BackcountryMap({
         const restrictionText = bestLayer.restriction === 'no-landing' ? '🚫 No landing' : bestLayer.restriction === 'restricted' ? '⚠️ Restricted — verify before landing' : '✅ Multiple use — landing generally OK';
 
         const html = `
-          <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;min-width:180px;max-width:220px">
-            <div style="display:flex;align-items:center;margin-bottom:4px">
-              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bestLayer.color};margin-right:8px;flex-shrink:0"></span>
-              <span style="font-weight:600;color:#1E293B">${bestLayer.agency}</span>
-            </div>
-            ${bestLayer.label ? `<div style="color:#64748B;font-size:12px;font-style:italic;margin-bottom:3px;padding-left:18px">${bestLayer.label}</div>` : ''}
-            ${name ? `<div style="color:#475569;font-size:12px;margin-bottom:3px;padding-left:18px">${name}</div>` : ''}
-            <div style="margin-top:4px;padding:4px 8px;border-radius:6px;background:${restrictionBg};color:${restrictionColor};font-size:11px;font-weight:600;text-align:center">
-              ${restrictionText}
+          <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;min-width:180px;max-width:240px;position:relative">
+            <button
+              id="landout-popup-minimize"
+              onclick="var b=document.getElementById('landout-popup-body');var m=document.getElementById('landout-popup-minimize');if(b.style.display==='none'){b.style.display='block';m.textContent='−'}else{b.style.display='none';m.textContent='+'};event.stopPropagation();"
+              style="position:absolute;top:2px;right:22px;background:none;border:none;cursor:pointer;color:#94A3B8;font-size:16px;line-height:1;padding:0 2px;"
+              title="Minimize"
+            >−</button>
+            <div id="landout-popup-body">
+              <div style="display:flex;align-items:center;margin-bottom:4px">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bestLayer.color};margin-right:8px;flex-shrink:0"></span>
+                <span style="font-weight:600;color:#1E293B">${bestLayer.agency}</span>
+              </div>
+              ${bestLayer.label ? `<div style="color:#64748B;font-size:12px;font-style:italic;margin-bottom:3px;padding-left:18px">${bestLayer.label}</div>` : ''}
+              ${name ? `<div style="color:#475569;font-size:12px;margin-bottom:3px;padding-left:18px">${name}</div>` : ''}
+              <div style="margin-top:4px;padding:4px 8px;border-radius:6px;background:${restrictionBg};color:${restrictionColor};font-size:11px;font-weight:600;text-align:center">
+                ${restrictionText}
+              </div>
             </div>
           </div>
         `;
@@ -289,10 +296,11 @@ export function BackcountryMap({
     };
   }, [initialCenter, initialZoom, routesGeoJson]);
 
-  // Expose basemap switcher via window so parent can call it
+  // Expose functions via window so parent can call without React state
   useEffect(() => {
     (window as typeof window & { landoutSwitchBasemap: typeof switchBasemap }).landoutSwitchBasemap = switchBasemap;
     (window as typeof window & { landoutGetBasemap: () => BasemapId }).landoutGetBasemap = () => basemap;
+    (window as typeof window & { landoutSetOverlayVisibility: typeof setOverlayVisibility }).landoutSetOverlayVisibility = setOverlayVisibility;
   });
 
   return (

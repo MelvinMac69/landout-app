@@ -11,20 +11,17 @@ export default function MapPage() {
     setIsMounted(true);
   }, []);
 
-  const mapRef = useRef<import('maplibre-gl').Map | null>(null);
-
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
 
   const handleMapLoad = useCallback((map: import('maplibre-gl').Map) => {
-    mapRef.current = map;
+    // Store map ref if needed for future use
   }, []);
 
   const handleToggle = useCallback((layerId: string) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const fn = (map as typeof map & { setOverlayVisibility: (id: string, v: boolean) => void }).setOverlayVisibility;
+    // Call directly via window — bypasses all React state and re-renders
+    const fn = (window as typeof window & { landoutSetOverlayVisibility: (id: string, v: boolean) => void }).landoutSetOverlayVisibility;
     if (fn) fn(layerId, !activeLayers[layerId]);
     setActiveLayers((prev) => ({ ...prev, [layerId]: !prev[layerId] }));
   }, [activeLayers]);
@@ -43,7 +40,9 @@ export default function MapPage() {
     <div className="h-[calc(100vh-3.5rem)] relative">
       <BackcountryMap onMapLoad={handleMapLoad} />
 
+      {/* Basemap above layer panel so it's clickable when panel is open */}
       <BasemapToggle />
+
       <MapLayerToggle layers={layers} onToggle={handleToggle} />
       <MapLegend />
 

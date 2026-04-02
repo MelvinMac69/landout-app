@@ -17,8 +17,8 @@ export function BasemapToggle() {
       style={{
         position: 'absolute',
         top: 8,
-        right: 8,
-        zIndex: 10,
+        right: 180,
+        zIndex: 20,
         display: 'flex',
         gap: 4,
         background: 'white',
