@@ -268,7 +268,6 @@ export function BackcountryMap({
       if (!src) return;
       const newStyle = buildStyle(id);
       src.setTiles((newStyle.sources.basemap as unknown as { tiles: string[] }).tiles);
-      src.setAttribution((newStyle.sources.basemap as unknown as { attribution?: string }).attribution ?? '');
       setBasemap(id);
     };
     win.landoutSwitchBasemap = switchTo;
