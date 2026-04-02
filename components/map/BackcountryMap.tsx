@@ -40,7 +40,7 @@ export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> 
 
 function getBasemapStyle(basemap: BasemapId) {
   return {
-    version: 8,
+    version: 8 as const,
     sources: {
       osm: {
         type: 'raster',
