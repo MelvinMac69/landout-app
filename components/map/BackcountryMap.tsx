@@ -4,6 +4,78 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+export interface MapFeatureInfo {
+  agency: string;
+  unitName: string;
+  restriction: 'no-landing' | 'restricted' | 'multiple-use' | 'unknown';
+  agencyColor: string;
+  layerLabel: string;
+  layerId: string;
+}
+
+interface MapInspectorProps {
+  info: MapFeatureInfo | null;
+  x: number;
+  y: number;
+  onClose: () => void;
+}
+
+function MapInspector({ info, x, y, onClose }: MapInspectorProps) {
+  if (!info) return null;
+  const isTop = y > window.innerHeight / 2;
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    left: Math.min(x - 100, window.innerWidth - 220),
+    top: isTop ? y - 10 : y + 10,
+    transform: isTop ? 'translateY(-100%)' : 'none',
+    zIndex: 10,
+    background: 'white',
+    borderRadius: 10,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
+    padding: '10px 14px',
+    minWidth: 180,
+    maxWidth: 220,
+    fontSize: 13,
+    pointerEvents: 'auto',
+  };
+  const dotStyle: React.CSSProperties = {
+    display: 'inline-block',
+    width: 10,
+    height: 10,
+    borderRadius: '50%',
+    backgroundColor: info.agencyColor,
+    marginRight: 8,
+    flexShrink: 0,
+  };
+  const restrictionColor =
+    info.restriction === 'no-landing' ? '#DC2626' :
+    info.restriction === 'restricted' ? '#D97706' :
+    '#16A34A';
+  return (
+    <div style={style}>
+      <button
+        onClick={onClose}
+        style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+        aria-label="Close"
+      >
+        ×
+      </button>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+        <span style={dotStyle} />
+        <span style={{ fontWeight: 600, color: '#1E293B' }}>{info.agency}</span>
+      </div>
+      {info.unitName && (
+        <div style={{ color: '#475569', marginBottom: 4, paddingLeft: 18 }}>{info.unitName}</div>
+      )}
+      <div style={{ fontSize: 11, color: restrictionColor, fontWeight: 500, paddingLeft: 18 }}>
+        {info.restriction === 'no-landing' ? '🚫 No landing' :
+         info.restriction === 'restricted' ? '⚠️ Restricted — verify before landing' :
+         '✅ Multiple use — landing generally OK'}
+      </div>
+    </div>
+  );
+}
+
 interface BackcountryMapProps {
   initialCenter?: [number, number];
   initialZoom?: number;
@@ -30,6 +102,7 @@ export function BackcountryMap({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [inspector, setInspector] = useState<{ info: MapFeatureInfo | null; x: number; y: number } | null>(null);
 
   const setOverlayVisibility = (layerId: string, visible: boolean) => {
     if (!map.current) return;
@@ -131,6 +204,48 @@ export function BackcountryMap({
 
       // Attach visibility control to map instance so parent can call map.setOverlayVisibility(layerId, visible)
       ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
+
+      // Click/tap inspector — query all overlay layers and show info popup
+      map.current.on('click', (e) => {
+        const LAYER_MAP: Record<string, { label: string; agency: string; restriction: MapFeatureInfo['restriction']; color: string }> = {
+          'wilderness-fill':     { label: 'BLM Wilderness',         agency: 'Bureau of Land Management', restriction: 'no-landing',    color: '#DC2626' },
+          'wsa-fill':            { label: 'Wilderness Study Area',  agency: 'Bureau of Land Management', restriction: 'no-landing',    color: '#DC2626' },
+          'fs-wilderness-fill':  { label: 'USFS Wilderness',        agency: 'US Forest Service',        restriction: 'no-landing',    color: '#DC2626' },
+          'sma-nps-fill':        { label: 'National Park',          agency: 'National Park Service',     restriction: 'no-landing',    color: '#DC2626' },
+          'sma-fws-fill':        { label: 'Wildlife Refuge',        agency: 'Fish & Wildlife Service',   restriction: 'restricted',    color: '#DC2626' },
+          'sma-usfs-fill':      { label: 'National Forest',        agency: 'US Forest Service',        restriction: 'multiple-use', color: '#2D5016' },
+          'sma-blm-fill':        { label: 'BLM Land',                agency: 'Bureau of Land Management', restriction: 'multiple-use', color: '#8B6914' },
+        };
+
+        const allLayers = Object.keys(LAYER_MAP);
+        const features = map.current!.queryRenderedFeatures({ layers: allLayers });
+        if (!features.length) { setInspector(null); return; }
+
+        // Pick first hit (highest z-order = first in array from MapLibre)
+        const hit = features[0];
+        const layer = LAYER_MAP[hit.layer!.id];
+        if (!layer) { setInspector(null); return; }
+
+        const props = hit.properties || {};
+        // Try common name fields
+        const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || props.Wilderness || props.unit_name || '';
+
+        setInspector({
+          x: e.point.x,
+          y: e.point.y,
+          info: {
+            agency: layer.agency,
+            unitName: typeof name === 'string' ? name : '',
+            restriction: layer.restriction,
+            agencyColor: layer.color,
+            layerLabel: layer.label,
+            layerId: hit.layer!.id,
+          },
+        });
+      });
+
+      // Close inspector on map click that finds nothing
+      map.current.on('click', () => { if (inspector) setInspector(null); });
       if (onMapLoad) onMapLoad(map.current);
     });
 
@@ -147,6 +262,14 @@ export function BackcountryMap({
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>
         </div>
+      )}
+      {inspector && (
+        <MapInspector
+          info={inspector.info}
+          x={inspector.x}
+          y={inspector.y}
+          onClose={() => setInspector(null)}
+        />
       )}
     </div>
   );
