@@ -106,7 +106,6 @@ export function BackcountryMap({
   const [loaded, setLoaded] = useState(false);
   const [inspector, setInspector] = useState<{ info: MapFeatureInfo | null; x: number; y: number } | null>(null);
 
-
   // Keep onMapLoad stable — don't put it in useEffect deps or map will re-init on parent re-render
   const onMapLoadRef = useRef(onMapLoad);
   useEffect(() => { onMapLoadRef.current = onMapLoad; });
@@ -212,51 +211,69 @@ export function BackcountryMap({
       // Attach visibility control to map instance so parent can call map.setOverlayVisibility(layerId, visible)
       ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
 
-      // Click/tap inspector — check layers in priority order (most specific first)
+      // Click/tap inspector — query all layers at the click point, find the topmost rendered one
       map.current.on('click', (e) => {
         e.originalEvent.stopPropagation();
 
-        // Always clear previous inspector popup first so stale data doesn't persist
+        // Always clear previous inspector first
         setInspector(null);
+
+        const clickPoint = e.point;
         console.log('[click] at', e.lngLat.lng.toFixed(4) + ',' + e.lngLat.lat.toFixed(4));
 
-        // Priority: specific land types FIRST, broad wilderness designations LAST
-        const LAYER_CONFIG: Record<string, { agency: string; label: string; restriction: MapFeatureInfo['restriction']; color: string; priority: number }> = {
-          'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',            restriction: 'multiple-use', color: '#8B6914',  priority: 1 },
-          'sma-usfs-fill':    { agency: 'US Forest Service',         label: 'National Forest',    restriction: 'multiple-use', color: '#2D5016',  priority: 2 },
-          'sma-fws-fill':     { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',    restriction: 'restricted',  color: '#DC2626',  priority: 3 },
-          'sma-nps-fill':     { agency: 'National Park Service',      label: 'National Park',      restriction: 'no-landing',  color: '#DC2626',  priority: 4 },
-          'fs-wilderness-fill': { agency: 'US Forest Service',        label: 'USFS Wilderness',    restriction: 'no-landing',  color: '#DC2626',  priority: 5 },
-          'wsa-fill':         { agency: 'Bureau of Land Management',  label: 'Wilderness Study Area', restriction: 'no-landing', color: '#DC2626', priority: 6 },
-          'wilderness-fill':  { agency: 'Bureau of Land Management',  label: 'BLM Wilderness',     restriction: 'no-landing',  color: '#DC2626',  priority: 7 },
-        };
-
-        // Sort by priority so we check specific land types before broad overlays
-        const sorted = Object.entries(LAYER_CONFIG).sort((a, b) => a[1].priority - b[1].priority);
-        for (const [layerId, layer] of sorted) {
-          const features = map.current!.queryRenderedFeatures({ layers: [layerId] });
-          const hit = features.find((f) => f.geometry && f.geometry.type !== 'GeometryCollection');
-          console.log('[click]', layer.label, 'hits:', features.length, hit ? '✓ SHOW' : '✗ skip');
-          if (hit) {
-            const props = hit.properties || {};
-            const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
-            setInspector({ x: e.point.x, y: e.point.y, info: {
-              agency: layer.agency,
-              unitName: typeof name === 'string' ? name : '',
-              restriction: layer.restriction,
-              agencyColor: layer.color,
-              layerLabel: layer.label,
-              layerId: hit.layer!.id,
-            }});
-            return;
-          }
+        // Query ALL rendered features at this point (no layer filter)
+        const allFeatures = map.current!.queryRenderedFeatures({ point: clickPoint });
+        console.log('[click] total rendered hits:', allFeatures.length);
+        if (allFeatures.length > 0) {
+          console.log('[click] top feature layer:', allFeatures[0].layer?.id);
         }
 
-        // No overlay hit — private/unknown land
-        console.log('[click] Unknown/Private');
+        if (allFeatures.length === 0) {
+          // No overlay hit — private/unknown land
+          console.log('[click] -> Unknown/Private');
+          setInspector({ x: e.point.x, y: e.point.y, info: {
+            agency: 'Unknown / Private Land', unitName: '', restriction: 'restricted',
+            agencyColor: '#94A3B8', layerLabel: 'Unknown', layerId: '',
+          }});
+          return;
+        }
+
+        // Use the TOPMOST rendered feature (first in the returned array — MapLibre returns in render order)
+        const topFeature = allFeatures[0];
+        const topLayerId = topFeature.layer!.id;
+        console.log('[click] -> showing layer:', topLayerId);
+
+        // Map layer IDs to agency info
+        const LAYER_INFO: Record<string, { agency: string; label: string; restriction: MapFeatureInfo['restriction']; color: string }> = {
+          'wilderness-fill':     { agency: 'Bureau of Land Management', label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
+          'wsa-fill':           { agency: 'Bureau of Land Management', label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
+          'fs-wilderness-fill': { agency: 'US Forest Service',         label: 'USFS Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
+          'sma-nps-fill':      { agency: 'National Park Service',     label: 'National Park',         restriction: 'no-landing',   color: '#DC2626' },
+          'sma-fws-fill':      { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',       restriction: 'restricted',   color: '#DC2626' },
+          'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
+          'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
+        };
+
+        const layer = LAYER_INFO[topLayerId];
+        if (!layer) {
+          console.log('[click] -> layer not in LAYER_INFO, showing Unknown');
+          setInspector({ x: e.point.x, y: e.point.y, info: {
+            agency: 'Unknown / Private Land', unitName: '', restriction: 'restricted',
+            agencyColor: '#94A3B8', layerLabel: 'Unknown', layerId: '',
+          }});
+          return;
+        }
+
+        const props = topFeature.properties || {};
+        const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
+        console.log('[click] -> agency:', layer.agency, '| label:', layer.label, '| name:', name);
         setInspector({ x: e.point.x, y: e.point.y, info: {
-          agency: 'Unknown / Private Land', unitName: '', restriction: 'restricted',
-          agencyColor: '#94A3B8', layerLabel: 'Unknown', layerId: '',
+          agency: layer.agency,
+          unitName: typeof name === 'string' ? name : '',
+          restriction: layer.restriction,
+          agencyColor: layer.color,
+          layerLabel: layer.label,
+          layerId: topLayerId,
         }});
       });
 
