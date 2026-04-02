@@ -1,33 +1,22 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
 import { Search } from 'lucide-react';
 
-const BackcountryMapClient = dynamic(
-  () => import('@/components/map/BackcountryMap').then((mod) => mod.BackcountryMap),
-  { ssr: false, loading: () => <Loading /> }
-);
-
-function Loading() {
-  return (
-    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-      <span className="text-slate-500">Loading map…</span>
-    </div>
-  );
-}
-
 export default function MapPage() {
-  // Stable map ref — created once, survives all re-renders
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const mapRef = useRef<import('maplibre-gl').Map | null>(null);
 
-  // Layer visibility state — owned by the wrapper, passed down to toggle
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
 
-  // Stable map-load callback — empty deps, never changes reference
   const handleMapLoad = useCallback((map: import('maplibre-gl').Map) => {
     mapRef.current = map;
   }, []);
@@ -42,9 +31,17 @@ export default function MapPage() {
 
   const layers = OVERLAY_LAYERS.map((l) => ({ ...l, visible: activeLayers[l.id] ?? true }));
 
+  if (!isMounted) {
+    return (
+      <div className="h-[calc(100vh-3.5rem)] bg-slate-100 flex items-center justify-center">
+        <span className="text-slate-500">Loading map…</span>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-3.5rem)] relative">
-      <BackcountryMapClient onMapLoad={handleMapLoad} />
+      <BackcountryMap onMapLoad={handleMapLoad} />
 
       <MapLayerToggle layers={layers} onToggle={handleToggle} />
       <MapLegend />
