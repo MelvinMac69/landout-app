@@ -15,12 +15,9 @@ export default function MapPage() {
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
 
-  const handleMapLoad = useCallback(() => {
-    // Map is now managed entirely in BackcountryMap — no ref needed
-  }, []);
+  const handleMapLoad = useCallback(() => {}, []);
 
   const handleToggle = useCallback((layerId: string) => {
-    // Call directly via window — no React state change touches the map
     const fn = (window as typeof window & { landoutSetOverlayVisibility: (id: string, v: boolean) => void }).landoutSetOverlayVisibility;
     if (fn) fn(layerId, !activeLayers[layerId]);
     setActiveLayers((prev) => ({ ...prev, [layerId]: !prev[layerId] }));
@@ -40,15 +37,8 @@ export default function MapPage() {
     <div className="h-[calc(100vh-3.5rem)] relative">
       <BackcountryMap onMapLoad={handleMapLoad} />
 
-      {/* Basemap buttons — top-right, above layer panel */}
-      <BasemapToggle />
-
-      {/* Layer toggle — below basemap buttons */}
-      <MapLayerToggle layers={layers} onToggle={handleToggle} />
-      <MapLegend />
-
-      {/* Search bar */}
-      <div className="absolute top-4 left-4 right-4 md:left-auto md:right-auto md:w-80 md:left-4 z-10">
+      {/* Search — bottom of screen, above disclaimer */}
+      <div className="absolute bottom-28 left-4 right-4 md:left-4 md:w-80 z-10">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-slate-400" />
@@ -61,14 +51,23 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Disclaimer */}
-      <div className="absolute bottom-24 md:bottom-8 right-4 z-10 max-w-xs">
+      {/* Basemap toggle — bottom-left, always accessible */}
+      <BasemapToggle />
+
+      {/* Disclaimer — bottom-right, always visible */}
+      <div className="absolute bottom-8 right-4 z-10 max-w-xs">
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800">
           <strong>⚠️ NOT FOR NAVIGATION</strong>
           <br />
           Shows land status context only. Does not authorize landings.
         </div>
       </div>
+
+      {/* Layer toggle — top-right, above map legend */}
+      <MapLayerToggle layers={layers} onToggle={handleToggle} />
+
+      {/* Map legend — top-right below layer panel */}
+      <MapLegend />
     </div>
   );
 }

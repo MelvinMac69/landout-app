@@ -10,9 +10,9 @@ export function BasemapToggle() {
     <div
       style={{
         position: 'absolute',
-        bottom: 80,  // above the disclaimer text
+        bottom: 120,
         left: 8,
-        zIndex: 10,  // below layer panel z-10 button, but they don't overlap (bottom vs top)
+        zIndex: 10,
         display: 'flex',
         gap: 4,
         background: 'white',
