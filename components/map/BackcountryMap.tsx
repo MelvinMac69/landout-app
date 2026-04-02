@@ -221,8 +221,9 @@ export function BackcountryMap({
         const clickPoint = e.point;
         console.log('[click] at', e.lngLat.lng.toFixed(4) + ',' + e.lngLat.lat.toFixed(4));
 
-        // Query ALL rendered features at this point (no layer filter)
-        const allFeatures = map.current!.queryRenderedFeatures({ point: clickPoint });
+        // Query ALL rendered features at this click point
+        // queryRenderedFeatures(point: PointLike) returns all features at that pixel
+        const allFeatures = map.current!.queryRenderedFeatures(e.point);
         console.log('[click] total rendered hits:', allFeatures.length);
         if (allFeatures.length > 0) {
           console.log('[click] top feature layer:', allFeatures[0].layer?.id);
