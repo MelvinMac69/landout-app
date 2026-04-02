@@ -82,6 +82,7 @@ interface BackcountryMapProps {
   initialZoom?: number;
   routesGeoJson?: GeoJSON.FeatureCollection;
   onMapLoad?: (map: maplibregl.Map) => void;
+  onInspectorUpdate?: (info: MapFeatureInfo | null) => void;
 }
 
 export const OVERLAY_LAYERS = [
@@ -210,58 +211,54 @@ export function BackcountryMap({
       // Attach visibility control to map instance so parent can call map.setOverlayVisibility(layerId, visible)
       ;(map.current as maplibregl.Map & { setOverlayVisibility: typeof setOverlayVisibility }).setOverlayVisibility = setOverlayVisibility;
 
-      // Click/tap inspector — query overlay layers in priority order and show info popup
+      // Click/tap inspector — query all overlay layers at once, pick first hit by priority
       map.current.on('click', (e) => {
-        // Priority order: most specific/restrictive first (what user expects to see)
-        const PRIORITY_LAYERS = [
-          { id: 'wilderness-fill',     label: 'BLM Wilderness',        agency: 'Bureau of Land Management', restriction: 'no-landing'   as const, color: '#DC2626' },
-          { id: 'wsa-fill',           label: 'Wilderness Study Area', agency: 'Bureau of Land Management', restriction: 'no-landing'   as const, color: '#DC2626' },
-          { id: 'fs-wilderness-fill', label: 'USFS Wilderness',      agency: 'US Forest Service',       restriction: 'no-landing'   as const, color: '#DC2626' },
-          { id: 'sma-nps-fill',      label: 'National Park',        agency: 'National Park Service',    restriction: 'no-landing'   as const, color: '#DC2626' },
-          { id: 'sma-fws-fill',      label: 'Wildlife Refuge',      agency: 'Fish & Wildlife Service',  restriction: 'restricted'   as const, color: '#DC2626' },
-          { id: 'sma-blm-fill',      label: 'BLM Land',             agency: 'Bureau of Land Management', restriction: 'multiple-use' as const, color: '#8B6914' },
-          { id: 'sma-usfs-fill',     label: 'National Forest',      agency: 'US Forest Service',        restriction: 'multiple-use' as const, color: '#2D5016' },
-        ];
+        // Priority: most restrictive first
+        const LAYER_CONFIG: Record<string, { agency: string; label: string; restriction: MapFeatureInfo['restriction']; color: string }> = {
+          'wilderness-fill':     { agency: 'Bureau of Land Management',  label: 'BLM Wilderness',         restriction: 'no-landing',   color: '#DC2626' },
+          'wsa-fill':           { agency: 'Bureau of Land Management',  label: 'Wilderness Study Area', restriction: 'no-landing',   color: '#DC2626' },
+          'fs-wilderness-fill': { agency: 'US Forest Service',          label: 'USFS Wilderness',       restriction: 'no-landing',   color: '#DC2626' },
+          'sma-nps-fill':      { agency: 'National Park Service',     label: 'National Park',         restriction: 'no-landing',   color: '#DC2626' },
+          'sma-fws-fill':      { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',       restriction: 'restricted',   color: '#DC2626' },
+          'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
+          'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
+        };
 
-        e.originalEvent.stopPropagation();
+        // z-order from map.addLayer: wilderness, wsa, fs-wilderness, sma-nps, sma-fws, sma-usfs, sma-blm
+        // MapLibre returns features in z-order (topmost first), so use FIRST hit (not last)
+        // Priority just maps layer IDs → info labels
+        const features = map.current!.queryRenderedFeatures({ layers: layerIds });
+        console.log('[inspector] click at', e.lngLat, '| hits:', features.length, '| layers:', features.map(f => f.layer?.id).join(', '));
+        if (features.length) {
+          const top = features[0];
+          console.log('[inspector] top hit:', top.layer?.id, '| props:', JSON.stringify(top.properties || {}).slice(0, 200));
+        }
 
-        // Query each priority layer individually to get a definitive top-to-bottom hit
-        for (const layer of PRIORITY_LAYERS) {
-          const features = map.current!.queryRenderedFeatures({ layers: [layer.id] });
-          if (!features.length) continue;
-
-          const props = features[0].properties || {};
-          const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME ||
-                       props.Wilderness || props.unit_name || '';
-
-          setInspector({
-            x: e.point.x,
-            y: e.point.y,
-            info: {
-              agency: layer.agency,
-              unitName: typeof name === 'string' ? name : '',
-              restriction: layer.restriction,
-              agencyColor: layer.color,
-              layerLabel: layer.label,
-              layerId: layer.id,
-            },
-          });
+        if (!features.length) {
+          setInspector({ x: e.point.x, y: e.point.y, info: {
+            agency: 'Unknown / Private Land', unitName: '', restriction: 'restricted',
+            agencyColor: '#94A3B8', layerLabel: 'Unknown', layerId: '',
+          }});
           return;
         }
 
-        // No overlay hit — show private/unknown
-        setInspector({
-          x: e.point.x,
-          y: e.point.y,
-          info: {
-            agency: 'Unknown / Private Land',
-            unitName: '',
-            restriction: 'restricted',
-            agencyColor: '#94A3B8',
-            layerLabel: 'Unknown',
-            layerId: '',
-          },
-        });
+        // Use the FIRST feature returned — MapLibre returns them in z-order (topmost first)
+        const hit = features[0];
+        const layer = LAYER_CONFIG[hit.layer!.id];
+        if (!layer) return;
+
+        const props = hit.properties || {};
+        const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME ||
+                     props.Wilderness || props.unit_name || '';
+
+        setInspector({ x: e.point.x, y: e.point.y, info: {
+          agency: layer.agency,
+          unitName: typeof name === 'string' ? name : '',
+          restriction: layer.restriction,
+          agencyColor: layer.color,
+          layerLabel: layer.label,
+          layerId: hit.layer!.id,
+        }});
       });
 
       if (onMapLoadRef.current) onMapLoadRef.current(map.current);
