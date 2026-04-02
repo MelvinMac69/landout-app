@@ -227,7 +227,7 @@ export function BackcountryMap({
         // z-order from map.addLayer: wilderness, wsa, fs-wilderness, sma-nps, sma-fws, sma-usfs, sma-blm
         // MapLibre returns features in z-order (topmost first), so use FIRST hit (not last)
         // Priority just maps layer IDs → info labels
-        const features = map.current!.queryRenderedFeatures({ layers: layerIds });
+        const features = map.current!.queryRenderedFeatures({ layers: Object.keys(LAYER_CONFIG) });
         console.log('[inspector] click at', e.lngLat, '| hits:', features.length, '| layers:', features.map(f => f.layer?.id).join(', '));
         if (features.length) {
           const top = features[0];
