@@ -21,17 +21,19 @@ export const OVERLAY_LAYERS = [
   { id: 'sma-blm-fill', label: 'BLM Land', color: '#8B6914', description: 'Bureau of Land Management — multiple use' },
 ] as const;
 
-export type BasemapId = 'osm' | 'topo' | 'satellite';
+export type BasemapId = 'osm' | 'topo' | 'satellite' | 'vfr';
 
 export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> = {
   osm:      { label: 'Map',      icon: '🗺️' },
   topo:     { label: 'Topo',     icon: '⛰️' },
   satellite:{ label: 'Satellite', icon: '🛰️' },
+  vfr:      { label: 'VFR Chart', icon: '✈️' },
 };
 
 function buildStyle(basemap: BasemapId) {
   let tiles: string[];
   let attribution: string;
+  const arcgisToken = process.env.NEXT_PUBLIC_ARCGIS_API_KEY ?? '';
   if (basemap === 'osm') {
     tiles = [
       'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -42,9 +44,14 @@ function buildStyle(basemap: BasemapId) {
   } else if (basemap === 'topo') {
     tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
     attribution = '© OpenStreetMap contributors, © OpenTopoMap';
-  } else {
+  } else if (basemap === 'satellite') {
     tiles = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
     attribution = '© Esri World Imagery';
+  } else {
+    // VFR Sectional Aeronautical Charts via ArcGIS
+    const tokenPart = arcgisToken ? `?token=${arcgisToken}` : '';
+    tiles = [`https://tiles.arcgisonline.com/ArcGIS/rest/services/Specialty/World_Aeronautical_Chart/MapServer/tile/{z}/{y}/{x}${tokenPart}`];
+    attribution = '© FAA / Esri — For planning only, not for navigation';
   }
   return {
     version: 8 as const,
