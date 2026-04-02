@@ -96,7 +96,7 @@ export function BackcountryMap({
   }
 
   // Load a single overlay GeoJSON — sources survive basemap changes via shared style
-  async function loadOverlay(url: string, sourceId: string, layerId: string, color: string, opacity = 0.6) {
+  async function loadOverlay(url: string, sourceId: string, layerId: string, color: string, opacity = 0.4) {
     if (!map.current) return;
     try {
       const res = await fetch(url);
@@ -108,7 +108,7 @@ export function BackcountryMap({
       } else {
         map.current.addSource(sourceId, { type: 'geojson', data });
         map.current.addLayer({ id: layerId, type: 'fill', source: sourceId, paint: { 'fill-color': color, 'fill-opacity': opacity } });
-        map.current.addLayer({ id: layerId + '-outline', type: 'line', source: sourceId, paint: { 'line-color': color, 'line-width': 2 } });
+        map.current.addLayer({ id: layerId + '-outline', type: 'line', source: sourceId, paint: { 'line-color': color, 'line-width': 1, 'line-opacity': 0.6 } });
         if (!overlayVis.current[layerId]) {
           map.current.setLayoutProperty(layerId, 'visibility', 'none');
           map.current.setLayoutProperty(layerId + '-outline', 'visibility', 'none');
@@ -120,13 +120,13 @@ export function BackcountryMap({
   async function loadAllOverlays() {
     if (!map.current) return;
     await Promise.all([
-      loadOverlay('/data/sma-blm.geojson', 'sma-blm-src', 'sma-blm-fill', '#8B6914', 0.5),
-      loadOverlay('/data/sma-usfs.geojson', 'sma-usfs-src', 'sma-usfs-fill', '#2D5016', 0.55),
-      loadOverlay('/data/sma-fws.geojson', 'sma-fws-src', 'sma-fws-fill', '#DC2626', 0.55),
-      loadOverlay('/data/sma-nps.geojson', 'sma-nps-src', 'sma-nps-fill', '#DC2626', 0.55),
-      loadOverlay('/data/fs-wilderness.geojson', 'fs-wilderness-src', 'fs-wilderness-fill', '#DC2626', 0.6),
-      loadOverlay('/data/wsa.geojson', 'wsa-src', 'wsa-fill', '#DC2626', 0.6),
-      loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.6),
+      loadOverlay('/data/sma-blm.geojson', 'sma-blm-src', 'sma-blm-fill', '#8B6914', 0.4),
+      loadOverlay('/data/sma-usfs.geojson', 'sma-usfs-src', 'sma-usfs-fill', '#2D5016', 0.4),
+      loadOverlay('/data/sma-fws.geojson', 'sma-fws-src', 'sma-fws-fill', '#DC2626', 0.4),
+      loadOverlay('/data/sma-nps.geojson', 'sma-nps-src', 'sma-nps-fill', '#DC2626', 0.4),
+      loadOverlay('/data/fs-wilderness.geojson', 'fs-wilderness-src', 'fs-wilderness-fill', '#DC2626', 0.4),
+      loadOverlay('/data/wsa.geojson', 'wsa-src', 'wsa-fill', '#DC2626', 0.4),
+      loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.4),
     ]);
     if (routesRef.current?.features?.length) {
       map.current.addSource('routes-source', { type: 'geojson', data: routesRef.current });
