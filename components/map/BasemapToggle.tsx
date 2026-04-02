@@ -4,16 +4,15 @@ import { useState } from 'react';
 import { BASEMAP_STYLES, type BasemapId } from './BackcountryMap';
 
 export function BasemapToggle() {
-  // Track active state locally — stays in sync after user clicks
   const [active, setActive] = useState<BasemapId>('osm');
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: 4,
+        bottom: 80,  // above the disclaimer text
         left: 8,
-        zIndex: 5,
+        zIndex: 10,  // below layer panel z-10 button, but they don't overlap (bottom vs top)
         display: 'flex',
         gap: 4,
         background: 'white',
@@ -22,7 +21,7 @@ export function BasemapToggle() {
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
       }}
     >
-      {(Object.entries(BASEMAP_STYLES) as [BasemapId, typeof BASEMAP_STYLES[BasemapId]][]).map(([id, { label, icon }]) => (
+      {(Object.entries(BASEMAP_STYLES) as [BasemapId, (typeof BASEMAP_STYLES)[BasemapId]][]).map(([id, { label, icon }]) => (
         <button
           key={id}
           onClick={() => {
