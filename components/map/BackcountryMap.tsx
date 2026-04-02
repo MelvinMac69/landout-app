@@ -33,7 +33,6 @@ export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> 
 function buildStyle(basemap: BasemapId) {
   let tiles: string[];
   let attribution: string;
-  const arcgisToken = process.env.NEXT_PUBLIC_ARCGIS_API_KEY ?? '';
   if (basemap === 'osm') {
     tiles = [
       'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -48,10 +47,8 @@ function buildStyle(basemap: BasemapId) {
     tiles = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
     attribution = '© Esri World Imagery';
   } else {
-    // VFR Sectional Aeronautical Charts via ArcGIS
-    const tokenPart = arcgisToken ? `?token=${arcgisToken}` : '';
-    tiles = [`https://tiles.arcgisonline.com/ArcGIS/rest/services/Specialty/World_Aeronautical_Chart/MapServer/tile/{z}/{y}/{x}${tokenPart}`];
-    attribution = '© FAA / Esri — For planning only, not for navigation';
+    tiles = ['https://server.arcgisonline.com/arcgis/rest/services/Specialty/World_Navigation_Charts/MapServer/tile/{z}/{y}/{x}'];
+    attribution = '© Esri — For planning only, not for navigation';
   }
   return {
     version: 8 as const,
