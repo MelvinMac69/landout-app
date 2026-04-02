@@ -219,12 +219,29 @@ export function BackcountryMap({
 
         const allLayers = Object.keys(LAYER_MAP);
         const features = map.current!.queryRenderedFeatures({ layers: allLayers });
-        if (!features.length) { setInspector(null); return; }
 
-        // Pick first hit (highest z-order = first in array from MapLibre)
-        const hit = features[0];
+        // No overlay hit — show private/unknown
+        if (!features.length) {
+          setInspector({
+            x: e.point.x,
+            y: e.point.y,
+            info: {
+              agency: 'Unknown / Private Land',
+              unitName: '',
+              restriction: 'restricted',
+              agencyColor: '#94A3B8',
+              layerLabel: 'Unknown',
+              layerId: '',
+            },
+          });
+          return;
+        }
+
+        // Pick the LAST feature in the array — MapLibre returns layers in add-order,
+        // and the most recently added overlay (highest z) is LAST in the array
+        const hit = features[features.length - 1];
         const layer = LAYER_MAP[hit.layer!.id];
-        if (!layer) { setInspector(null); return; }
+        if (!layer) { return; }
 
         const props = hit.properties || {};
         // Try common name fields
@@ -244,8 +261,6 @@ export function BackcountryMap({
         });
       });
 
-      // Close inspector on map click that finds nothing
-      map.current.on('click', () => { if (inspector) setInspector(null); });
       if (onMapLoad) onMapLoad(map.current);
     });
 
