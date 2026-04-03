@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { DiagnosticsPanel } from './DiagnosticsPanel';
 
 interface BackcountryMapProps {
   initialCenter?: [number, number];
@@ -69,6 +70,9 @@ export function BackcountryMap({
   const map = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [basemap, setBasemap] = useState<BasemapId>('osm');
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const diagTapCount = useRef(0);
+  const diagTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activePopups = useRef<maplibregl.Popup[]>([]);
 
@@ -201,7 +205,10 @@ export function BackcountryMap({
       if (!bestInfo) return;
 
       const props = best.properties ?? {};
-      const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME || '';
+      // Support both old and new property names from different import sources
+      const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME
+        || props.WildernessName || props.unit_name || props.WSA_NAME
+        || props.FORESTNAME || props.forestname || '';
       const rC = bestInfo.restriction === 'no-landing' ? '#DC2626' : bestInfo.restriction === 'restricted' ? '#D97706' : '#16A34A';
       const rBg = bestInfo.restriction === 'no-landing' ? '#FEE2E2' : bestInfo.restriction === 'restricted' ? '#FEF3C7' : '#DCFCE7';
       const rTxt = bestInfo.restriction === 'no-landing' ? '🚫 No landing' : bestInfo.restriction === 'restricted' ? '⚠️ Restricted — verify before landing' : '✅ Multiple use — landing generally OK';
@@ -276,6 +283,7 @@ export function BackcountryMap({
       applyVisibility(id);
     };
     win.landoutGetBasemap = () => basemap;
+    win.landoutToggleDiagnostics = () => setShowDiagnostics((v) => !v);
   });
 
   return (
@@ -285,6 +293,9 @@ export function BackcountryMap({
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>
         </div>
+      )}
+      {showDiagnostics && (
+        <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
     </div>
   );

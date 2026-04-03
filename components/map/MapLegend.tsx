@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export function MapLegend() {
   const [collapsed, setCollapsed] = useState(true);
+  const tapCount = useRef(0);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const items = [
     { color: '#8B6914', label: 'BLM Land', agency: 'Bureau of Land Management' },
@@ -38,7 +40,26 @@ export function MapLegend() {
           cursor: 'pointer',
           userSelect: 'none',
         }}
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => {
+          // 5-tap to reveal diagnostics
+          const win = window as typeof window & { landoutToggleDiagnostics?: () => void };
+          if (!win.landoutToggleDiagnostics) {
+            setCollapsed(!collapsed);
+            return;
+          }
+          if (tapTimer.current) clearTimeout(tapTimer.current);
+          tapCount.current++;
+          if (tapCount.current >= 5) {
+            tapCount.current = 0;
+            if (tapTimer.current) clearTimeout(tapTimer.current);
+            win.landoutToggleDiagnostics();
+          } else {
+            tapTimer.current = setTimeout(() => {
+              tapCount.current = 0;
+            }, 800);
+            setCollapsed(!collapsed);
+          }
+        }}
       >
         <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Land Status Key
