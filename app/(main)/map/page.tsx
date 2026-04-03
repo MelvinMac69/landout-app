@@ -38,6 +38,21 @@ export default function MapPage() {
     >
       <BackcountryMap onMapLoad={handleMapLoad} />
 
+      {/* TEMPORARY BUILD VERIFICATION MARKER */}
+      <div style={{
+        position: 'absolute', top: 4, left: 4, zIndex: 9999,
+        background: '#1B3D2F', color: '#E8DCC8',
+        padding: '6px 10px', borderRadius: 8,
+        fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        letterSpacing: '0.05em',
+        border: '2px solid #D4621A',
+      }}>
+        <div style={{ color: '#D4621A', marginBottom: 2 }}>LANDOUT BUILD TEST</div>
+        <div>SHA: f5eb185</div>
+        <div>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+      </div>
+
       {/* =========================================================
           LAYER CONTROLS — top-right corner, always visible
           ========================================================= */}
