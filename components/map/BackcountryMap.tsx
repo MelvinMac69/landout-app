@@ -236,13 +236,38 @@ export function BackcountryMap({
               minzoom: 6,
               filter: ['==', '$type', 'Point'],
               paint: {
-                // Radius interpolation: small airports start at radius 0 (invisible)
-                // at zoom 6 and grow as you zoom in. Large/medium are always visible.
+                // Tiered visibility using Wikipedia presence as a proxy for established/public-use airports.
+                // This is an imperfect heuristic — not an official classification.
+                // FAA NASR will eventually give us TOWER flag and use_type for proper classification.
+                // Tier 1: large_airport — always prominent
+                // Tier 2: medium_airport — clearly visible
+                // Tier 3: small_airport with wikipedia_link — established airports (human-curated signal)
+                // Tier 4: small_airport without wikipedia_link — private strips, most heliports
+                // Tier 5: seaplane_base — de-emphasized at regional zoom
+                // Tier 6: closed — nearly invisible (includes heliports), visible only when zoomed in
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 'circle-radius': [
                   'interpolate', ['linear'], ['zoom'],
-                  6,  ['match', ['get', 'type'], 'large_airport', 9, 'medium_airport', 5, 'seaplane_base', 0, 'closed', 0, 0],
-                  8,  ['match', ['get', 'type'], 'large_airport', 11, 'medium_airport', 7, 'seaplane_base', 4, 'closed', 2, 4],
-                  10, ['match', ['get', 'type'], 'large_airport', 13, 'medium_airport', 9, 'seaplane_base', 6, 'closed', 3, 6],
+                  6,  ['case',
+                        ['==', ['get', 'type'], 'large_airport'], 9,
+                        ['==', ['get', 'type'], 'medium_airport'], 5,
+                        ['all', ['==', ['get', 'type'], 'small_airport'], ['!=', ['get', 'wikipedia_link'], null]], 3,
+                        ['all', ['==', ['get', 'type'], 'small_airport'], ['==', ['get', 'wikipedia_link'], null]], 0,
+                        0] as any,
+                  8,  ['case',
+                        ['==', ['get', 'type'], 'large_airport'], 11,
+                        ['==', ['get', 'type'], 'medium_airport'], 7,
+                        ['all', ['==', ['get', 'type'], 'small_airport'], ['!=', ['get', 'wikipedia_link'], null]], 5,
+                        ['all', ['==', ['get', 'type'], 'small_airport'], ['==', ['get', 'wikipedia_link'], null]], 3,
+                        ['==', ['get', 'type'], 'seaplane_base'], 4,
+                        2] as any,
+                  10, ['case',
+                        ['==', ['get', 'type'], 'large_airport'], 13,
+                        ['==', ['get', 'type'], 'medium_airport'], 9,
+                        ['all', ['==', ['get', 'type'], 'small_airport'], ['!=', ['get', 'wikipedia_link'], null]], 7,
+                        ['all', ['==', ['get', 'type'], 'small_airport'], ['==', ['get', 'wikipedia_link'], null]], 5,
+                        ['==', ['get', 'type'], 'seaplane_base'], 6,
+                        3] as any,
                 ],
                 'circle-color': '#1D4ED8',
                 'circle-opacity': 0.9,
