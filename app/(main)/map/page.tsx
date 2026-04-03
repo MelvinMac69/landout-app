@@ -15,7 +15,12 @@ export default function MapPage() {
 
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
 
-  const handleMapLoad = useCallback(() => {}, []);
+  const handleMapLoad = useCallback((map: maplibregl.Map) => {
+    // Belt-and-suspenders: also expose on window so LocateButton can find the map
+    // even if mapRef isn't propagated yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__landoutMap = map;
+  }, []);
 
   const handleToggle = useCallback((layerId: string) => {
     const fn = (window as typeof window & { landoutSetOverlayVisibility: (id: string, v: boolean) => void }).landoutSetOverlayVisibility;

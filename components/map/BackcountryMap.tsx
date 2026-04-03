@@ -109,6 +109,10 @@ export function BackcountryMap({
   // Block click after long-press (300ms)
   const suppressClickRef = useRef(false);
 
+  // Debug: count touch events reaching the map
+  const touchCountRef = useRef(0);
+  const [touchCount, setTouchCount] = useState(0);
+
   const activePopups = useRef<maplibregl.Popup[]>([]);
 
   const onMapLoadRef = useRef(onMapLoad);
@@ -400,6 +404,16 @@ export function BackcountryMap({
       setLoaded(true);
       await loadAllOverlays();
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
+
+      // Debug: count native touch events on the map canvas to verify they reach MapLibre
+      const canvas = mapInstance.getCanvas();
+      const incTouch = () => {
+        touchCountRef.current++;
+        setTouchCount(touchCountRef.current);
+      };
+      canvas.addEventListener('touchstart', incTouch, { passive: true });
+      canvas.addEventListener('touchmove', incTouch, { passive: true });
+      canvas.addEventListener('touchend', incTouch, { passive: true });
     });
 
     const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
@@ -719,6 +733,15 @@ export function BackcountryMap({
           }}
         />
       )}
+      {/* Touch debug counter — temporary visible badge */}
+      <div style={{
+        position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 9999, background: 'rgba(0,0,0,0.75)', color: 'white',
+        padding: '2px 8px', borderRadius: 8, fontSize: 10, fontFamily: 'monospace',
+        pointerEvents: 'none',
+      }}>
+        touches: {touchCount}
+      </div>
       {/* Long-0press action menu */}
       {actionMenu && (
         <ActionMenu

@@ -206,7 +206,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     setFollowMode((f) => {
       const next = !f;
       if (next && position) {
-        const map = mapRef.current;
+        const map = getMap();
         if (map) map.panTo([position.lon, position.lat], { duration: 500 });
       }
       return next;
