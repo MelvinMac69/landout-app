@@ -60,6 +60,19 @@ body {
     min-width: 42px !important;
     min-height: 42px !important;
   }
+
+  /* Search bar — narrower on phone, above safe area */
+  .search-bar-container {
+    left: 16px !important;
+    right: 16px !important;
+    bottom: 88px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .search-bar-container .bg-white {
+    padding: 8px 12px !important;
+  }
 }
 
 /* Notched phones — safe area at bottom */
@@ -74,13 +87,52 @@ body {
   .search-bar-container {
     bottom: 8px !important;
     top: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: min(400px, 90vw) !important;
+    right: auto !important;
   }
 
   .map-legend-panel {
     top: 8px !important;
+    right: 8px !important;
   }
 
   .map-layer-panel {
     top: 8px !important;
+    right: 8px !important;
+  }
+}
+
+/* Popup — always dismissible, fits in viewport on mobile */
+.landout-popup {
+  max-width: min(320px, 90vw) !important;
+  max-height: 45vh !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  /* Allow touch scroll inside popup without propagating to map */
+  touch-action: pan-y;
+}
+
+.maplibregl-popup-close-button {
+  font-size: 18px !important;
+  width: 28px !important;
+  height: 28px !important;
+  top: 4px !important;
+  right: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255,255,255,0.8) !important;
+  border-radius: 50% !important;
+  line-height: 1 !important;
+  color: #64748B !important;
+}
+
+/* Popup close button touch target — minimum 44px for mobile */
+@media (max-width: 480px) {
+  .maplibregl-popup-close-button {
+    min-width: 36px !important;
+    min-height: 36px !important;
   }
 }

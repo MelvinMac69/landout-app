@@ -228,15 +228,18 @@ export function BackcountryMap({
           if (!map.current!.getSource('airport-src')) {
             map.current!.addSource('airport-src', { type: 'geojson', data: aptData });
             map.current!.addLayer({ id: 'airport-fill', type: 'circle', source: 'airport-src',
-              filter: ['==', '$type', 'Point'],
+              filter: ['all', ['==', '$type', 'Point'], ['>=', ['zoom'], 9]],
               paint: {
+                // All airports hidden below zoom 9.
+                // At zoom 9-10: large/medium/seaplane visible, small airports still filtered out
+                // At zoom 10+: all airports visible
+                // Achieved via separate zoom expressions for radius — smaller airports
+                // don't render visibly until higher zoom even though filter allows them.
                 'circle-radius': [
-                  'match', ['get', 'type'],
-                  'large_airport', 8,
-                  'medium_airport', 6,
-                  'seaplane_base', 5,
-                  'closed', 3,
-                  4 // small_airport default
+                  'interpolate', ['linear'], ['zoom'],
+                  9, ['match', ['get', 'type'], 'large_airport', 8, 'medium_airport', 5, 'seaplane_base', 4, 'closed', 2, 2],
+                  11, ['match', ['get', 'type'], 'large_airport', 10, 'medium_airport', 8, 'seaplane_base', 6, 'closed', 4, 5],
+                  13, ['match', ['get', 'type'], 'large_airport', 12, 'medium_airport', 10, 'seaplane_base', 8, 'closed', 5, 7]
                 ],
                 'circle-color': '#1D4ED8',
                 'circle-opacity': 0.75,
@@ -475,8 +478,8 @@ export function BackcountryMap({
       {showDiagnostics && (
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
-      {/* Locate button — right side, below MapLegend */}
-      <div style={{ position: 'absolute', top: 280, right: 8, zIndex: 10 }}>
+      {/* Locate button — left side below zoom controls for one-handed reach on mobile */}
+      <div style={{ position: 'absolute', top: 108, left: 16, zIndex: 10 }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
     </div>
