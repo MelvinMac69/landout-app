@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, BasemapToggle, OVERLAY_LAYERS } from '@/components/map';
 
 export default function MapPage() {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => { setIsMounted(true); }, []);
+  // isMounted check removed — BackcountryMap handles its own loading state internally.
+  // Keeping isMounted at the page level caused a double-overlay bug on mobile where
+  // the page-level loading div (pointerEvents: auto) blocked all map touch events
+  // if isMounted was not set to true after hydration (particularly on mobile Safari).
 
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
@@ -23,14 +24,6 @@ export default function MapPage() {
   }, [activeLayers]);
 
   const layers = OVERLAY_LAYERS.map((l) => ({ ...l, visible: activeLayers[l.id] ?? true }));
-
-  if (!isMounted) {
-    return (
-      <div className="h-[calc(100vh-3.5rem)] bg-slate-100 flex items-center justify-center">
-        <span className="text-slate-500">Loading map…</span>
-      </div>
-    );
-  }
 
   return (
     <div

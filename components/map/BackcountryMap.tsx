@@ -7,6 +7,10 @@ import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { LocateButton } from './LocateButton';
 import { DirectToPanel, ActionMenu } from './DirectTo';
 
+// Module-level singleton so LocateButton can access the map without prop-drilling refs
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const mapInstanceGetter = (): maplibregl.Map | null => (window as any).__landoutMap ?? null;
+
 interface BackcountryMapProps {
   initialCenter?: [number, number];
   initialZoom?: number;
@@ -390,6 +394,9 @@ export function BackcountryMap({
     mapInstance.on('load', async () => {
       map.current = mapInstance;
       mapInstanceRef.current = mapInstance;
+      // Expose on window for LocateButton (stable across re-renders)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).__landoutMap = mapInstance;
       setLoaded(true);
       await loadAllOverlays();
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
@@ -682,7 +689,8 @@ export function BackcountryMap({
 
   return (
     <div className="relative w-full h-full">
-      <div ref={mapContainer} className="w-full h-full" />
+      {/* Full-screen map container — touch-action:none enables MapLibre's iOS gesture handling */}
+      <div ref={mapContainer} style={{ width: '100%', height: '100%', touchAction: 'none' }} />
       {!loaded && (
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>

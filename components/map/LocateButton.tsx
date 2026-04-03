@@ -18,8 +18,15 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   // Prevent double-taps during permission dialog on iOS
   const isRequesting = useRef(false);
 
+  /** Stable map accessor — uses window singleton as fallback in case mapRef isn't set yet */
+  function getMap(): maplibregl.Map | null {
+    if (mapRef.current) return mapRef.current;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (window as any).__landoutMap ?? null;
+  }
+
   function updateMarker(lat: number, lon: number, heading?: number) {
-    const map = mapRef.current;
+    const map = getMap();
     if (!map) return;
 
     if (!markerRef.current) {
@@ -81,8 +88,10 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const h = p.coords.heading ?? undefined;
         setPosition({ lat: la, lon: lo, heading: h });
         updateMarker(la, lo, h);
-        if (followMode && mapRef.current) {
-          mapRef.current.panTo([lo, la], { duration: 500 });
+        // Use stateRef to avoid stale closure on followMode changes
+        if (stateRef.current.followMode) {
+          const map = getMap();
+          if (map) map.panTo([lo, la], { duration: 500 });
         }
       },
       (err) => {
@@ -128,7 +137,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         isRequesting.current = false;
         const { latitude: lat, longitude: lon } = pos.coords;
         const heading = pos.coords.heading ?? undefined;
-        const map = mapRef.current;
+        const map = getMap();
         if (map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 12), duration: 1000 });
         startWatching(lat, lon, heading);
       } catch {
@@ -166,7 +175,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       isRequesting.current = false;
       const { latitude: lat, longitude: lon } = pos.coords;
       const heading = pos.coords.heading ?? undefined;
-      const map = mapRef.current;
+      const map = getMap();
       if (map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 12), duration: 1000 });
       startWatching(lat, lon, heading);
     } catch (err: unknown) {
@@ -204,15 +213,21 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     });
   }
 
-  // Expose location state to window for DiagnosticsPanel
+  // Expose location state to window for BackcountryMap's Direct To feature.
+  // Update window IMMEDIATELY on any change (not just on re-render) using a stable ref.
+  const stateRef = useRef({ state, followMode, position });
   useEffect(() => {
+    stateRef.current = { state, followMode, position };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).landoutLocationState = { state, followMode, position };
+    (window as any).landoutLocationState = stateRef.current;
+  });
+  // Also write on cleanup
+  useEffect(() => {
     return () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (window as any).landoutLocationState;
     };
-  }, [state, followMode, position]);
+  }, []);
 
   useEffect(() => {
     return () => {
