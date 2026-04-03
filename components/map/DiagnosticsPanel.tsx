@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface LayerDiagnostic {
   id: string;
@@ -101,7 +102,25 @@ interface DiagnosticsPanelProps {
   onClose: () => void;
 }
 
+interface LocInfo {
+  state: string;
+  followMode: boolean;
+  position: { lat: number; lon: number; heading?: number } | null;
+}
+
 export function DiagnosticsPanel({ onClose }: DiagnosticsPanelProps) {
+  const [locInfo, setLocInfo] = useState<LocInfo>({ state: 'idle', followMode: false, position: null });
+
+  useEffect(() => {
+    const update = () => {
+      const win = window as typeof window & { landoutLocationState?: LocInfo };
+      if (win.landoutLocationState) setLocInfo(win.landoutLocationState);
+    };
+    update();
+    const interval = setInterval(update, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div
       style={{
@@ -165,6 +184,35 @@ export function DiagnosticsPanel({ onClose }: DiagnosticsPanelProps) {
         }}
       >
         <strong>Test Region:</strong> Idaho (ID) — has BLM land, USFS forest, designated wilderness, and many airports all in one state. Zoom to ~zoom 6-7 over ID to verify all layers render correctly. Check that airport circles appear in blue at various sizes.
+      </div>
+
+      {/* Location Status */}
+      <div
+        style={{
+          margin: '10px 12px',
+          padding: '8px 10px',
+          background: '#F0F9FF',
+          border: '1px solid #BFDBFE',
+          borderRadius: 8,
+          fontSize: 11,
+          color: '#1E40AF',
+        }}
+      >
+        <strong>📍 Location:</strong>{' '}
+        {locInfo.state === 'idle'
+          ? 'Not requested'
+          : locInfo.state === 'acquiring'
+          ? 'Acquiring GPS…'
+          : locInfo.state === 'active'
+          ? locInfo.position
+            ? `Active — ${locInfo.position.lat.toFixed(4)}°, ${locInfo.position.lon.toFixed(4)}°`
+            : 'Active'
+          : locInfo.state === 'denied'
+          ? 'Permission denied'
+          : 'Unavailable'}
+        {locInfo.followMode && (
+          <span style={{ color: '#3B82F6', fontWeight: 600 }}> • Follow mode ON</span>
+        )}
       </div>
 
       {/* Layer List */}

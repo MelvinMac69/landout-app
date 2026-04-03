@@ -36,11 +36,25 @@ export default function MapPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] relative">
+    <div
+      className="h-[calc(100vh-3.5rem)] relative map-page-wrapper"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       <BackcountryMap onMapLoad={handleMapLoad} />
 
+      {/* Search — bottom-center, sized for mobile */}
+
+      {/* Basemap toggle — bottom-left */}
+      <BasemapToggle />
+
+      {/* Layer toggle — top-right */}
+      <MapLayerToggle layers={layers} onToggle={handleToggle} />
+
+      {/* Map legend — top-right below layer panel (defaults to collapsed) */}
+      <MapLegend />
+
       {/* Search — bottom-center */}
-      <div className="absolute bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-80 md:mx-auto z-10">
+      <div className="search-bar-container absolute bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-80 md:mx-auto z-10">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-slate-400" />
@@ -52,15 +66,6 @@ export default function MapPage() {
           </div>
         </div>
       </div>
-
-      {/* Basemap toggle — bottom-left */}
-      <BasemapToggle />
-
-      {/* Layer toggle — top-right */}
-      <MapLayerToggle layers={layers} onToggle={handleToggle} />
-
-      {/* Map legend — top-right below layer panel (defaults to collapsed) */}
-      <MapLegend />
 
       {/* NOT FOR NAVIGATION — click to dismiss */}
       {!disclaimerDismissed && (

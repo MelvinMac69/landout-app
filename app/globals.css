@@ -29,9 +29,58 @@ body {
 .maplibregl-ctrl-group {
   border-radius: 0.5rem !important;
   overflow: hidden;
+  min-width: 42px !important;
+  min-height: 42px !important;
 }
 
 .maplibregl-ctrl-group button {
   width: 40px !important;
   height: 40px !important;
+}
+
+/* ============================================
+   Mobile UX — phones and small tablets
+   ============================================ */
+
+@media (max-width: 480px) {
+  /* Cap floating panels so they don't overflow screen */
+  .map-legend-panel,
+  .map-layer-panel,
+  .map-diagnostics-panel {
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  /* Ensure map controls are reachable */
+  .maplibregl-ctrl-group {
+    min-width: 42px !important;
+    min-height: 42px !important;
+  }
+
+  .maplibregl-ctrl-group button {
+    min-width: 42px !important;
+    min-height: 42px !important;
+  }
+}
+
+/* Notched phones — safe area at bottom */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .map-page-wrapper {
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+}
+
+/* Landscape phone */
+@media (max-height: 500px) and (orientation: landscape) {
+  .search-bar-container {
+    bottom: 8px !important;
+    top: auto !important;
+  }
+
+  .map-legend-panel {
+    top: 8px !important;
+  }
+
+  .map-layer-panel {
+    top: 8px !important;
+  }
 }

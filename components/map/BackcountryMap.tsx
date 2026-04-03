@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
+import { LocateButton } from './LocateButton';
 
 interface BackcountryMapProps {
   initialCenter?: [number, number];
@@ -69,6 +70,7 @@ export function BackcountryMap({
 }: BackcountryMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const mapInstanceRef = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [basemap, setBasemap] = useState<BasemapId>('osm');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -202,6 +204,7 @@ export function BackcountryMap({
 
     mapInstance.on('load', async () => {
       map.current = mapInstance;
+      mapInstanceRef.current = mapInstance;
       setLoaded(true);
       await loadAllOverlays();
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
@@ -384,6 +387,10 @@ export function BackcountryMap({
       {showDiagnostics && (
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
+      {/* Locate button — right side, below MapLegend */}
+      <div style={{ position: 'absolute', top: 280, right: 8, zIndex: 10 }}>
+        <LocateButton mapRef={mapInstanceRef} />
+      </div>
     </div>
   );
 }
