@@ -8,7 +8,7 @@ interface LayerDiagnostic {
   label: string;
   color: string;
   source: string;
-  sourceClassification: 'authoritative public source - higher resolution' | 'official generalized - interim' | 'official generalized' | 'community/FAA-derived - development convenience';
+  sourceClassification: 'authoritative public source - higher resolution' | 'official generalized - interim' | 'official generalized' | 'official authoritative - full resolution Alaska' | 'community/FAA-derived - development convenience';
   importDate: string;
   notes?: string;
   status: 'healthy' | 'warning' | 'degraded';
@@ -95,6 +95,26 @@ const LAYER_DIAGNOSTICS: LayerDiagnostic[] = [
     notes: 'Interim development data. Primary target: FAA 28-Day NASR Subscription. CC-BY license — attribution required.',
     status: 'warning',
     statusReason: 'Community data, not official FAA. Verify with current charts before flight.',
+  },
+  {
+    id: 'sma-blm-ak-fill',
+    label: 'Alaska Federal Land (BLM AK)',
+    color: '#8B6914',
+    source: 'https://gis.blm.gov/akarcgis/rest/services/Land_Management/BLM_AK_Administered_Lands_SMA/FeatureServer/0',
+    sourceClassification: 'official authoritative - full resolution Alaska',
+    importDate: new Date().toISOString().split('T')[0],
+    status: 'healthy',
+    notes: 'Alaska-specific high-resolution federal land ownership. Covers BLM, USFS, NPS, FWS, DOD. Colored by agency: BLM=tan, USFS=green, NPS=purple, FWS=blue.',
+  },
+  {
+    id: 'ak-ond-fill',
+    label: 'Alaska Wilderness/WSA',
+    color: '#DC2626',
+    source: 'https://gis.blm.gov/akarcgis/rest/services/Administrative_Boundaries/BLM_AK_Designated_National_Boundary/FeatureServer/0',
+    sourceClassification: 'official authoritative - full resolution Alaska',
+    importDate: new Date().toISOString().split('T')[0],
+    status: 'healthy',
+    notes: 'Alaska designated areas: Wilderness, WSAs, National Monuments, Recreation Areas. Only Wilderness and WSA types are displayed.',
   },
 ];
 
@@ -184,6 +204,21 @@ export function DiagnosticsPanel({ onClose }: DiagnosticsPanelProps) {
         }}
       >
         <strong>Test Region:</strong> Idaho (ID) — has BLM land, USFS forest, designated wilderness, and many airports all in one state. Zoom to ~zoom 6-7 over ID to verify all layers render correctly. Check that airport circles appear in blue at various sizes.
+      </div>
+
+      {/* Alaska Test Region */}
+      <div
+        style={{
+          margin: '10px 12px',
+          padding: '8px 10px',
+          background: '#F5F3FF',
+          border: '1px solid #DDD6FE',
+          borderRadius: 8,
+          fontSize: 11,
+          color: '#5B21B6',
+        }}
+      >
+        <strong>Alaska Test:</strong> Zoom to ~zoom 4 over south-central Alaska (Anchorage area, ~-149.9, 61.2) to verify BLM/USFS/NPS/FWS land boundaries. Check Gates of the Arctic / Denali area at zoom 5-6 for park and preserve boundaries. AK layers are colored by agency_code — purple=NPS, blue=FWS, tan=BLM, green=USFS.
       </div>
 
       {/* Location Status */}

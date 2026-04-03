@@ -37,6 +37,10 @@ export function MapLegend() {
     { color: '#DC2626', label: 'Wilderness', agency: 'Designated wilderness — avoid' },
     { color: '#DC2626', label: 'WSA', agency: 'Wilderness Study Area' },
     { color: '#1D4ED8', label: 'Airport / Strip', agency: 'Reference data — not legal authority' },
+    { color: '#8B6914', label: 'BLM Alaska', agency: 'BLM Alaska — federal land agencies' },
+    { color: '#6B21A8', label: 'NPS Alaska Park', agency: 'National Park Service — no landing' },
+    { color: '#0369A1', label: 'FWS Alaska Refuge', agency: 'Fish & Wildlife Service — restricted' },
+    { color: '#DC2626', label: 'AK Wilderness/WSA', agency: 'Alaska designated wilderness / WSA' },
   ];
 
   return (

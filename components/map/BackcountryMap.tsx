@@ -22,6 +22,8 @@ export const OVERLAY_LAYERS = [
   { id: 'sma-usfs-fill', label: 'National Forest', color: '#2D5016', description: 'USFS land — primitive recreation OK' },
   { id: 'sma-blm-fill', label: 'BLM Land', color: '#8B6914', description: 'Bureau of Land Management — multiple use' },
   { id: 'airport-fill', label: 'Airports / Strips', color: '#1D4ED8', description: 'FAA/OurAirports airport reference data' },
+  { id: 'sma-blm-ak-fill', label: 'Alaska Land Ownership', color: '#8B6914', description: 'BLM Alaska — federal land agencies (BLM, USFS, NPS, FWS, DOD)' },
+  { id: 'ak-ond-fill', label: 'AK Wilderness/WSA', color: '#DC2626', description: 'Alaska designated wilderness and WSAs — no landing' },
 ] as const;
 
 export type BasemapId = 'osm' | 'topo' | 'satellite' | 'vfr';
@@ -92,7 +94,7 @@ export function BackcountryMap({
   function applyVisibility(layerId: string) {
     if (!map.current) return;
     const vis = overlayVis.current[layerId] ?? true ? 'visible' : 'none';
-    for (const id of [layerId, layerId + '-outline']) {
+    for (const id of [layerId, layerId + '-outline', layerId + '-fill-outline']) {
       if (map.current.getLayer(id)) map.current.setLayoutProperty(id, 'visibility', vis);
     }
   }
@@ -124,6 +126,86 @@ export function BackcountryMap({
     } catch (err) { console.error('[load]', url, err); }
   }
 
+  // Alaska land ownership — agency_code-driven fill colors
+  async function loadAlaskaLand() {
+    if (!map.current) return;
+    const url = '/data/sma-blm-ak.geojson';
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data: GeoJSON.FeatureCollection = await res.json();
+      if (!data.features?.length) return;
+      const srcId = 'sma-blm-ak-src';
+      const fillId = 'sma-blm-ak-fill';
+      const outlineId = 'sma-blm-ak-fill-outline';
+      const fillColor = ['match', ['get', 'agency_code'],
+        'BLM', '#8B6914',
+        'USFS', '#2D5016',
+        'NPS', '#6B21A8',
+        'FWS', '#0369A1',
+        '#374151',
+      ] as maplibregl.ExpressionSpecification;
+      if (map.current.getSource(srcId)) {
+        (map.current.getSource(srcId) as maplibregl.GeoJSONSource).setData(data);
+      } else {
+        map.current.addSource(srcId, { type: 'geojson', data });
+        map.current.addLayer({
+          id: fillId, type: 'fill', source: srcId,
+          paint: { 'fill-color': fillColor, 'fill-opacity': 0.45 },
+        });
+        map.current.addLayer({
+          id: outlineId, type: 'line', source: srcId,
+          paint: { 'line-color': fillColor, 'line-width': 0.75, 'line-opacity': 0.7 },
+        });
+        if (!overlayVis.current[fillId]) {
+          map.current.setLayoutProperty(fillId, 'visibility', 'none');
+          map.current.setLayoutProperty(outlineId, 'visibility', 'none');
+        }
+      }
+    } catch (err) { console.error('[load]', url, err); }
+  }
+
+  // Alaska Designated Areas (wilderness, WSA, monuments) — only wilderness/WSA shown
+  async function loadAlaskaOND() {
+    if (!map.current) return;
+    const url = '/data/ak-ond.geojson';
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data: GeoJSON.FeatureCollection = await res.json();
+      if (!data.features?.length) return;
+      // Filter to wilderness/WSA only
+      const filtered = {
+        ...data,
+        features: data.features.filter((f) => {
+          const lt = (f.properties as any)?.land_type;
+          return lt === 'wilderness' || lt === 'wsa';
+        }),
+      };
+      if (!filtered.features.length) return;
+      const srcId = 'ak-ond-src';
+      const fillId = 'ak-ond-fill';
+      const outlineId = 'ak-ond-fill-outline';
+      if (map.current.getSource(srcId)) {
+        (map.current.getSource(srcId) as maplibregl.GeoJSONSource).setData(filtered);
+      } else {
+        map.current.addSource(srcId, { type: 'geojson', data: filtered });
+        map.current.addLayer({
+          id: fillId, type: 'fill', source: srcId,
+          paint: { 'fill-color': '#DC2626', 'fill-opacity': 0.45 },
+        });
+        map.current.addLayer({
+          id: outlineId, type: 'line', source: srcId,
+          paint: { 'line-color': '#DC2626', 'line-width': 0.75, 'line-opacity': 0.7 },
+        });
+        if (!overlayVis.current[fillId]) {
+          map.current.setLayoutProperty(fillId, 'visibility', 'none');
+          map.current.setLayoutProperty(outlineId, 'visibility', 'none');
+        }
+      }
+    } catch (err) { console.error('[load]', url, err); }
+  }
+
   async function loadAllOverlays() {
     if (!map.current) return;
     await Promise.all([
@@ -135,6 +217,8 @@ export function BackcountryMap({
       loadOverlay('/data/wsa.geojson', 'wsa-src', 'wsa-fill', '#DC2626', 0.4),
       loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.4),
     ]);
+    // Load Alaska layers
+    await Promise.all([loadAlaskaLand(), loadAlaskaOND()]);
     // Load airport reference layer
     try {
       const aptRes = await fetch('/data/airports-ourairports.geojson');
@@ -219,6 +303,9 @@ export function BackcountryMap({
       'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
       'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
       'airport-fill':      { agency: 'Airport',                    label: 'Reference Airport',     restriction: 'multiple-use', color: '#1D4ED8' },
+      // Alaska layers
+      'sma-blm-ak-fill':  { agency: 'Alaska Federal Land',      label: 'Alaska Land Ownership', restriction: 'multiple-use', color: '#8B6914' },
+      'ak-ond-fill':      { agency: 'BLM Alaska',               label: 'AK Wilderness/WSA',    restriction: 'no-landing',   color: '#DC2626' },
     };
     const RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2, 'airport': 3 };
 
@@ -297,7 +384,8 @@ export function BackcountryMap({
       // Support both old and new property names from different import sources
       const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME
         || props.WildernessName || props.unit_name || props.WSA_NAME
-        || props.FORESTNAME || props.forestname || '';
+        || props.FORESTNAME || props.forestname
+        || props.agency_name || props.designation_type || '';
       const rC = bestInfo.restriction === 'no-landing' ? '#DC2626' : bestInfo.restriction === 'restricted' ? '#D97706' : '#16A34A';
       const rBg = bestInfo.restriction === 'no-landing' ? '#FEE2E2' : bestInfo.restriction === 'restricted' ? '#FEF3C7' : '#DCFCE7';
       const rTxt = bestInfo.restriction === 'no-landing' ? '🚫 No landing' : bestInfo.restriction === 'restricted' ? '⚠️ Restricted — verify before landing' : '✅ Multiple use — landing generally OK';
