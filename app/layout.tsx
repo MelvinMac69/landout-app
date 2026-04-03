@@ -1,9 +1,18 @@
 import type { Metadata } from 'next';
+import type { Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Backcountry Map',
   description: 'Backcountry aviation mapping for GA pilots — public land, wilderness, and landing sites',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1.0,
+  maximumScale: 1.0,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({

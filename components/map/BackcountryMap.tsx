@@ -390,7 +390,7 @@ export function BackcountryMap({
     const style = document.createElement('style');
     style.textContent = `
       .maplibregl-ctrl-top-left { top: max(4px, env(safe-area-inset-top)) !important; left: 8px !important; }
-      .maplibregl-ctrl-bottom-left { bottom: 12px !important; left: 8px !important; }
+      .maplibregl-ctrl-bottom-left { bottom: 80px !important; left: 8px !important; }
       .maplibregl-ctrl-scale { border-color: #64748B !important; color: #64748B !important; background: rgba(255,255,255,0.85) !important; font-size: 10px !important; }
     `;
     document.head.appendChild(style);
@@ -714,7 +714,7 @@ export function BackcountryMap({
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
       {/* Locate button — bottom-right, keeps BasemapToggle clear on left side */}
-      <div style={{ position: 'absolute', bottom: 12, right: 8, zIndex: 10 }}>
+      <div style={{ position: 'absolute', bottom: 80, right: 8, zIndex: 60 }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
       {/* Direct To info card */}
