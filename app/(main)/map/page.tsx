@@ -2,14 +2,12 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, BasemapToggle, OVERLAY_LAYERS } from '@/components/map';
-import { Search, Layers } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 export default function MapPage() {
   const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  useEffect(() => { setIsMounted(true); }, []);
 
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
@@ -37,36 +35,56 @@ export default function MapPage() {
 
   return (
     <div
-      className="h-[calc(100vh-3.5rem)] relative map-page-wrapper"
+      className="h-[calc(100vh-3.5rem)] relative"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <BackcountryMap onMapLoad={handleMapLoad} />
 
       {/* =========================================================
-          TOP CONTROLS — top-right corner
-          Layer panel + legend stack above all bottom/left controls
+          LAYER CONTROLS — top-right corner, always visible
           ========================================================= */}
 
-      {/* Map layer toggle — compact icon button that opens the full panel */}
-      <MapLayerToggle layers={layers} onToggle={handleToggle} />
+      {/* Layers button — top-right, z-50 to float above everything */}
+      <div
+        className="absolute right-1 top-1 z-50"
+        style={{ pointerEvents: 'auto' }}
+      >
+        <MapLayerToggle layers={layers} onToggle={handleToggle} />
+      </div>
 
-      {/* Land status legend — collapsed by default, tap header to expand */}
-      <MapLegend />
+      {/* Land Status Key legend — below Layers button, top-right */}
+      <div
+        className="absolute right-1 z-40"
+        style={{ top: 72, pointerEvents: 'auto' }}
+      >
+        <MapLegend />
+      </div>
 
       {/* =========================================================
-          LEFT SIDE CONTROLS — stacked vertically at bottom-left
+          SIDE CONTROLS — stacked at sides, well clear of each other
           ========================================================= */}
 
-      {/* Basemap selector — bottom-left, above Locate button */}
-      <BasemapToggle />
+      {/* Basemap toggle — bottom-left corner */}
+      <div
+        style={{ position: 'absolute', bottom: 112, left: 8, zIndex: 30 }}
+      >
+        <BasemapToggle />
+      </div>
 
-      {/* Locate GPS button — directly below BasemapToggle, left side */}
-      {/* BackcountryMap renders this internally via LocateButton */}
+      {/* Locate button — bottom-right corner, clear of disclaimer */}
+      <div
+        style={{ position: 'absolute', bottom: 112, right: 8, zIndex: 30 }}
+      >
+        {/* LocateButton is rendered inside BackcountryMap */}
+      </div>
 
       {/* =========================================================
           SEARCH — bottom-center, above disclaimers
           ========================================================= */}
-      <div className="search-bar-container absolute bottom-24 left-4 right-4 md:left-auto md:right-auto md:w-96 md:mx-auto z-10">
+      <div
+        className="absolute left-4 right-4 md:left-auto md:right-auto md:w-96 md:mx-auto z-20"
+        style={{ bottom: 96, pointerEvents: 'auto' }}
+      >
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-slate-400" />
@@ -80,11 +98,18 @@ export default function MapPage() {
       </div>
 
       {/* =========================================================
-          DISCLAIMER — bottom-right
+          DISCLAIMER — bottom-left, well clear of Locate button
           ========================================================= */}
       {!disclaimerDismissed && (
         <div
-          className="absolute bottom-8 right-4 z-10 max-w-xs cursor-pointer"
+          style={{
+            position: 'absolute',
+            bottom: 12,
+            left: 8,
+            zIndex: 20,
+            maxWidth: 220,
+            cursor: 'pointer',
+          }}
           onClick={() => setDisclaimerDismissed(true)}
           title="Click to dismiss"
         >

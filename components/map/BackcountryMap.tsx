@@ -227,29 +227,22 @@ export function BackcountryMap({
         if (aptData.features?.length) {
           if (!map.current!.getSource('airport-src')) {
             map.current!.addSource('airport-src', { type: 'geojson', data: aptData });
+            // Use minzoom to progressively reveal the layer — more reliable than
+            // zoom filter expressions in MapLibre GL JS v4.
+            // minzoom: 6 — large + medium airports visible from regional scale (~20-40km)
+            // minzoom: 8 — small airstrips added at local scale
+            // minzoom: 9 — seaplane bases added
             map.current!.addLayer({ id: 'airport-fill', type: 'circle', source: 'airport-src',
-              // Filter: use MapLibre-valid zoom comparison: ['<', ['zoom'], N] hides at zoom >= N.
-              // Combined with 'any': show if zoom >= 6 OR zoom >= 8 OR zoom >= 9
-              // - Zoom < 6: all hidden
-              // - Zoom 6-7: large + medium visible (radius 9px / 6px)
-              // - Zoom 8-9: small airstrips also visible
-              // - Zoom 9+: all types visible
-              filter: ['all', ['==', '$type', 'Point'],
-                ['any',
-                  ['<', ['zoom'], 9],  // show at zoom < 9 (seaplanes + all)
-                  ['<', ['zoom'], 8],  // show at zoom < 8 (small + all)
-                  ['<', ['zoom'], 6],  // show at zoom < 6 (large + medium)
-                ]
-              ],
+              minzoom: 6,
+              filter: ['==', '$type', 'Point'],
               paint: {
+                // Radius interpolation: small airports start at radius 0 (invisible)
+                // at zoom 6 and grow as you zoom in. Large/medium are always visible.
                 'circle-radius': [
                   'interpolate', ['linear'], ['zoom'],
-                  // Zoom 6: large/medium only — big enough to see at regional scale
-                  6,  ['match', ['get', 'type'], 'large_airport', 10, 'medium_airport', 7, 'seaplane_base', 4, 'closed', 3, 4],
-                  // Zoom 8: small airports join in
-                  8,  ['match', ['get', 'type'], 'large_airport', 12, 'medium_airport', 9, 'seaplane_base', 6, 'closed', 4, 6],
-                  // Zoom 10+: full detail
-                  10, ['match', ['get', 'type'], 'large_airport', 14, 'medium_airport', 11, 'seaplane_base', 8, 'closed', 5, 8],
+                  6,  ['match', ['get', 'type'], 'large_airport', 11, 'medium_airport', 7, 'seaplane_base', 0, 'closed', 0, 0],
+                  8,  ['match', ['get', 'type'], 'large_airport', 13, 'medium_airport', 9, 'seaplane_base', 5, 'closed', 3, 5],
+                  10, ['match', ['get', 'type'], 'large_airport', 15, 'medium_airport', 11, 'seaplane_base', 7, 'closed', 4, 7],
                 ],
                 'circle-color': '#1D4ED8',
                 'circle-opacity': 0.9,
