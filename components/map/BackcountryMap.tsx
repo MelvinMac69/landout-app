@@ -228,22 +228,32 @@ export function BackcountryMap({
           if (!map.current!.getSource('airport-src')) {
             map.current!.addSource('airport-src', { type: 'geojson', data: aptData });
             map.current!.addLayer({ id: 'airport-fill', type: 'circle', source: 'airport-src',
-              filter: ['all', ['==', '$type', 'Point'], ['>=', ['zoom'], 9]],
+              // Filter: airports progressively reveal as you zoom in.
+              // Zoom < 6: all hidden (clean regional view)
+              // Zoom 6-7: large + medium airports visible at regional scale (~20-40km)
+              // Zoom 8-9: small airports start appearing
+              // Zoom 9+: seaplane bases also appear
+              // Radii grow with zoom so visible detail increases as you zoom in.
+              filter: ['all', ['==', '$type', 'Point'],
+                ['any',
+                  ['>=', ['zoom'], 9],  // seaplanes + all types at zoom 9+
+                  ['>=', ['zoom'], 8],  // small airports at zoom 8+
+                  ['>=', ['zoom'], 6],  // large + medium at zoom 6+ (regional scale)
+                ]
+              ],
               paint: {
-                // All airports hidden below zoom 9.
-                // At zoom 9-10: large/medium/seaplane visible, small airports still filtered out
-                // At zoom 10+: all airports visible
-                // Achieved via separate zoom expressions for radius — smaller airports
-                // don't render visibly until higher zoom even though filter allows them.
                 'circle-radius': [
                   'interpolate', ['linear'], ['zoom'],
-                  9, ['match', ['get', 'type'], 'large_airport', 8, 'medium_airport', 5, 'seaplane_base', 4, 'closed', 2, 2],
-                  11, ['match', ['get', 'type'], 'large_airport', 10, 'medium_airport', 8, 'seaplane_base', 6, 'closed', 4, 5],
-                  13, ['match', ['get', 'type'], 'large_airport', 12, 'medium_airport', 10, 'seaplane_base', 8, 'closed', 5, 7]
+                  // Zoom 6: large/medium only, distinct at regional scale
+                  6,  ['match', ['get', 'type'], 'large_airport', 9, 'medium_airport', 6, 'seaplane_base', 3, 'closed', 2, 3],
+                  // Zoom 8: small airports start appearing
+                  8,  ['match', ['get', 'type'], 'large_airport', 11, 'medium_airport', 8, 'seaplane_base', 5, 'closed', 3, 5],
+                  // Zoom 10+: full detail
+                  10, ['match', ['get', 'type'], 'large_airport', 13, 'medium_airport', 10, 'seaplane_base', 7, 'closed', 4, 7],
                 ],
                 'circle-color': '#1D4ED8',
-                'circle-opacity': 0.75,
-                'circle-stroke-width': 1,
+                'circle-opacity': 0.85,
+                'circle-stroke-width': 1.25,
                 'circle-stroke-color': '#ffffff',
               }
             });
@@ -478,8 +488,8 @@ export function BackcountryMap({
       {showDiagnostics && (
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
-      {/* Locate button — left side below zoom controls for one-handed reach on mobile */}
-      <div style={{ position: 'absolute', top: 108, left: 16, zIndex: 10 }}>
+      {/* Locate button — bottom-right, clear of zoom controls (bottom-left) and North arrow (top-left) */}
+      <div style={{ position: 'absolute', bottom: 168, right: 8, zIndex: 10 }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
     </div>

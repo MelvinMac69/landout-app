@@ -61,11 +61,11 @@ body {
     min-height: 42px !important;
   }
 
-  /* Search bar — narrower on phone, above safe area */
+  /* Search bar — narrower on phone, above disclaimers (bottom:32px) */
   .search-bar-container {
     left: 16px !important;
     right: 16px !important;
-    bottom: 88px !important;
+    bottom: 96px !important;
     width: auto !important;
     max-width: none !important;
   }

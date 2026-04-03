@@ -42,19 +42,8 @@ export default function MapPage() {
     >
       <BackcountryMap onMapLoad={handleMapLoad} />
 
-      {/* Search — bottom-center, sized for mobile */}
-
-      {/* Basemap toggle — bottom-left */}
-      <BasemapToggle />
-
-      {/* Layer toggle — top-right */}
-      <MapLayerToggle layers={layers} onToggle={handleToggle} />
-
-      {/* Map legend — top-right below layer panel (defaults to collapsed) */}
-      <MapLegend />
-
-      {/* Search — bottom-center */}
-      <div className="search-bar-container absolute bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-80 md:mx-auto z-10">
+      {/* Search — bottom-center, above disclaimers, clear of basemap toggle */}
+      <div className="search-bar-container absolute bottom-24 left-4 right-4 md:left-auto md:right-auto md:w-96 md:mx-auto z-10">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-slate-400" />
