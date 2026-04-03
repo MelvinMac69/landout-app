@@ -5,12 +5,27 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { LocateButton } from './LocateButton';
+import { DirectToPanel, ActionMenu } from './DirectTo';
 
 interface BackcountryMapProps {
   initialCenter?: [number, number];
   initialZoom?: number;
   routesGeoJson?: GeoJSON.FeatureCollection;
   onMapLoad?: (map: maplibregl.Map) => void;
+}
+
+interface DirectToDest {
+  lng: number;
+  lat: number;
+  name?: string;
+  type: 'airport' | 'pin' | 'map';
+}
+
+interface DroppedPin {
+  id: string;
+  lng: number;
+  lat: number;
+  name?: string;
 }
 
 export const OVERLAY_LAYERS = [
@@ -78,6 +93,17 @@ export function BackcountryMap({
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const diagTapCount = useRef(0);
   const diagTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Direct To state
+  const [directToDest, setDirectToDest] = useState<DirectToDest | null>(null);
+  const [droppedPins, setDroppedPins] = useState<DroppedPin[]>([]);
+  const [actionMenu, setActionMenu] = useState<{ x: number; y: number; lng: number; lat: number; airportName?: string } | null>(null);
+
+  // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
+  const currentPosRef = useRef<{ lat: number; lon: number; heading?: number } | null>(null);
+  const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number } | null>(null);
+  // Block click after long-press (300ms)
+  const suppressClickRef = useRef(false);
 
   const activePopups = useRef<maplibregl.Popup[]>([]);
 
@@ -289,6 +315,40 @@ export function BackcountryMap({
         paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-dasharray': [2, 1] },
       });
     }
+
+    // Direct To line — magenta line from current GPS to destination
+    map.current.addSource('directto-source', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+    map.current.addLayer({
+      id: 'directto-line',
+      type: 'line',
+      source: 'directto-source',
+      paint: {
+        'line-color': '#FF00FF',
+        'line-width': 4,
+        'line-opacity': 0.9,
+      },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+    });
+
+    // Dropped pins source
+    map.current.addSource('pins-source', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+    map.current.addLayer({
+      id: 'pins-layer',
+      type: 'circle',
+      source: 'pins-source',
+      paint: {
+        'circle-radius': 6,
+        'circle-color': '#3B82F6',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff',
+      },
+    });
   }
 
   // Inject popup styles
@@ -352,24 +412,42 @@ export function BackcountryMap({
 
     // Click → close all popups, then show new one for topmost land-restriction feature
     mapInstance.on('click', (e) => {
+      // Suppress click after long-press
+      if (suppressClickRef.current) return;
       closeAllPopups();
 
       const allFeatures = mapInstance.queryRenderedFeatures(e.point);
       if (!allFeatures.length) return;
       mapInstance.getCanvas().style.cursor = 'pointer';
 
-      let best = allFeatures[0];
+      // Dropped pin tap — show ActionMenu with pin name
+      const pinFeature = allFeatures.find((f) => f.layer?.id === 'pins-layer');
+      if (pinFeature) {
+        const pinProps = pinFeature.properties ?? {};
+        const pinName = pinProps.name || 'Dropped Pin';
+        setActionMenu({
+          x: e.point.x,
+          y: e.point.y,
+          lng: e.lngLat.lng,
+          lat: e.lngLat.lat,
+          airportName: pinName,
+        });
+        return;
+      }
+
+      // Filter out pins layer and airport layer — pins: ActionMenu; airports: inspector popup
+      const landFeatures = allFeatures.filter((f) => f.layer?.id !== 'pins-layer' && f.layer?.id !== 'airport-fill');
+      if (!landFeatures.length) return;
+
+      let best = landFeatures[0];
       let bestInfo = LAYER_INFO[best.layer?.id ?? ''];
       let bestRank = RANK[bestInfo?.restriction ?? ''] ?? 3;
-      for (const f of allFeatures) {
+      for (const f of landFeatures) {
         const info = LAYER_INFO[f.layer?.id ?? ''];
         if (!info) continue;
         const r = RANK[info.restriction];
         if ((r ?? 3) < bestRank) { best = f; bestInfo = info; bestRank = r ?? 3; }
-      }
-      // Handle airport layer separately (blue-themed popup, not land-status colors)
-      if (best.layer?.id === 'airport-fill') {
-        const props = best.properties ?? {};
+      const props = best.properties ?? {};
         const aptCode = props.icao || props.gps_code || '—';
         const aptName = props.name || 'Unknown Airport';
         const aptType = props.type || 'unknown';
@@ -475,10 +553,103 @@ export function BackcountryMap({
       mapInstance.getCanvas().style.cursor = features.length ? 'pointer' : '';
     });
 
+    // ── Long-press / context-menu handler ──────────────────────────────────────────
+    // Desktop: contextmenu fires before click, so no conflict.
+    // Mobile: we intercept touchstart/touchend ourselves to detect a 400ms hold.
+    let touchTimer: ReturnType<typeof setTimeout> | null = null;
+    let touchStartPos: { x: number; y: number } | null = null;
+
+    (mapInstance.on as any)('touchstart', (e: any) => {
+      // Only track single-finger touches
+      if (e.originalEvent.touches.length !== 1) return;
+      touchStartPos = { x: e.originalEvent.touches[0].clientX, y: e.originalEvent.touches[0].clientY };
+      touchTimer = setTimeout(() => {
+        touchTimer = null;
+        suppressClickRef.current = true;
+        setTimeout(() => { suppressClickRef.current = false; }, 400);
+        if (touchStartPos && map.current) {
+          const lngLat = map.current.unproject([touchStartPos.x, touchStartPos.y]);
+          mapInstance.fire('longpress', { lngLat, point: touchStartPos });
+        }
+      }, 400);
+    }, { passive: true });
+
+    mapInstance.on('touchend', (e) => {
+      if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+      touchStartPos = null;
+    });
+
+    mapInstance.on('touchcancel', () => {
+      if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+      touchStartPos = null;
+    });
+
+    // Desktop right-click / long-press
+    mapInstance.on('contextmenu', (e) => {
+      e.preventDefault();
+      suppressClickRef.current = true;
+      setTimeout(() => { suppressClickRef.current = false; }, 400);
+      mapInstance.fire('longpress', { lngLat: e.lngLat, point: { x: e.point.x, y: e.point.y } });
+    });
+
+    // Handle the longpress event (unified for both desktop and mobile)
+    mapInstance.on('longpress', (e: any) => {
+      closeAllPopups();
+      const { lngLat, point } = e;
+      // Check if there's an airport feature at this point
+      const features = mapInstance.queryRenderedFeatures(point as maplibregl.Point);
+      const airportFeature = features.find((f: maplibregl.MapGeoJSONFeature) => f.layer?.id === 'airport-fill');
+      const airportName = airportFeature?.properties?.name;
+      setActionMenu({ x: point.x, y: point.y, lng: lngLat.lng, lat: lngLat.lat, airportName });
+    });
+
+    // ── GPS sync from LocateButton ────────────────────────────────────────────────
+    const gpsInterval = setInterval(() => {
+      try {
+        const loc = (window as any).landoutLocationState;
+        if (loc?.position) {
+          currentPosRef.current = loc.position;
+          setCurrentPosState(loc.position);
+        }
+      } catch {}
+    }, 2000);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // EMPTY DEPS — map only mounts once
 
-  // Expose window API — basemap switch patches the existing tile source, no style reload needed
+  // Update Direct To magenta line whenever destination or current position changes
+  useEffect(() => {
+    if (!map.current) return;
+    const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+    if (directToDest && currentPosRef.current) {
+      src.setData({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDest.lng, directToDest.lat]] },
+          properties: {},
+        }],
+      });
+    } else {
+      src.setData({ type: 'FeatureCollection', features: [] });
+    }
+  }, [directToDest]);
+
+  // Sync dropped pins to the pins source
+  useEffect(() => {
+    if (!map.current) return;
+    const src = map.current.getSource('pins-source') as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+    src.setData({
+      type: 'FeatureCollection',
+      features: droppedPins.map((p) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+        properties: { id: p.id, name: p.name },
+      })),
+    });
+  }, [droppedPins]);
   useEffect(() => {
     const win = window as typeof window & {
       landoutSwitchBasemap: (id: BasemapId) => void;
@@ -505,6 +676,27 @@ export function BackcountryMap({
     win.landoutToggleDiagnostics = () => setShowDiagnostics((v) => !v);
   });
 
+  // Actions called from ActionMenu
+  function handleDirectTo(lng: number, lat: number, name?: string) {
+    setDirectToDest({ lng, lat, name, type: 'map' });
+    setActionMenu(null);
+  }
+
+  function handleDropPin(lng: number, lat: number, name?: string) {
+    const id = `pin-${Date.now()}`;
+    setDroppedPins((prev) => [...prev, { id, lng, lat, name }]);
+    setActionMenu(null);
+  }
+
+  function handleClearDirectTo() {
+    setDirectToDest(null);
+    // Clear the line visually
+    if (map.current) {
+      const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+      if (src) src.setData({ type: 'FeatureCollection', features: [] });
+    }
+  }
+
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="w-full h-full" />
@@ -520,6 +712,44 @@ export function BackcountryMap({
       <div style={{ position: 'absolute', bottom: 12, right: 8, zIndex: 10 }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
+      {/* Direct To info card */}
+      {directToDest && (
+        <DirectToPanel
+          dest={directToDest}
+          currentPos={currentPosState}
+          onClear={handleClearDirectTo}
+          onRecenter={() => {
+            if (currentPosRef.current) {
+              mapInstanceRef.current?.panTo(
+                [currentPosRef.current.lon, currentPosRef.current.lat],
+                { duration: 600 }
+              );
+            }
+          }}
+        />
+      )}
+      {/* Long-0press action menu */}
+      {actionMenu && (
+        <ActionMenu
+          x={actionMenu.x}
+          y={actionMenu.y}
+          items={[
+            {
+              label: 'Direct To',
+              icon: '✈',
+              onClick: () => handleDirectTo(actionMenu.lng, actionMenu.lat, actionMenu.airportName),
+              color: '#BE185D',
+            },
+            {
+              label: 'Drop Pin',
+              icon: '📍',
+              onClick: () => handleDropPin(actionMenu.lng, actionMenu.lat),
+            },
+            { label: 'Cancel', icon: '✕', onClick: () => setActionMenu(null) },
+          ]}
+          onClose={() => setActionMenu(null)}
+        />
+      )}
     </div>
   );
 }
