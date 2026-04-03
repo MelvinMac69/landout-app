@@ -544,56 +544,45 @@ export function BackcountryMap({
       mapInstance.getCanvas().style.cursor = features.length ? 'pointer' : '';
     });
 
-    // ── Touch handling for long-press (mobile) ────────────────────────────────────────
-    // Goal: detect 400ms hold without breaking MapLibre's native pan/zoom/pinch gestures.
-    // Strategy: only track single-touch; cancel timer on multi-touch (pinch) or rapid movement.
+    // ── Long-press detection (mobile) ─────────────────────────────────────────────
+    // Register native touch listeners on the canvas in CAPTURE phase (before MapLibre).
+    // This captures touch coords without interfering with MapLibre's pan/zoom/pinch gestures.
     let touchTimer: ReturnType<typeof setTimeout> | null = null;
-    let touchStartPos: { x: number; y: number } | null = null;
+    let touchPos: { x: number; y: number } | null = null;
     const LONG_PRESS_MS = 400;
-    const MOVE_THRESHOLD_PX = 8; // cancel timer if finger moves more than this
+    const canvas = mapInstance.getCanvas();
 
-    (mapInstance.on as any)('touchstart', (e: any) => {
-      const touches = e.originalEvent.touches;
-
-      // Multi-touch (pinch-to-zoom) — cancel any pending long-press immediately
-      if (touches.length !== 1) {
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) {
         if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
-        touchStartPos = null;
+        touchPos = null;
         return;
       }
-
-      touchStartPos = { x: touches[0].clientX, y: touches[0].clientY };
+      touchPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       touchTimer = setTimeout(() => {
         touchTimer = null;
-        if (!touchStartPos || !map.current) return;
-        suppressClickRef.current = true; // block the synthetic click that follows
+        if (!touchPos) return;
+        suppressClickRef.current = true;
         setTimeout(() => { suppressClickRef.current = false; }, 500);
-        const lngLat = map.current.unproject([touchStartPos.x, touchStartPos.y]);
-        mapInstance.fire('longpress', { lngLat, point: touchStartPos });
+        const lngLat = mapInstance.unproject([touchPos.x, touchPos.y]);
+        mapInstance.fire('longpress', { lngLat, point: touchPos });
       }, LONG_PRESS_MS);
-    }, { passive: true });
+    }, { passive: false, capture: true });
 
-    // Track finger movement — cancel long-press if user drags (pan gesture)
-    (mapInstance.on as any)('touchmove', (e: any) => {
-      const touches = e.originalEvent.touches;
-      if (!touchStartPos || touches.length !== 1) return;
-      const dx = touches[0].clientX - touchStartPos.x;
-      const dy = touches[0].clientY - touchStartPos.y;
-      if (Math.sqrt(dx * dx + dy * dy) > MOVE_THRESHOLD_PX) {
-        if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
-        touchStartPos = null;
-      }
-    }, { passive: true });
-
-    mapInstance.on('touchend', () => {
+    canvas.addEventListener('touchmove', () => {
       if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
-      touchStartPos = null;
-    });
+      touchPos = null;
+    }, { passive: true, capture: true });
 
-    mapInstance.on('touchcancel', () => {
+    canvas.addEventListener('touchend', () => {
       if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
-      touchStartPos = null;
-    });
+      touchPos = null;
+    }, { passive: true, capture: true });
+
+    canvas.addEventListener('touchcancel', () => {
+      if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+      touchPos = null;
+    }, { passive: true, capture: true });
 
     // Desktop right-click / long-press
     mapInstance.on('contextmenu', (e) => {
