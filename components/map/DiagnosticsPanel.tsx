@@ -7,7 +7,7 @@ interface LayerDiagnostic {
   label: string;
   color: string;
   source: string;
-  sourceClassification: 'authoritative public source - higher resolution' | 'official generalized - interim' | 'official generalized';
+  sourceClassification: 'authoritative public source - higher resolution' | 'official generalized - interim' | 'official generalized' | 'community/FAA-derived - development convenience';
   importDate: string;
   notes?: string;
   status: 'healthy' | 'warning' | 'degraded';
@@ -84,6 +84,17 @@ const LAYER_DIAGNOSTICS: LayerDiagnostic[] = [
     status: 'warning',
     statusReason: 'Generalized — verify with local FWS office before landing.',
   },
+  {
+    id: 'airport-fill',
+    label: 'Airport / Strip Reference',
+    color: '#1D4ED8',
+    source: 'https://ourairports.com/data/airports.csv',
+    sourceClassification: 'community/FAA-derived - development convenience',
+    importDate: '2026-04-03',
+    notes: 'Interim development data. Primary target: FAA 28-Day NASR Subscription. CC-BY license — attribution required.',
+    status: 'warning',
+    statusReason: 'Community data, not official FAA. Verify with current charts before flight.',
+  },
 ];
 
 interface DiagnosticsPanelProps {
@@ -153,7 +164,7 @@ export function DiagnosticsPanel({ onClose }: DiagnosticsPanelProps) {
           color: '#1E40AF',
         }}
       >
-        <strong>Test Region:</strong> Idaho (ID) — has BLM land, USFS forest, designated wilderness all in one state. Zoom to ~zoom 6-7 over ID to verify all layers render correctly.
+        <strong>Test Region:</strong> Idaho (ID) — has BLM land, USFS forest, designated wilderness, and many airports all in one state. Zoom to ~zoom 6-7 over ID to verify all layers render correctly. Check that airport circles appear in blue at various sizes.
       </div>
 
       {/* Layer List */}
@@ -193,12 +204,16 @@ export function DiagnosticsPanel({ onClose }: DiagnosticsPanelProps) {
                       ? '#DCFCE7'
                       : layer.sourceClassification === 'official generalized - interim'
                       ? '#FEF3C7'
+                      : layer.sourceClassification === 'community/FAA-derived - development convenience'
+                      ? '#DBEAFE'
                       : '#F3F4F6',
                   color:
                     layer.sourceClassification === 'authoritative public source - higher resolution'
                       ? '#166534'
                       : layer.sourceClassification === 'official generalized - interim'
                       ? '#92400E'
+                      : layer.sourceClassification === 'community/FAA-derived - development convenience'
+                      ? '#1E40AF'
                       : '#374151',
                 }}
               >

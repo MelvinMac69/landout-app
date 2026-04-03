@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export function MapLegend() {
@@ -8,11 +8,35 @@ export function MapLegend() {
   const tapCount = useRef(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const handleHeaderClick = () => {
+    const win = window as typeof window & { landoutToggleDiagnostics?: () => void };
+
+    // Count tap toward diagnostics trigger
+    if (win.landoutToggleDiagnostics) {
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+      tapCount.current++;
+      tapTimer.current = setTimeout(() => {
+        tapCount.current = 0;
+      }, 1500); // 1.5s window for 5 taps
+
+      if (tapCount.current >= 5) {
+        tapCount.current = 0;
+        if (tapTimer.current) clearTimeout(tapTimer.current);
+        win.landoutToggleDiagnostics();
+        return; // Don't toggle collapse on successful diagnostics trigger
+      }
+    }
+
+    // Normal collapse toggle
+    setCollapsed((c) => !c);
+  };
+
   const items = [
     { color: '#8B6914', label: 'BLM Land', agency: 'Bureau of Land Management' },
     { color: '#2D5016', label: 'USFS Land', agency: 'Forest Service' },
     { color: '#DC2626', label: 'Wilderness', agency: 'Designated wilderness — avoid' },
     { color: '#DC2626', label: 'WSA', agency: 'Wilderness Study Area' },
+    { color: '#1D4ED8', label: 'Airport / Strip', agency: 'Reference data — not legal authority' },
   ];
 
   return (
@@ -30,7 +54,7 @@ export function MapLegend() {
         minWidth: 200,
       }}
     >
-      {/* Header — always visible, toggleable */}
+      {/* Header — tap 5× to open diagnostics */}
       <div
         style={{
           display: 'flex',
@@ -40,26 +64,7 @@ export function MapLegend() {
           cursor: 'pointer',
           userSelect: 'none',
         }}
-        onClick={() => {
-          // 5-tap to reveal diagnostics
-          const win = window as typeof window & { landoutToggleDiagnostics?: () => void };
-          if (!win.landoutToggleDiagnostics) {
-            setCollapsed(!collapsed);
-            return;
-          }
-          if (tapTimer.current) clearTimeout(tapTimer.current);
-          tapCount.current++;
-          if (tapCount.current >= 5) {
-            tapCount.current = 0;
-            if (tapTimer.current) clearTimeout(tapTimer.current);
-            win.landoutToggleDiagnostics();
-          } else {
-            tapTimer.current = setTimeout(() => {
-              tapCount.current = 0;
-            }, 800);
-            setCollapsed(!collapsed);
-          }
-        }}
+        onClick={handleHeaderClick}
       >
         <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Land Status Key
@@ -95,7 +100,10 @@ export function MapLegend() {
           </div>
           <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #F1F5F9' }}>
             <p style={{ fontSize: 10, color: '#94A3B8', lineHeight: 1.4 }}>
-              Sources: BLM SMA, BLM NLCS, USGS. Does not equal legal landing permission.
+              Sources: BLM SMA, BLM NLCS, USFS. Does not equal legal landing permission.
+            </p>
+            <p style={{ marginTop: 4, fontSize: 9, color: '#CBD5E1', fontStyle: 'italic' }}>
+              Tap header 5× for diagnostics
             </p>
           </div>
         </div>

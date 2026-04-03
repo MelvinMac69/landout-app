@@ -20,6 +20,7 @@ export const OVERLAY_LAYERS = [
   { id: 'sma-fws-fill', label: 'Wildlife Refuge (FWS)', color: '#DC2626', description: 'Fish & Wildlife Service — restricted, verify before landing' },
   { id: 'sma-usfs-fill', label: 'National Forest', color: '#2D5016', description: 'USFS land — primitive recreation OK' },
   { id: 'sma-blm-fill', label: 'BLM Land', color: '#8B6914', description: 'Bureau of Land Management — multiple use' },
+  { id: 'airport-fill', label: 'Airports / Strips', color: '#1D4ED8', description: 'FAA/OurAirports airport reference data' },
 ] as const;
 
 export type BasemapId = 'osm' | 'topo' | 'satellite' | 'vfr';
@@ -132,6 +133,38 @@ export function BackcountryMap({
       loadOverlay('/data/wsa.geojson', 'wsa-src', 'wsa-fill', '#DC2626', 0.4),
       loadOverlay('/data/wilderness.geojson', 'wilderness-src', 'wilderness-fill', '#DC2626', 0.4),
     ]);
+    // Load airport reference layer
+    try {
+      const aptRes = await fetch('/data/airports-ourairports.geojson');
+      if (aptRes.ok) {
+        const aptData: GeoJSON.FeatureCollection = await aptRes.json();
+        if (aptData.features?.length) {
+          if (!map.current!.getSource('airport-src')) {
+            map.current!.addSource('airport-src', { type: 'geojson', data: aptData });
+            map.current!.addLayer({ id: 'airport-fill', type: 'circle', source: 'airport-src',
+              filter: ['==', '$type', 'Point'],
+              paint: {
+                'circle-radius': [
+                  'match', ['get', 'type'],
+                  'large_airport', 8,
+                  'medium_airport', 6,
+                  'seaplane_base', 5,
+                  'closed', 3,
+                  4 // small_airport default
+                ],
+                'circle-color': '#1D4ED8',
+                'circle-opacity': 0.75,
+                'circle-stroke-width': 1,
+                'circle-stroke-color': '#ffffff',
+              }
+            });
+            if (!overlayVis.current['airport-fill']) {
+              map.current!.setLayoutProperty('airport-fill', 'visibility', 'none');
+            }
+          }
+        }
+      }
+    } catch (err) { console.error('[load] airports', err); }
     if (routesRef.current?.features?.length) {
       map.current.addSource('routes-source', { type: 'geojson', data: routesRef.current });
       map.current.addLayer({
@@ -182,8 +215,9 @@ export function BackcountryMap({
       'sma-fws-fill':      { agency: 'Fish & Wildlife Service',   label: 'Wildlife Refuge',       restriction: 'restricted',   color: '#DC2626' },
       'sma-blm-fill':      { agency: 'Bureau of Land Management', label: 'BLM Land',             restriction: 'multiple-use', color: '#8B6914' },
       'sma-usfs-fill':     { agency: 'US Forest Service',         label: 'National Forest',       restriction: 'multiple-use', color: '#2D5016' },
+      'airport-fill':      { agency: 'Airport',                    label: 'Reference Airport',     restriction: 'multiple-use', color: '#1D4ED8' },
     };
-    const RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2 };
+    const RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2, 'airport': 3 };
 
     // Click → close all popups, then show new one for topmost land-restriction feature
     mapInstance.on('click', (e) => {
@@ -202,6 +236,58 @@ export function BackcountryMap({
         const r = RANK[info.restriction];
         if ((r ?? 3) < bestRank) { best = f; bestInfo = info; bestRank = r ?? 3; }
       }
+      // Handle airport layer separately (blue-themed popup, not land-status colors)
+      if (best.layer?.id === 'airport-fill') {
+        const props = best.properties ?? {};
+        const aptCode = props.icao || props.gps_code || '—';
+        const aptName = props.name || 'Unknown Airport';
+        const aptType = props.type || 'unknown';
+        const aptElev = props.elevation_ft != null ? `${props.elevation_ft} ft` : '—';
+        const aptLoc = [props.municipality, props.state].filter(Boolean).join(', ') || '—';
+        const aptColor = '#1D4ED8';
+        const aptPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, className: 'landout-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="position:relative;min-width:180px;max-width:240px">
+              <button class="landout-popup-minbtn" title="Minimize">−</button>
+              <div class="landout-popup-body">
+                <div style="display:flex;align-items:center;margin-bottom:4px">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${aptColor};margin-right:8px;flex-shrink:0"></span>
+                  <span style="font-weight:600;color:#1E293B">Airport Reference</span>
+                </div>
+                <div style="color:#1E293B;font-size:14px;font-weight:600;margin-bottom:2px;padding-left:18px">${aptName}</div>
+                <div style="color:#1D4ED8;font-size:12px;font-weight:700;font-family:monospace;margin-bottom:6px;padding-left:18px">${aptCode}</div>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:11px;color:#475569;padding-left:18px">
+                  <span style="color:#94A3B8">Type</span><span>${aptType}</span>
+                  <span style="color:#94A3B8">Elevation</span><span>${aptElev}</span>
+                  <span style="color:#94A3B8">Location</span><span>${aptLoc}</span>
+                </div>
+                <div style="margin-top:6px;padding:4px 8px;border-radius:6px;background:#EFF6FF;color:#1D4ED8;font-size:10px;text-align:center">✈ Reference data — not legal authority</div>
+              </div>
+            </div>
+          `)
+          .addTo(mapInstance);
+        activePopups.current.push(aptPopup);
+        aptPopup.getElement().addEventListener('click', (ev) => {
+          const target = ev.target as HTMLElement;
+          if (target.classList.contains('landout-popup-minbtn')) {
+            ev.stopPropagation();
+            const body = aptPopup.getElement().querySelector('.landout-popup-body') as HTMLElement;
+            const btn = aptPopup.getElement().querySelector('.landout-popup-minbtn') as HTMLElement;
+            if (body && btn) {
+              if (body.classList.contains('collapsed')) {
+                body.classList.remove('collapsed');
+                btn.textContent = '−';
+              } else {
+                body.classList.add('collapsed');
+                btn.textContent = '+';
+              }
+            }
+          }
+        });
+        return;
+      }
+
       if (!bestInfo) return;
 
       const props = best.properties ?? {};
@@ -266,6 +352,7 @@ export function BackcountryMap({
       landoutSwitchBasemap: (id: BasemapId) => void;
       landoutSetOverlayVisibility: (id: string, vis: boolean) => void;
       landoutGetBasemap: () => BasemapId;
+      landoutToggleDiagnostics: () => void;
     };
     const switchTo = (id: BasemapId) => {
       if (!map.current || id === basemap) return;
