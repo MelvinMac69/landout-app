@@ -9,10 +9,6 @@ export function BasemapToggle() {
   return (
     <div
       style={{
-        position: 'absolute',
-        bottom: 120,
-        left: 8,
-        zIndex: 10,
         display: 'flex',
         gap: 4,
         background: 'white',

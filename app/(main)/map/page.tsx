@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, BasemapToggle, OVERLAY_LAYERS } from '@/components/map';
-import { Search } from 'lucide-react';
 
 export default function MapPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -60,54 +59,29 @@ export default function MapPage() {
         <MapLegend />
       </div>
 
-      {/* =========================================================
-          SIDE CONTROLS — stacked at sides, well clear of each other
-          ========================================================= */}
-
-      {/* Basemap toggle — bottom-left corner */}
+      {/* Basemap toggle — bottom-left, compact row of icons only */}
       <div
-        style={{ position: 'absolute', bottom: 112, left: 8, zIndex: 30 }}
+        style={{ position: 'absolute', bottom: 70, left: 8, zIndex: 30 }}
       >
         <BasemapToggle />
       </div>
 
-      {/* Locate button — bottom-right corner, clear of disclaimer */}
+      {/* Locate button — bottom-right corner */}
       <div
-        style={{ position: 'absolute', bottom: 112, right: 8, zIndex: 30 }}
+        style={{ position: 'absolute', bottom: 12, right: 8, zIndex: 30 }}
       >
         {/* LocateButton is rendered inside BackcountryMap */}
       </div>
 
-      {/* =========================================================
-          SEARCH — bottom-center, above disclaimers
-          ========================================================= */}
-      <div
-        className="absolute left-4 right-4 md:left-auto md:right-auto md:w-96 md:mx-auto z-20"
-        style={{ bottom: 96, pointerEvents: 'auto' }}
-      >
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search airports, strips, sites…"
-              className="flex-1 text-sm outline-none placeholder:text-slate-400"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* =========================================================
-          DISCLAIMER — bottom-left, well clear of Locate button
-          ========================================================= */}
+      {/* DISCLAIMER — top-right, below legend */}
       {!disclaimerDismissed && (
         <div
           style={{
             position: 'absolute',
-            bottom: 12,
-            left: 8,
+            top: 295,
+            right: 4,
             zIndex: 20,
-            maxWidth: 220,
+            maxWidth: 200,
             cursor: 'pointer',
           }}
           onClick={() => setDisclaimerDismissed(true)}
