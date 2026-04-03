@@ -317,11 +317,11 @@ export function BackcountryMap({
     mapInstance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
     mapInstance.addControl(new maplibregl.ScaleControl({ maxWidth: 80, unit: 'metric' }), 'bottom-left');
 
-    // Push MapLibre's zoom controls down so they're not flush with the top edge.
-    // The '+' button aligns roughly with the Land Status Key legend header (~72px).
+    // Custom CSS: push MapLibre zoom controls down to align with the Layers panel at top-right.
+    // top: 4px aligns with Layers panel. safe-area-inset-top handles notched phones.
     const style = document.createElement('style');
     style.textContent = `
-      .maplibregl-ctrl-top-left { top: 72px !important; left: 8px !important; }
+      .maplibregl-ctrl-top-left { top: max(4px, env(safe-area-inset-top)) !important; left: 8px !important; }
       .maplibregl-ctrl-bottom-left { bottom: 12px !important; left: 8px !important; }
       .maplibregl-ctrl-scale { border-color: #64748B !important; color: #64748B !important; background: rgba(255,255,255,0.85) !important; font-size: 10px !important; }
     `;
