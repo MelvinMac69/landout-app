@@ -19,7 +19,10 @@ export function Header() {
         <div className="flex items-center justify-between h-14">
           <Link href="/map" className="flex items-center gap-2">
             <span className="text-xl">🛩️</span>
-            <span className="font-semibold text-slate-900">Backcountry Map</span>
+            <div className="flex flex-col">
+              <span className="font-semibold text-landout-forest leading-tight">Landout</span>
+              <span className="text-xs text-slate-400 leading-tight">Maps for where the runway ends.</span>
+            </div>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">

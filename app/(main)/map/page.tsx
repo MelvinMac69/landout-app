@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { MapLegend, MapLayerToggle, BackcountryMap, BasemapToggle, OVERLAY_LAYERS } from '@/components/map';
+import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
+import { NearestPanel } from '@/components/map/NearestPanel';
 
 export default function MapPage() {
   // isMounted check removed — BackcountryMap handles its own loading state internally.
@@ -57,19 +58,15 @@ export default function MapPage() {
         <MapLegend />
       </div>
 
-      {/* Basemap toggle — bottom-left, dense compact row at bottom edge */}
-      <div
-        style={{ position: 'absolute', bottom: 12, left: 8, zIndex: 30 }}
-      >
-        <BasemapToggle />
-      </div>
-
       {/* Locate button — bottom-right corner */}
       <div
         style={{ position: 'absolute', bottom: 12, right: 8, zIndex: 30 }}
       >
         {/* LocateButton is rendered inside BackcountryMap */}
       </div>
+
+      {/* Nearest airports panel — bottom-left */}
+      <NearestPanel />
 
       {/* DISCLAIMER — top-right, below legend */}
       {!disclaimerDismissed && (

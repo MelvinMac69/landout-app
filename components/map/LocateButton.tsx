@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 
-type LocState = 'idle' | 'acquiring' | 'active' | 'denied' | 'unavailable';
+type LocState = 'idle' | 'acquiring' | 'active' | 'following' | 'denied' | 'unavailable';
 
 interface LocateButtonProps {
   mapRef: React.RefObject<maplibregl.Map | null>;
@@ -17,6 +17,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const markerRef = useRef<maplibregl.Marker | null>(null);
   // Prevent double-taps during permission dialog on iOS
   const isRequesting = useRef(false);
+  // Track follow mode ref for use in watch callback (avoids stale closure)
+  const followModeRef = useRef(false);
 
   /** Stable map accessor — uses window singleton as fallback in case mapRef isn't set yet */
   function getMap(): maplibregl.Map | null {
@@ -79,6 +81,9 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     stopWatching();
     setPosition({ lat, lon, heading });
     updateMarker(lat, lon, heading);
+    // Auto-enter follow mode on first acquisition — single tap = full tracking
+    followModeRef.current = true;
+    setFollowMode(true);
     setState('active');
 
     watchId.current = navigator.geolocation.watchPosition(
@@ -88,8 +93,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const h = p.coords.heading ?? undefined;
         setPosition({ lat: la, lon: lo, heading: h });
         updateMarker(la, lo, h);
-        // Use stateRef to avoid stale closure on followMode changes
-        if (stateRef.current.followMode) {
+        if (followModeRef.current) {
           const map = getMap();
           if (map) map.panTo([lo, la], { duration: 500 });
         }
@@ -203,14 +207,13 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   }
 
   function toggleFollow() {
-    setFollowMode((f) => {
-      const next = !f;
-      if (next && position) {
-        const map = getMap();
-        if (map) map.panTo([position.lon, position.lat], { duration: 500 });
-      }
-      return next;
-    });
+    const next = !followModeRef.current;
+    followModeRef.current = next;
+    setFollowMode(next);
+    if (next && position) {
+      const map = getMap();
+      if (map) map.panTo([position.lon, position.lat], { duration: 500 });
+    }
   }
 
   // Expose location state to window for BackcountryMap's Direct To feature.
@@ -240,6 +243,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     idle: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>`,
     acquiring: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke-dasharray="5 3"/><circle cx="12" cy="12" r="3" fill="#F59E0B"/></svg>`,
     active: `<svg width="20" height="20" viewBox="0 0 24 24" fill="#3B82F6" stroke="white" stroke-width="1.5"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9" fill="none" stroke="#3B82F6"/></svg>`,
+    following: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" fill="white"/><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>`,
     denied: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
     unavailable: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
   };
@@ -248,6 +252,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     idle: '#64748B',
     acquiring: '#F59E0B',
     active: '#3B82F6',
+    following: '#1B3D2F',
     denied: '#EF4444',
     unavailable: '#94A3B8',
   };
@@ -255,6 +260,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const buttonTitle =
     state === 'idle' ? 'Show my location' :
     state === 'acquiring' ? 'Acquiring GPS…' :
+    state === 'following' ? 'Following — tap to stop' :
     state === 'active' ? 'Location active — tap to stop' :
     state === 'denied' ? 'Location denied — tap to retry' :
     'GPS unavailable';
@@ -268,51 +274,35 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           width: 42,
           height: 42,
           borderRadius: 8,
-          background: state === 'active' ? '#EFF6FF' : state === 'denied' ? '#FEF2F2' : 'white',
-          border: `1.5px solid ${state === 'active' ? '#BFDBFE' : state === 'denied' ? '#FECACA' : '#E2E8F0'}`,
+          background: followMode ? '#1B3D2F' : state === 'active' ? '#EFF6FF' : state === 'denied' ? '#FEF2F2' : 'white',
+          border: `1.5px solid ${followMode ? '#0F2520' : state === 'active' ? '#BFDBFE' : state === 'denied' ? '#FECACA' : '#E2E8F0'}`,
           boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          color: stateColors[state],
+          color: followMode ? 'white' : state === 'active' ? '#3B82F6' : state === 'denied' ? '#EF4444' : '#64748B',
           transition: 'all 0.2s',
         }}
       >
-        <span dangerouslySetInnerHTML={{ __html: icons[state] }} />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill={followMode ? '#1B3D2F' : 'none'} stroke={followMode ? 'white' : stateColors[state]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {state === 'acquiring' ? (
+            <><circle cx="12" cy="12" r="10" strokeDasharray="5 3"/><circle cx="12" cy="12" r="3" fill="#F59E0B" stroke="none"/></>
+          ) : state === 'denied' ? (
+            <><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></>
+          ) : state === 'unavailable' ? (
+            <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
+          ) : (
+            <>
+              <circle cx="12" cy="12" r={followMode ? 4 : 3} fill={followMode ? 'white' : 'none'} />
+              <line x1="12" y1="2" x2="12" y2={followMode ? 4 : 6}/>
+              <line x1="12" y1={followMode ? 20 : 18} x2="12" y2="22"/>
+              <line x1="2" y1="12" x2={followMode ? 4 : 6} y2="12"/>
+              <line x1={followMode ? 20 : 18} y1="12" x2="22" y2="12"/>
+            </>
+          )}
+        </svg>
       </button>
-
-      {/* Follow mode toggle — only visible when tracking */}
-      {state === 'active' && (
-        <button
-          onClick={toggleFollow}
-          title={followMode ? 'Stop following' : 'Follow me'}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 8,
-            background: followMode ? '#3B82F6' : 'white',
-            border: `1.5px solid ${followMode ? '#2563EB' : '#E2E8F0'}`,
-            boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: followMode ? 'white' : '#64748B',
-            transition: 'all 0.2s',
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {followMode ? (
-              // Filled crosshair — following
-              <><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" fill="none"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></>
-            ) : (
-              // Open crosshair — static
-              <><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></>
-            )}
-          </svg>
-        </button>
-      )}
     </div>
   );
 }

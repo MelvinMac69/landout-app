@@ -6,6 +6,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { LocateButton } from './LocateButton';
 import { DirectToPanel, ActionMenu } from './DirectTo';
+import { InfoCard } from './InfoCard';
+import type { AirportInfo, LandInfo } from './InfoCard';
 
 // Module-level singleton so LocateButton can access the map without prop-drilling refs
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,6 +104,7 @@ export function BackcountryMap({
   const [directToDest, setDirectToDest] = useState<DirectToDest | null>(null);
   const [droppedPins, setDroppedPins] = useState<DroppedPin[]>([]);
   const [actionMenu, setActionMenu] = useState<{ x: number; y: number; lng: number; lat: number; airportName?: string } | null>(null);
+  const [infoCard, setInfoCard] = useState<{ data: AirportInfo | LandInfo; screenX: number; screenY: number } | null>(null);
 
   // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
   const currentPosRef = useRef<{ lat: number; lon: number; heading?: number } | null>(null);
@@ -449,16 +452,27 @@ export function BackcountryMap({
       if (!allFeatures.length) return;
       mapInstance.getCanvas().style.cursor = 'pointer';
 
-      // 1. Airport dot tap → ActionMenu (desktop: left-click; mobile: tap)
+      // 1. Airport dot tap → InfoCard
       const airportFeature = allFeatures.find((f) => f.layer?.id === 'airport-fill');
       if (airportFeature) {
         const props = airportFeature.properties ?? {};
-        const aptName = props.name || 'Unknown Airport';
-        setActionMenu({
-          x: e.point.x, y: e.point.y,
-          lng: e.lngLat.lng, lat: e.lngLat.lat,
-          airportName: aptName,
+        setInfoCard({
+          screenX: e.point.x, screenY: e.point.y,
+          data: {
+            type: 'airport',
+            lng: e.lngLat.lng,
+            lat: e.lngLat.lat,
+            name: props.name || 'Unknown Airport',
+            faa_ident: props.faa_ident,
+            gps_code: props.gps_code,
+            iata: props.iata,
+            airportType: props.type,
+            elevation_ft: props.elevation_ft != null ? Number(props.elevation_ft) : undefined,
+            municipality: props.municipality,
+            state: props.state,
+          },
         });
+        setActionMenu(null);
         return;
       }
 
@@ -491,52 +505,26 @@ export function BackcountryMap({
       if (!bestInfo) return;
 
       const props = best.properties ?? {};
-      // Support both old and new property names from different import sources
+      // Build land name from available properties
       const name = props.name || props.WILDERNESS || props.ADMIN_UNIT_NAME
         || props.WildernessName || props.unit_name || props.WSA_NAME
         || props.FORESTNAME || props.forestname
         || props.agency_name || props.designation_type || '';
-      const rC = bestInfo.restriction === 'no-landing' ? '#DC2626' : bestInfo.restriction === 'restricted' ? '#D97706' : '#16A34A';
-      const rBg = bestInfo.restriction === 'no-landing' ? '#FEE2E2' : bestInfo.restriction === 'restricted' ? '#FEF3C7' : '#DCFCE7';
-      const rTxt = bestInfo.restriction === 'no-landing' ? '🚫 No landing' : bestInfo.restriction === 'restricted' ? '⚠️ Restricted — verify before landing' : '✅ Multiple use — landing generally OK';
 
-      const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, className: 'landout-popup' })
-        .setLngLat(e.lngLat)
-        .setHTML(`
-          <div style="position:relative;min-width:180px;max-width:240px">
-            <button class="landout-popup-minbtn" title="Minimize">−</button>
-            <div class="landout-popup-body">
-              <div style="display:flex;align-items:center;margin-bottom:4px">
-                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bestInfo.color};margin-right:8px;flex-shrink:0"></span>
-                <span style="font-weight:600;color:#1E293B">${bestInfo.agency}</span>
-              </div>
-              ${bestInfo.label ? `<div style="color:#64748B;font-size:12px;font-style:italic;margin-bottom:3px;padding-left:18px">${bestInfo.label}</div>` : ''}
-              ${name ? `<div style="color:#475569;font-size:12px;margin-bottom:3px;padding-left:18px">${name}</div>` : ''}
-              <div style="margin-top:4px;padding:4px 8px;border-radius:6px;background:${rBg};color:${rC};font-size:11px;font-weight:600;text-align:center">${rTxt}</div>
-            </div>
-          </div>
-        `)
-        .addTo(mapInstance);
-
-      activePopups.current.push(popup);
-
-      popup.getElement().addEventListener('click', (ev) => {
-        const target = ev.target as HTMLElement;
-        if (target.classList.contains('landout-popup-minbtn')) {
-          ev.stopPropagation();
-          const body = popup.getElement().querySelector('.landout-popup-body') as HTMLElement;
-          const btn = popup.getElement().querySelector('.landout-popup-minbtn') as HTMLElement;
-          if (body && btn) {
-            if (body.classList.contains('collapsed')) {
-              body.classList.remove('collapsed');
-              btn.textContent = '−';
-            } else {
-              body.classList.add('collapsed');
-              btn.textContent = '+';
-            }
-          }
-        }
+      setInfoCard({
+        screenX: e.point.x,
+        screenY: e.point.y,
+        data: {
+          type: 'land',
+          lng: e.lngLat.lng,
+          lat: e.lngLat.lat,
+          agency: bestInfo.agency,
+          label: bestInfo.label,
+          name: name || undefined,
+          restriction: bestInfo.restriction,
+        },
       });
+      return;
     });
 
     mapInstance.on('mousemove', (e) => {
@@ -656,6 +644,7 @@ export function BackcountryMap({
       landoutSetOverlayVisibility: (id: string, vis: boolean) => void;
       landoutGetBasemap: () => BasemapId;
       landoutToggleDiagnostics: () => void;
+      landoutSetDirectTo: (dest: DirectToDest | null) => void;
     };
     const switchTo = (id: BasemapId) => {
       if (!map.current || id === basemap) return;
@@ -674,18 +663,25 @@ export function BackcountryMap({
     };
     win.landoutGetBasemap = () => basemap;
     win.landoutToggleDiagnostics = () => setShowDiagnostics((v) => !v);
+    win.landoutSetDirectTo = (dest) => {
+      setDirectToDest(dest);
+      setInfoCard(null);
+      setActionMenu(null);
+    };
   });
 
-  // Actions called from ActionMenu
+  // Actions called from ActionMenu / InfoCard
   function handleDirectTo(lng: number, lat: number, name?: string) {
     setDirectToDest({ lng, lat, name, type: 'map' });
     setActionMenu(null);
+    setInfoCard(null);
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
     const id = `pin-${Date.now()}`;
     setDroppedPins((prev) => [...prev, { id, lng, lat, name }]);
     setActionMenu(null);
+    setInfoCard(null);
   }
 
   function handleClearDirectTo() {
@@ -758,6 +754,17 @@ export function BackcountryMap({
             { label: 'Cancel', icon: '✕', onClick: () => setActionMenu(null) },
           ]}
           onClose={() => setActionMenu(null)}
+        />
+      )}
+      {/* InfoCard for airport and land overlays */}
+      {infoCard && (
+        <InfoCard
+          card={infoCard.data}
+          screenX={infoCard.screenX}
+          screenY={infoCard.screenY}
+          onClose={() => setInfoCard(null)}
+          onDirectTo={(lng, lat, name) => handleDirectTo(lng, lat, name)}
+          onDropPin={infoCard.data.type === 'land' ? (lng, lat) => handleDropPin(lng, lat) : undefined}
         />
       )}
     </div>

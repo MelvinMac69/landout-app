@@ -7,11 +7,16 @@
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-rgb: 255, 255, 255;
+  --landout-sand: #E8DCC8;
+  --landout-sand-light: #F5EFE3;
+  --landout-forest: #1B3D2F;
+  --landout-aviation: #D4621A;
+  --landout-charcoal: #2D3748;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  background: var(--landout-sand-light);
   font-family: 'Inter', system-ui, sans-serif;
 }
 
