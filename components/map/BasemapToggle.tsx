@@ -10,9 +10,9 @@ export function BasemapToggle() {
     <div
       style={{
         display: 'flex',
-        gap: 4,
+        gap: 3,
         background: 'white',
-        borderRadius: 10,
+        borderRadius: 8,
         padding: 4,
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
       }}
@@ -26,20 +26,23 @@ export function BasemapToggle() {
             if (fn) fn(id);
           }}
           style={{
-            padding: '6px 10px',
-            borderRadius: 6,
+            padding: '4px 7px',
+            borderRadius: 5,
             border: 'none',
             cursor: 'pointer',
-            fontSize: 12,
-            fontWeight: 600,
+            fontSize: 11,
+            fontWeight: 700,
             background: active === id ? '#1E293B' : 'transparent',
             color: active === id ? 'white' : '#475569',
             transition: 'all 0.15s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
           }}
           title={label}
         >
-          <span style={{ marginRight: 4 }}>{icon}</span>
-          {label}
+          <span>{icon}</span>
+          <span>{label}</span>
         </button>
       ))}
     </div>

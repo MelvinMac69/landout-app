@@ -59,9 +59,9 @@ export default function MapPage() {
         <MapLegend />
       </div>
 
-      {/* Basemap toggle — bottom-left, compact row of icons only */}
+      {/* Basemap toggle — bottom-left, dense compact row at bottom edge */}
       <div
-        style={{ position: 'absolute', bottom: 70, left: 8, zIndex: 30 }}
+        style={{ position: 'absolute', bottom: 12, left: 8, zIndex: 30 }}
       >
         <BasemapToggle />
       </div>

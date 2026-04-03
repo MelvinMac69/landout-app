@@ -240,9 +240,9 @@ export function BackcountryMap({
                 // at zoom 6 and grow as you zoom in. Large/medium are always visible.
                 'circle-radius': [
                   'interpolate', ['linear'], ['zoom'],
-                  6,  ['match', ['get', 'type'], 'large_airport', 11, 'medium_airport', 7, 'seaplane_base', 0, 'closed', 0, 0],
-                  8,  ['match', ['get', 'type'], 'large_airport', 13, 'medium_airport', 9, 'seaplane_base', 5, 'closed', 3, 5],
-                  10, ['match', ['get', 'type'], 'large_airport', 15, 'medium_airport', 11, 'seaplane_base', 7, 'closed', 4, 7],
+                  6,  ['match', ['get', 'type'], 'large_airport', 9, 'medium_airport', 5, 'seaplane_base', 0, 'closed', 0, 0],
+                  8,  ['match', ['get', 'type'], 'large_airport', 11, 'medium_airport', 7, 'seaplane_base', 4, 'closed', 2, 4],
+                  10, ['match', ['get', 'type'], 'large_airport', 13, 'medium_airport', 9, 'seaplane_base', 6, 'closed', 3, 6],
                 ],
                 'circle-color': '#1D4ED8',
                 'circle-opacity': 0.9,
@@ -289,8 +289,18 @@ export function BackcountryMap({
       zoom: initialZoom,
     });
 
-    mapInstance.addControl(new maplibregl.NavigationControl(), 'top-left');
-    mapInstance.addControl(new maplibregl.ScaleControl(), 'bottom-left');
+    mapInstance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+    mapInstance.addControl(new maplibregl.ScaleControl({ maxWidth: 80, unit: 'metric' }), 'bottom-left');
+
+    // Push MapLibre's zoom controls down so they're not flush with the top edge.
+    // The '+' button aligns roughly with the Land Status Key legend header (~72px).
+    const style = document.createElement('style');
+    style.textContent = `
+      .maplibregl-ctrl-top-left { top: 72px !important; left: 8px !important; }
+      .maplibregl-ctrl-bottom-left { bottom: 12px !important; left: 8px !important; }
+      .maplibregl-ctrl-scale { border-color: #64748B !important; color: #64748B !important; background: rgba(255,255,255,0.85) !important; font-size: 10px !important; }
+    `;
+    document.head.appendChild(style);
 
     mapInstance.on('load', async () => {
       map.current = mapInstance;
