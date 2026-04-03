@@ -411,8 +411,9 @@ export function BackcountryMap({
     const RANK: Record<string, number> = { 'no-landing': 0, 'restricted': 1, 'multiple-use': 2, 'airport': 3 };
 
     // Click → close all popups, then show new one for topmost land-restriction feature
+    // ── Unified click handler ──────────────────────────────────────────────────────────
+    // Priority: airport dots (ActionMenu) > dropped pins (ActionMenu) > land (inspector popup)
     mapInstance.on('click', (e) => {
-      // Suppress click after long-press
       if (suppressClickRef.current) return;
       closeAllPopups();
 
@@ -420,23 +421,33 @@ export function BackcountryMap({
       if (!allFeatures.length) return;
       mapInstance.getCanvas().style.cursor = 'pointer';
 
-      // Dropped pin tap — show ActionMenu with pin name
+      // 1. Airport dot tap → ActionMenu (desktop: left-click; mobile: tap)
+      const airportFeature = allFeatures.find((f) => f.layer?.id === 'airport-fill');
+      if (airportFeature) {
+        const props = airportFeature.properties ?? {};
+        const aptName = props.name || 'Unknown Airport';
+        setActionMenu({
+          x: e.point.x, y: e.point.y,
+          lng: e.lngLat.lng, lat: e.lngLat.lat,
+          airportName: aptName,
+        });
+        return;
+      }
+
+      // 2. Dropped pin tap → ActionMenu with pin name
       const pinFeature = allFeatures.find((f) => f.layer?.id === 'pins-layer');
       if (pinFeature) {
-        const pinProps = pinFeature.properties ?? {};
-        const pinName = pinProps.name || 'Dropped Pin';
+        const pinName = pinFeature.properties?.name || 'Dropped Pin';
         setActionMenu({
-          x: e.point.x,
-          y: e.point.y,
-          lng: e.lngLat.lng,
-          lat: e.lngLat.lat,
+          x: e.point.x, y: e.point.y,
+          lng: e.lngLat.lng, lat: e.lngLat.lat,
           airportName: pinName,
         });
         return;
       }
 
-      // Filter out pins layer and airport layer — pins: ActionMenu; airports: inspector popup
-      const landFeatures = allFeatures.filter((f) => f.layer?.id !== 'pins-layer' && f.layer?.id !== 'airport-fill');
+      // 3. Land overlay tap → inspector popup (existing behavior)
+      const landFeatures = allFeatures.filter((f) => !['pins-layer', 'airport-fill'].includes(f.layer?.id ?? ''));
       if (!landFeatures.length) return;
 
       let best = landFeatures[0];
@@ -447,54 +458,6 @@ export function BackcountryMap({
         if (!info) continue;
         const r = RANK[info.restriction];
         if ((r ?? 3) < bestRank) { best = f; bestInfo = info; bestRank = r ?? 3; }
-      const props = best.properties ?? {};
-        const aptCode = props.icao || props.gps_code || '—';
-        const aptName = props.name || 'Unknown Airport';
-        const aptType = props.type || 'unknown';
-        const aptElev = props.elevation_ft != null ? `${props.elevation_ft} ft` : '—';
-        const aptLoc = [props.municipality, props.state].filter(Boolean).join(', ') || '—';
-        const aptColor = '#1D4ED8';
-        const aptPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, className: 'landout-popup' })
-          .setLngLat(e.lngLat)
-          .setHTML(`
-            <div style="position:relative;min-width:180px;max-width:240px">
-              <button class="landout-popup-minbtn" title="Minimize">−</button>
-              <div class="landout-popup-body">
-                <div style="display:flex;align-items:center;margin-bottom:4px">
-                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${aptColor};margin-right:8px;flex-shrink:0"></span>
-                  <span style="font-weight:600;color:#1E293B">Airport Reference</span>
-                </div>
-                <div style="color:#1E293B;font-size:14px;font-weight:600;margin-bottom:2px;padding-left:18px">${aptName}</div>
-                <div style="color:#1D4ED8;font-size:12px;font-weight:700;font-family:monospace;margin-bottom:6px;padding-left:18px">${aptCode}</div>
-                <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:11px;color:#475569;padding-left:18px">
-                  <span style="color:#94A3B8">Type</span><span>${aptType}</span>
-                  <span style="color:#94A3B8">Elevation</span><span>${aptElev}</span>
-                  <span style="color:#94A3B8">Location</span><span>${aptLoc}</span>
-                </div>
-                <div style="margin-top:6px;padding:4px 8px;border-radius:6px;background:#EFF6FF;color:#1D4ED8;font-size:10px;text-align:center">✈ Reference data — not legal authority</div>
-              </div>
-            </div>
-          `)
-          .addTo(mapInstance);
-        activePopups.current.push(aptPopup);
-        aptPopup.getElement().addEventListener('click', (ev) => {
-          const target = ev.target as HTMLElement;
-          if (target.classList.contains('landout-popup-minbtn')) {
-            ev.stopPropagation();
-            const body = aptPopup.getElement().querySelector('.landout-popup-body') as HTMLElement;
-            const btn = aptPopup.getElement().querySelector('.landout-popup-minbtn') as HTMLElement;
-            if (body && btn) {
-              if (body.classList.contains('collapsed')) {
-                body.classList.remove('collapsed');
-                btn.textContent = '−';
-              } else {
-                body.classList.add('collapsed');
-                btn.textContent = '+';
-              }
-            }
-          }
-        });
-        return;
       }
 
       if (!bestInfo) return;
@@ -553,28 +516,48 @@ export function BackcountryMap({
       mapInstance.getCanvas().style.cursor = features.length ? 'pointer' : '';
     });
 
-    // ── Long-press / context-menu handler ──────────────────────────────────────────
-    // Desktop: contextmenu fires before click, so no conflict.
-    // Mobile: we intercept touchstart/touchend ourselves to detect a 400ms hold.
+    // ── Touch handling for long-press (mobile) ────────────────────────────────────────
+    // Goal: detect 400ms hold without breaking MapLibre's native pan/zoom/pinch gestures.
+    // Strategy: only track single-touch; cancel timer on multi-touch (pinch) or rapid movement.
     let touchTimer: ReturnType<typeof setTimeout> | null = null;
     let touchStartPos: { x: number; y: number } | null = null;
+    const LONG_PRESS_MS = 400;
+    const MOVE_THRESHOLD_PX = 8; // cancel timer if finger moves more than this
 
     (mapInstance.on as any)('touchstart', (e: any) => {
-      // Only track single-finger touches
-      if (e.originalEvent.touches.length !== 1) return;
-      touchStartPos = { x: e.originalEvent.touches[0].clientX, y: e.originalEvent.touches[0].clientY };
+      const touches = e.originalEvent.touches;
+
+      // Multi-touch (pinch-to-zoom) — cancel any pending long-press immediately
+      if (touches.length !== 1) {
+        if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+        touchStartPos = null;
+        return;
+      }
+
+      touchStartPos = { x: touches[0].clientX, y: touches[0].clientY };
       touchTimer = setTimeout(() => {
         touchTimer = null;
-        suppressClickRef.current = true;
-        setTimeout(() => { suppressClickRef.current = false; }, 400);
-        if (touchStartPos && map.current) {
-          const lngLat = map.current.unproject([touchStartPos.x, touchStartPos.y]);
-          mapInstance.fire('longpress', { lngLat, point: touchStartPos });
-        }
-      }, 400);
+        if (!touchStartPos || !map.current) return;
+        suppressClickRef.current = true; // block the synthetic click that follows
+        setTimeout(() => { suppressClickRef.current = false; }, 500);
+        const lngLat = map.current.unproject([touchStartPos.x, touchStartPos.y]);
+        mapInstance.fire('longpress', { lngLat, point: touchStartPos });
+      }, LONG_PRESS_MS);
     }, { passive: true });
 
-    mapInstance.on('touchend', (e) => {
+    // Track finger movement — cancel long-press if user drags (pan gesture)
+    (mapInstance.on as any)('touchmove', (e: any) => {
+      const touches = e.originalEvent.touches;
+      if (!touchStartPos || touches.length !== 1) return;
+      const dx = touches[0].clientX - touchStartPos.x;
+      const dy = touches[0].clientY - touchStartPos.y;
+      if (Math.sqrt(dx * dx + dy * dy) > MOVE_THRESHOLD_PX) {
+        if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+        touchStartPos = null;
+      }
+    }, { passive: true });
+
+    mapInstance.on('touchend', () => {
       if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
       touchStartPos = null;
     });
