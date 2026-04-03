@@ -704,7 +704,7 @@ export function BackcountryMap({
   return (
     <div className="relative w-full h-full">
       {/* Full-screen map container — touch-action:none enables MapLibre's iOS gesture handling */}
-      <div ref={mapContainer} style={{ width: '100%', height: '100%', touchAction: 'none' }} />
+      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       {!loaded && (
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>

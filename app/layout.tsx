@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1.0,
-  maximumScale: 1.0,
-  userScalable: false,
+  // NOT setting maximumScale or userScalable — MapLibre handles its own
+  // pinch-zoom and pan gestures. Let the browser provide touch events natively.
   viewportFit: 'cover',
 };
 
