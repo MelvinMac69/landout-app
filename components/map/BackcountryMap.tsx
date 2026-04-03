@@ -488,8 +488,8 @@ export function BackcountryMap({
       {showDiagnostics && (
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
-      {/* Locate button — bottom-right, clear of zoom controls (bottom-left) and North arrow (top-left) */}
-      <div style={{ position: 'absolute', bottom: 168, right: 8, zIndex: 10 }}>
+      {/* Locate button — bottom-left, below BasemapToggle, clear of zoom controls */}
+      <div style={{ position: 'absolute', bottom: 72, left: 8, zIndex: 10 }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
     </div>

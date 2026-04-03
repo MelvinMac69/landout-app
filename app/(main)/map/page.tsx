@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, BasemapToggle, OVERLAY_LAYERS } from '@/components/map';
-import { Search } from 'lucide-react';
+import { Search, Layers } from 'lucide-react';
 
 export default function MapPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -42,7 +42,30 @@ export default function MapPage() {
     >
       <BackcountryMap onMapLoad={handleMapLoad} />
 
-      {/* Search — bottom-center, above disclaimers, clear of basemap toggle */}
+      {/* =========================================================
+          TOP CONTROLS — top-right corner
+          Layer panel + legend stack above all bottom/left controls
+          ========================================================= */}
+
+      {/* Map layer toggle — compact icon button that opens the full panel */}
+      <MapLayerToggle layers={layers} onToggle={handleToggle} />
+
+      {/* Land status legend — collapsed by default, tap header to expand */}
+      <MapLegend />
+
+      {/* =========================================================
+          LEFT SIDE CONTROLS — stacked vertically at bottom-left
+          ========================================================= */}
+
+      {/* Basemap selector — bottom-left, above Locate button */}
+      <BasemapToggle />
+
+      {/* Locate GPS button — directly below BasemapToggle, left side */}
+      {/* BackcountryMap renders this internally via LocateButton */}
+
+      {/* =========================================================
+          SEARCH — bottom-center, above disclaimers
+          ========================================================= */}
       <div className="search-bar-container absolute bottom-24 left-4 right-4 md:left-auto md:right-auto md:w-96 md:mx-auto z-10">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
           <div className="flex items-center gap-2">
@@ -56,7 +79,9 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* NOT FOR NAVIGATION — click to dismiss */}
+      {/* =========================================================
+          DISCLAIMER — bottom-right
+          ========================================================= */}
       {!disclaimerDismissed && (
         <div
           className="absolute bottom-8 right-4 z-10 max-w-xs cursor-pointer"
