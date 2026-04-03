@@ -407,6 +407,9 @@ export function BackcountryMap({
 
       // Debug: count native touch events on the map canvas to verify they reach MapLibre
       const canvas = mapInstance.getCanvas();
+      // Ensure iOS Safari passes touch events to MapLibre (handles gesture conflicts)
+      canvas.style.touchAction = 'none';
+      // Expose canvas touch-action via direct DOM access for reliability on iOS
       const incTouch = () => {
         touchCountRef.current++;
         setTouchCount(touchCountRef.current);
@@ -414,6 +417,10 @@ export function BackcountryMap({
       canvas.addEventListener('touchstart', incTouch, { passive: true });
       canvas.addEventListener('touchmove', incTouch, { passive: true });
       canvas.addEventListener('touchend', incTouch, { passive: true });
+      // Also capture pointer events for iOS Safari (MapLibre v4 uses pointer events on mobile)
+      canvas.addEventListener('pointerdown', incTouch, { passive: true });
+      canvas.addEventListener('pointermove', incTouch, { passive: true });
+      canvas.addEventListener('pointerup', incTouch, { passive: true });
     });
 
     const LAYER_INFO: Record<string, { agency: string; label: string; restriction: 'no-landing' | 'restricted' | 'multiple-use'; color: string }> = {
@@ -703,8 +710,8 @@ export function BackcountryMap({
 
   return (
     <div className="relative w-full h-full">
-      {/* Full-screen map container — touch-action:none enables MapLibre's iOS gesture handling */}
-      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      {/* Full-screen map container */}
+      <div ref={mapContainer} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
       {!loaded && (
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>
@@ -714,7 +721,7 @@ export function BackcountryMap({
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
       {/* Locate button — bottom-right, keeps BasemapToggle clear on left side */}
-      <div style={{ position: 'absolute', bottom: 80, right: 8, zIndex: 60 }}>
+      <div style={{ position: 'absolute', bottom: 80, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
       {/* Direct To info card */}
