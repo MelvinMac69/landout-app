@@ -54,7 +54,7 @@ function TypePill({ type }: { type?: string }) {
   const t = type?.toLowerCase() ?? '';
   let cls = 'bg-slate-300 text-slate-700';
   if (t.includes('large')) cls = 'bg-landout-aviation text-white';
-  else if (t.includes('medium')) cls = 'bg-landout-forest text-white';
+  else if (t.includes('medium')) cls = 'bg-landout-charcoal-light text-white';
   else if (t.includes('small')) cls = 'bg-landout-sand-dark text-landout-charcoal';
   else if (t.includes('seaplane')) cls = 'bg-landout-aviation-light text-white';
   return (
@@ -225,7 +225,7 @@ export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPi
         </Button>
         {onDropPin && (
           <Button
-            variant="forest"
+            variant="aviation"
             size="sm"
             onClick={() => { onDropPin(card.lng, card.lat); onClose(); }}
           >

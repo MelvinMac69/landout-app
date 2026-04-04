@@ -19,16 +19,16 @@ interface MapLayerToggleProps {
 }
 
 const LAYER_COLOR_OVERRIDES: Partial<Record<string, string>> = {
-  'wilderness-fill':    '#0F2520',
+  'wilderness-fill':    '#1A202C',
   'wsa-fill':          '#D4621A',
-  'fs-wilderness-fill': '#0F2520',
-  'sma-nps-fill':      '#0F2520',
+  'fs-wilderness-fill': '#1A202C',
+  'sma-nps-fill':      '#1A202C',
   'sma-fws-fill':      '#D97706',
   'sma-blm-fill':      '#C9B99A',
-  'sma-usfs-fill':     '#1B3D2F',
+  'sma-usfs-fill':     '#2D3748',
   'airport-fill':      '#1D4ED8',
   'sma-blm-ak-fill':  '#C9B99A',
-  'ak-ond-fill':       '#0F2520',
+  'ak-ond-fill':       '#1A202C',
 };
 
 function SectionHeader({

@@ -31,41 +31,27 @@ export default function MapPage() {
     >
       <BackcountryMap onMapLoad={handleMapLoad} />
 
-      {/* TEMPORARY BUILD VERIFICATION MARKER */}
-      <div style={{
-        position: 'absolute', top: 4, left: 4, zIndex: 9999,
-        background: '#1A202C', color: '#E8DCC8',
-        padding: '6px 10px', borderRadius: 8,
-        fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-        letterSpacing: '0.05em',
-        border: '2px solid #D4621A',
-      }}>
-        <div style={{ color: '#D4621A', marginBottom: 2 }}>LANDOUT BUILD TEST</div>
-        <div>SHA: f5eb185</div>
-        <div>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-      </div>
-
-      {/* Layers button — top-right, dark theme */}
+      {/* Layers button — top-right, dark charcoal, aviation orange accent */}
       <div className="absolute right-1 top-1 z-50" style={{ pointerEvents: 'auto' }}>
         <MapLayerToggle layers={layers} onToggle={handleToggle} />
       </div>
 
-      {/* Land Status legend — bottom-left, default collapsed, dark theme */}
-      <div style={{ position: 'absolute', bottom: 80, left: 8, zIndex: 30, pointerEvents: 'auto' }}>
+      {/* Land Status legend — bottom-left, just above mobile nav, default collapsed */}
+      {/* bottom: 72 = 7px above the 65px mobile nav */}
+      <div style={{ position: 'absolute', bottom: 72, left: 8, zIndex: 30, pointerEvents: 'auto' }}>
         <MapLegend />
       </div>
 
-      {/* Nearest airports panel — bottom-left above legend */}
+      {/* Nearest airports panel — bottom-left, above legend */}
       <NearestPanel />
 
-      {/* DISCLAIMER — subtle dark amber, dismissible */}
+      {/* DISCLAIMER — dark amber, dismissible, top-right corner */}
       {!disclaimerDismissed && (
         <div
           style={{
             position: 'absolute',
             top: 4,
-            right: 56,   // sit to the left of the Layers button
+            right: 56,
             zIndex: 40,
             maxWidth: 200,
             cursor: 'pointer',

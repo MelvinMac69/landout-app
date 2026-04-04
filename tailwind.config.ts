@@ -10,8 +10,7 @@ const config: Config = {
     extend: {
       colors: {
         landout: {
-          sand: { DEFAULT: '#E8DCC8', light: '#F5EFE3', dark: '#C9B99A' },
-          forest: { DEFAULT: '#1B3D2F', light: '#2D5A45', dark: '#0F2520' },
+          sand: { DEFAULT: '#C9B99A', light: '#E8DCC8', dark: '#A0897A' },
           aviation: { DEFAULT: '#D4621A', light: '#E8844A', dark: '#A34D14' },
           charcoal: { DEFAULT: '#2D3748', light: '#4A5568', dark: '#1A202C' },
         },

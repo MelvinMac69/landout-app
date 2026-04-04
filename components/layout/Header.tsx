@@ -26,20 +26,27 @@ export function Header() {
         <div className="flex items-center justify-between h-14">
           <Link href="/map" className="flex items-center gap-2">
             <span className="text-xl">🛩️</span>
-            <div className="flex flex-col">
-              <span
-                className="font-semibold leading-tight"
-                style={{ color: 'var(--landout-aviation)', fontSize: 16, fontWeight: 700 }}
-              >
-                Landout
-              </span>
-              <span
-                className="text-xs leading-tight"
-                style={{ color: 'var(--text-muted)', fontSize: 10 }}
-              >
-                Maps for where the runway ends.
-              </span>
-            </div>
+            <span
+              style={{
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontWeight: 800,
+                fontSize: 18,
+                color: 'var(--landout-aviation)',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              LANDOUT
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                fontWeight: 400,
+                marginLeft: 4,
+              }}
+            >
+              Maps for where the runway ends.
+            </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -66,7 +73,8 @@ export function Header() {
             })}
           </nav>
 
-          <div className="flex items-center gap-2">
+          {/* Desktop only — Add Site top-right */}
+          <div className="hidden md:flex items-center gap-2">
             <Link
               href="/sites/new"
               style={{

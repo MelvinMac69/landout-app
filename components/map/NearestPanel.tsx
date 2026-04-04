@@ -57,7 +57,7 @@ function bearingLabel(b: number): string {
 
 const TYPE_COLORS: Record<string, string> = {
   large_airport: 'bg-landout-aviation text-white',
-  medium_airport: 'bg-landout-forest text-white',
+  medium_airport: 'bg-landout-charcoal-light text-white',
   small_airport: 'bg-landout-sand-dark text-landout-charcoal',
   seaplane_base: 'bg-landout-aviation-light text-white',
   heliport: 'bg-slate-400 text-white',

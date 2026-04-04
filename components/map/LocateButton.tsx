@@ -142,7 +142,13 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const { latitude: lat, longitude: lon } = pos.coords;
         const heading = pos.coords.heading ?? undefined;
         const map = getMap();
-        if (map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), duration: 1200 });
+        if (map) {
+          // Use once('idle') so zoom is set AFTER map sources finish loading,
+          // preventing the initial world-view zoom from overriding our nav zoom.
+          const zoomFn = () => map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+          if (map.loaded()) zoomFn();
+          else map.once('idle', zoomFn);
+        }
         startWatching(lat, lon, heading);
       } catch {
         isRequesting.current = false;
@@ -180,7 +186,11 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       const { latitude: lat, longitude: lon } = pos.coords;
       const heading = pos.coords.heading ?? undefined;
       const map = getMap();
-      if (map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), duration: 1200 });
+      if (map) {
+        const zoomFn = () => map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+        if (map.loaded()) zoomFn();
+        else map.once('idle', zoomFn);
+      }
       startWatching(lat, lon, heading);
     } catch (err: unknown) {
       isRequesting.current = false;
@@ -274,7 +284,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           width: 42,
           height: 42,
           borderRadius: 8,
-          background: followMode ? '#1B3D2F' : state === 'active' ? '#2D3748' : state === 'denied' ? '#2D3748' : '#1A202C',
+          background: followMode ? '#1A202C' : state === 'active' ? '#2D3748' : state === 'denied' ? '#2D3748' : '#1A202C',
           border: `1.5px solid ${followMode ? '#D4621A' : state === 'active' ? '#D4621A' : state === 'denied' ? '#EF4444' : '#4A5568'}`,
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
           display: 'flex',
@@ -285,7 +295,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           transition: 'all 0.2s',
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill={followMode ? '#1B3D2F' : 'none'} stroke={followMode ? 'white' : stateColors[state]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill={followMode ? '#1A202C' : 'none'} stroke={followMode ? 'white' : stateColors[state]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {state === 'acquiring' ? (
             <><circle cx="12" cy="12" r="10" strokeDasharray="5 3"/><circle cx="12" cy="12" r="3" fill="#F59E0B" stroke="none"/></>
           ) : state === 'denied' ? (
