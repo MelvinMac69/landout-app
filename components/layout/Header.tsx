@@ -14,14 +14,31 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+    <header
+      className="sticky top-0 z-50"
+      style={{
+        background: 'var(--landout-charcoal)',
+        borderBottom: '1px solid #4A5568',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
           <Link href="/map" className="flex items-center gap-2">
             <span className="text-xl">🛩️</span>
             <div className="flex flex-col">
-              <span className="font-semibold text-landout-forest leading-tight">Landout</span>
-              <span className="text-xs text-slate-400 leading-tight">Maps for where the runway ends.</span>
+              <span
+                className="font-semibold leading-tight"
+                style={{ color: 'var(--landout-aviation)', fontSize: 16, fontWeight: 700 }}
+              >
+                Landout
+              </span>
+              <span
+                className="text-xs leading-tight"
+                style={{ color: 'var(--text-muted)', fontSize: 10 }}
+              >
+                Maps for where the runway ends.
+              </span>
             </div>
           </Link>
 
@@ -32,13 +49,16 @@ export function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`
-                    px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                    ${isActive
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }
-                  `}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    transition: 'all 0.15s',
+                    background: isActive ? 'var(--landout-charcoal-light)' : 'transparent',
+                    color: isActive ? 'var(--landout-aviation)' : 'var(--text-secondary)',
+                    border: isActive ? '1px solid var(--landout-aviation)' : '1px solid transparent',
+                  }}
                 >
                   {link.label}
                 </Link>
@@ -49,7 +69,18 @@ export function Header() {
           <div className="flex items-center gap-2">
             <Link
               href="/sites/new"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                background: 'var(--landout-aviation)',
+                color: 'white',
+                transition: 'all 0.15s',
+              }}
             >
               <span>+</span>
               <span>Add Site</span>

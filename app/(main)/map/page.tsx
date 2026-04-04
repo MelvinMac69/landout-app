@@ -5,11 +5,6 @@ import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/com
 import { NearestPanel } from '@/components/map/NearestPanel';
 
 export default function MapPage() {
-  // isMounted check removed — BackcountryMap handles its own loading state internally.
-  // Keeping isMounted at the page level caused a double-overlay bug on mobile where
-  // the page-level loading div (pointerEvents: auto) blocked all map touch events
-  // if isMounted was not set to true after hydration (particularly on mobile Safari).
-
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
@@ -17,8 +12,6 @@ export default function MapPage() {
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
 
   const handleMapLoad = useCallback((map: maplibregl.Map) => {
-    // Belt-and-suspenders: also expose on window so LocateButton can find the map
-    // even if mapRef isn't propagated yet.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__landoutMap = map;
   }, []);
@@ -41,10 +34,10 @@ export default function MapPage() {
       {/* TEMPORARY BUILD VERIFICATION MARKER */}
       <div style={{
         position: 'absolute', top: 4, left: 4, zIndex: 9999,
-        background: '#1B3D2F', color: '#E8DCC8',
+        background: '#1A202C', color: '#E8DCC8',
         padding: '6px 10px', borderRadius: 8,
         fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
         letterSpacing: '0.05em',
         border: '2px solid #D4621A',
       }}>
@@ -53,54 +46,47 @@ export default function MapPage() {
         <div>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
       </div>
 
-      {/* =========================================================
-          LAYER CONTROLS — top-right corner, always visible
-          ========================================================= */}
-
-      {/* Layers button — top-right, z-50 to float above everything */}
-      <div
-        className="absolute right-1 top-1 z-50"
-        style={{ pointerEvents: 'auto' }}
-      >
+      {/* Layers button — top-right, dark theme */}
+      <div className="absolute right-1 top-1 z-50" style={{ pointerEvents: 'auto' }}>
         <MapLayerToggle layers={layers} onToggle={handleToggle} />
       </div>
 
-      {/* Land Status Key legend — below Layers button, top-right */}
-      <div
-        className="absolute right-1 z-40"
-        style={{ top: 72, pointerEvents: 'auto' }}
-      >
+      {/* Land Status legend — bottom-left, default collapsed, dark theme */}
+      <div style={{ position: 'absolute', bottom: 80, left: 8, zIndex: 30, pointerEvents: 'auto' }}>
         <MapLegend />
       </div>
 
-      {/* Locate button — bottom-right corner */}
-      <div
-        style={{ position: 'absolute', bottom: 12, right: 8, zIndex: 30 }}
-      >
-        {/* LocateButton is rendered inside BackcountryMap */}
-      </div>
-
-      {/* Nearest airports panel — bottom-left */}
+      {/* Nearest airports panel — bottom-left above legend */}
       <NearestPanel />
 
-      {/* DISCLAIMER — top-right, below legend */}
+      {/* DISCLAIMER — subtle dark amber, dismissible */}
       {!disclaimerDismissed && (
         <div
           style={{
             position: 'absolute',
-            top: 295,
-            right: 4,
-            zIndex: 20,
+            top: 4,
+            right: 56,   // sit to the left of the Layers button
+            zIndex: 40,
             maxWidth: 200,
             cursor: 'pointer',
           }}
           onClick={() => setDisclaimerDismissed(true)}
           title="Click to dismiss"
         >
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800 hover:bg-amber-100 transition-colors">
-            <strong>⚠️ NOT FOR NAVIGATION</strong>
+          <div
+            style={{
+              background: 'rgba(26, 32, 44, 0.92)',
+              border: '1px solid #D4621A',
+              borderRadius: 8,
+              padding: '6px 10px',
+              fontSize: 11,
+              color: '#C9B99A',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            }}
+          >
+            <strong style={{ color: '#D4621A' }}>⚠️ NOT FOR NAVIGATION</strong>
             <br />
-            Shows land status context only. Does not authorize landings.
+            Land status context only. Does not authorize landings.
           </div>
         </div>
       )}

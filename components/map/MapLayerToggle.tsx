@@ -18,10 +18,9 @@ interface MapLayerToggleProps {
   onToggle: (layerId: string) => void;
 }
 
-// Landout brand colors for layer badges
 const LAYER_COLOR_OVERRIDES: Partial<Record<string, string>> = {
-  'wilderness-fill':     '#0F2520',
-  'wsa-fill':           '#D4621A',
+  'wilderness-fill':    '#0F2520',
+  'wsa-fill':          '#D4621A',
   'fs-wilderness-fill': '#0F2520',
   'sma-nps-fill':      '#0F2520',
   'sma-fws-fill':      '#D97706',
@@ -29,7 +28,7 @@ const LAYER_COLOR_OVERRIDES: Partial<Record<string, string>> = {
   'sma-usfs-fill':     '#1B3D2F',
   'airport-fill':      '#1D4ED8',
   'sma-blm-ak-fill':  '#C9B99A',
-  'ak-ond-fill':      '#0F2520',
+  'ak-ond-fill':       '#0F2520',
 };
 
 function SectionHeader({
@@ -59,12 +58,12 @@ function SectionHeader({
       }}
     >
       {isOpen ? (
-        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+        <ChevronDown style={{ width: 14, height: 14, color: 'var(--text-muted)' }} />
       ) : (
-        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+        <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-muted)' }} />
       )}
       {icon && <span style={{ fontSize: 14 }}>{icon}</span>}
-      <span style={{ fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--landout-aviation)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
     </button>
   );
 }
@@ -76,7 +75,6 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
 
   const visibleCount = layers.filter((l) => l.visible).length;
 
-  // Get current basemap from window
   const [activeBasemap, setActiveBasemap] = useState<BasemapId>(() => {
     try { return (window as typeof window & { landoutGetBasemap?: () => BasemapId }).landoutGetBasemap?.() ?? 'osm'; }
     catch { return 'osm'; }
@@ -89,24 +87,46 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
   }
 
   return (
-    <div className="absolute top-4 right-4 z-10">
+    <div>
       {isOpen ? (
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3 w-64">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-              <Layers className="w-4 h-4" />
-              Layers
-            </h3>
+        /* Open panel — dark charcoal */
+        <div
+          style={{
+            position: 'absolute',
+            top: 48,
+            right: 0,
+            zIndex: 50,
+            width: 260,
+            background: 'var(--landout-charcoal-light)',
+            borderRadius: 12,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid #4A5568',
+            padding: 14,
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Layers style={{ width: 16, height: 16, color: 'var(--landout-aviation)' }} />
+              <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>Layers</span>
+            </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1 hover:bg-slate-100 rounded"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 4,
+                borderRadius: 6,
+                color: 'var(--text-muted)',
+              }}
             >
-              <X className="w-4 h-4 text-slate-500" />
+              <X style={{ width: 16, height: 16 }} />
             </button>
           </div>
 
-          {/* Section 1 — Basemaps */}
-          <div style={{ marginBottom: 12 }}>
+          {/* Basemaps section */}
+          <div style={{ marginBottom: 10 }}>
             <SectionHeader
               label="Basemaps"
               isOpen={basemapsOpen}
@@ -122,18 +142,19 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
                       key={id}
                       onClick={() => handleBasemap(id)}
                       style={{
-                        padding: '4px 8px',
+                        padding: '5px 8px',
                         borderRadius: 6,
                         border: 'none',
                         cursor: 'pointer',
                         fontSize: 11,
                         fontWeight: 700,
-                        background: isActive ? '#1B3D2F' : '#F1F5F9',
-                        color: isActive ? 'white' : '#475569',
+                        background: isActive ? 'var(--landout-aviation)' : '#1A202C',
+                        color: isActive ? 'white' : '#A0998F',
                         transition: 'all 0.15s',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 3,
+                        boxShadow: isActive ? '0 2px 6px rgba(212,98,26,0.4)' : 'none',
                       }}
                       title={label}
                     >
@@ -147,9 +168,9 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
           </div>
 
           {/* Divider */}
-          <div style={{ borderTop: '1px solid #F1F5F9', marginBottom: 10 }} />
+          <div style={{ borderTop: '1px solid #4A5568', marginBottom: 10 }} />
 
-          {/* Section 2 — Overlays */}
+          {/* Overlays section */}
           <div>
             <SectionHeader
               label="Overlays"
@@ -157,31 +178,47 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
               onToggle={() => setOverlaysOpen((v) => !v)}
             />
             {overlaysOpen && (
-              <div className="space-y-1">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {layers.map((layer) => {
                   const badgeColor = LAYER_COLOR_OVERRIDES[layer.id] ?? layer.color;
                   return (
                     <label
                       key={layer.id}
-                      className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '5px 6px',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#3D4A5C')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       <input
                         type="checkbox"
                         checked={layer.visible}
                         onChange={() => onToggle(layer.id)}
-                        className="w-3.5 h-3.5 rounded border-slate-300 text-slate-600 focus:ring-slate-500"
+                        style={{ width: 14, height: 14, accentColor: 'var(--landout-aviation)' }}
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span
-                            className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                            style={{ backgroundColor: badgeColor }}
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 2,
+                              backgroundColor: badgeColor,
+                              flexShrink: 0,
+                              border: '1px solid rgba(255,255,255,0.1)',
+                            }}
                           />
-                          <span className="font-medium text-slate-700 text-xs leading-tight">
+                          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>
                             {layer.label}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                        <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
                           {layer.description}
                         </p>
                       </div>
@@ -192,27 +229,50 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
             )}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <p className="text-xs text-slate-400">
+          {/* Footer */}
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #4A5568' }}>
+            <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               Verify accuracy before use. Not for navigation.
             </p>
           </div>
         </div>
       ) : (
-        <Button
-          variant="secondary"
-          size="sm"
+        /* Closed button — dark, floating top-right */
+        <button
           onClick={() => setIsOpen(true)}
-          className="gap-2 shadow-md"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '7px 12px',
+            borderRadius: 8,
+            border: '1px solid #4A5568',
+            background: 'var(--landout-charcoal-light)',
+            color: '#C9B99A',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            transition: 'all 0.15s',
+          }}
         >
-          <Layers className="w-4 h-4" />
-          <span className="hidden sm:inline">Layers</span>
+          <Layers style={{ width: 15, height: 15, color: 'var(--landout-aviation)' }} />
+          <span>Layers</span>
           {visibleCount > 0 && (
-            <span className="bg-landout-forest text-white text-xs px-1.5 py-0.5 rounded-full">
+            <span
+              style={{
+                background: 'var(--landout-aviation)',
+                color: 'white',
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '1px 5px',
+                borderRadius: 10,
+              }}
+            >
               {visibleCount}
             </span>
           )}
-        </Button>
+        </button>
       )}
     </div>
   );

@@ -15,8 +15,17 @@ export function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 md:hidden">
-      <div className="flex items-center justify-around h-16">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+      style={{
+        background: 'var(--landout-charcoal)',
+        borderTop: '1px solid #4A5568',
+        boxShadow: '0 -2px 12px rgba(0,0,0,0.4)',
+        height: 65,
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
+      <div className="flex items-center justify-around h-full">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const Icon = item.icon;
@@ -25,24 +34,46 @@ export function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`
-                flex flex-col items-center justify-center gap-0.5 w-full h-full
-                ${isActive ? 'text-slate-900' : 'text-slate-500'}
-              `}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                flex: 1,
+                height: '100%',
+                color: isActive ? 'var(--landout-aviation)' : 'var(--text-muted)',
+                transition: 'color 0.15s',
+              }}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-xs font-medium">{item.label}</span>
+              <Icon style={{ width: 20, height: 20 }} />
+              <span style={{ fontSize: 10, fontWeight: 500 }}>{item.label}</span>
             </Link>
           );
         })}
       </div>
 
-      {/* Floating Add button */}
+      {/* Floating Add button — aviation orange */}
       <Link
         href="/sites/new"
-        className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center justify-center w-12 h-12 bg-slate-900 text-white rounded-full shadow-lg hover:bg-slate-800 transition-colors"
+        style={{
+          position: 'absolute',
+          top: -16,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 48,
+          height: 48,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--landout-aviation)',
+          color: 'white',
+          borderRadius: '50%',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          transition: 'all 0.15s',
+        }}
       >
-        <Plus className="w-6 h-6" />
+        <Plus style={{ width: 24, height: 24 }} />
       </Link>
     </nav>
   );

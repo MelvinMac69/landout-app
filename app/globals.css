@@ -5,20 +5,44 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
-  --landout-sand: #E8DCC8;
-  --landout-sand-light: #F5EFE3;
-  --landout-forest: #1B3D2F;
+  /* Landout dark theme palette */
+  --landout-charcoal: #1A202C;
+  --landout-charcoal-light: #2D3748;
+  --landout-sand: #C9B99A;
+  --landout-sand-light: #E8DCC8;
   --landout-aviation: #D4621A;
-  --landout-charcoal: #2D3748;
+  --landout-forest: #1B3D2F;
+
+  /* Semantic */
+  --surface-primary: var(--landout-charcoal);
+  --surface-secondary: var(--landout-charcoal-light);
+  --text-primary: #F7F4EF;
+  --text-secondary: #C9B99A;
+  --text-muted: #718096;
+  --accent: var(--landout-aviation);
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: var(--landout-sand-light);
+  background: var(--landout-charcoal);
+  color: var(--text-primary);
   font-family: 'Inter', system-ui, sans-serif;
 }
+
+/* Force dark backgrounds on key surfaces */
+.bg-white {
+  background-color: var(--landout-charcoal-light) !important;
+}
+
+.bg-slate-100 { background-color: var(--landout-charcoal-light) !important; }
+.bg-slate-50 { background-color: var(--landout-charcoal) !important; }
+.border-slate-200 { border-color: #4A5568 !important; }
+.border-slate-100 { border-color: #4A5568 !important; }
+.text-slate-900 { color: #F7F4EF !important; }
+.text-slate-700 { color: #E2DDD6 !important; }
+.text-slate-600 { color: #C9B99A !important; }
+.text-slate-500 { color: #A0998F !important; }
+.text-slate-400 { color: #718096 !important; }
+.bg-slate-900 { background-color: #0D1117 !important; }
 
 .maplibregl-map {
   width: 100%;
@@ -26,9 +50,16 @@ body {
 }
 
 .maplibregl-popup-content {
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   padding: 1rem;
   font-family: 'Inter', system-ui, sans-serif;
+  background: var(--landout-charcoal-light) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.maplibregl-popup-tip {
+  border-top-color: var(--landout-charcoal-light) !important;
 }
 
 .maplibregl-ctrl-group {
@@ -36,26 +67,56 @@ body {
   overflow: hidden;
   min-width: 42px !important;
   min-height: 42px !important;
+  background: var(--landout-charcoal-light) !important;
+  border: 1px solid #4A5568 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
 }
 
 .maplibregl-ctrl-group button {
   width: 40px !important;
   height: 40px !important;
+  background: var(--landout-charcoal-light) !important;
+  border-bottom: 1px solid #4A5568 !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background: #3D4A5C !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-zoom-in .maplibregl-ctrl-zoom-out {
+  fill: var(--text-primary) !important;
+}
+
+/* Dark map attribution */
+.maplibregl-ctrl-attrib {
+  background: rgba(26, 32, 44, 0.8) !important;
+  color: #718096 !important;
+  font-size: 10px !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: #A0998F !important;
+}
+
+/* Scale control dark */
+.maplibregl-ctrl-scale {
+  background: rgba(26, 32, 44, 0.85) !important;
+  border-color: #4A5568 !important;
+  color: #C9B99A !important;
+  font-size: 10px !important;
 }
 
 /* ============================================
-   Mobile UX — phones and small tablets
+   Mobile UX
    ============================================ */
 
 @media (max-width: 480px) {
-  /* Cap floating panels so they don't overflow screen */
   .map-legend-panel,
   .map-layer-panel,
   .map-diagnostics-panel {
     max-width: calc(100vw - 16px) !important;
   }
 
-  /* Ensure map controls are reachable */
   .maplibregl-ctrl-group {
     min-width: 42px !important;
     min-height: 42px !important;
@@ -65,57 +126,24 @@ body {
     min-width: 42px !important;
     min-height: 42px !important;
   }
-
-  /* Search bar — narrower on phone, above disclaimers (bottom:32px) */
-  .search-bar-container {
-    left: 16px !important;
-    right: 16px !important;
-    bottom: 96px !important;
-    width: auto !important;
-    max-width: none !important;
-  }
-
-  .search-bar-container .bg-white {
-    padding: 8px 12px !important;
-  }
-}
-
-/* Notched phones — safe area at bottom */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .map-page-wrapper {
-    padding-bottom: env(safe-area-inset-bottom) !important;
-  }
 }
 
 /* Landscape phone */
 @media (max-height: 500px) and (orientation: landscape) {
-  .search-bar-container {
-    bottom: 8px !important;
-    top: auto !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    width: min(400px, 90vw) !important;
-    right: auto !important;
-  }
-
   .map-legend-panel {
-    top: 8px !important;
-    right: 8px !important;
-  }
-
-  .map-layer-panel {
-    top: 8px !important;
-    right: 8px !important;
+    bottom: 8px !important;
+    left: 8px !important;
+    right: auto !important;
+    top: auto !important;
   }
 }
 
-/* Popup — always dismissible, fits in viewport on mobile */
+/* Dark popup styling */
 .landout-popup {
   max-width: min(320px, 90vw) !important;
   max-height: 45vh !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
-  /* Allow touch scroll inside popup without propagating to map */
   touch-action: pan-y;
 }
 
@@ -128,13 +156,12 @@ body {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: rgba(255,255,255,0.8) !important;
+  background: rgba(45, 55, 72, 0.9) !important;
   border-radius: 50% !important;
   line-height: 1 !important;
-  color: #64748B !important;
+  color: #C9B99A !important;
 }
 
-/* Popup close button touch target — minimum 44px for mobile */
 @media (max-width: 480px) {
   .maplibregl-popup-close-button {
     min-width: 36px !important;

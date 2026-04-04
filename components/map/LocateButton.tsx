@@ -142,7 +142,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const { latitude: lat, longitude: lon } = pos.coords;
         const heading = pos.coords.heading ?? undefined;
         const map = getMap();
-        if (map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 12), duration: 1000 });
+        if (map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), duration: 1200 });
         startWatching(lat, lon, heading);
       } catch {
         isRequesting.current = false;
@@ -180,7 +180,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       const { latitude: lat, longitude: lon } = pos.coords;
       const heading = pos.coords.heading ?? undefined;
       const map = getMap();
-      if (map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 12), duration: 1000 });
+      if (map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13), duration: 1200 });
       startWatching(lat, lon, heading);
     } catch (err: unknown) {
       isRequesting.current = false;
@@ -249,12 +249,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   };
 
   const stateColors: Record<LocState, string> = {
-    idle: '#64748B',
-    acquiring: '#F59E0B',
-    active: '#3B82F6',
-    following: '#1B3D2F',
+    idle: '#718096',
+    acquiring: '#D4621A',
+    active: '#C9B99A',
+    following: '#D4621A',
     denied: '#EF4444',
-    unavailable: '#94A3B8',
+    unavailable: '#718096',
   };
 
   const buttonTitle =
@@ -274,14 +274,14 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           width: 42,
           height: 42,
           borderRadius: 8,
-          background: followMode ? '#1B3D2F' : state === 'active' ? '#EFF6FF' : state === 'denied' ? '#FEF2F2' : 'white',
-          border: `1.5px solid ${followMode ? '#0F2520' : state === 'active' ? '#BFDBFE' : state === 'denied' ? '#FECACA' : '#E2E8F0'}`,
-          boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+          background: followMode ? '#1B3D2F' : state === 'active' ? '#2D3748' : state === 'denied' ? '#2D3748' : '#1A202C',
+          border: `1.5px solid ${followMode ? '#D4621A' : state === 'active' ? '#D4621A' : state === 'denied' ? '#EF4444' : '#4A5568'}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          color: followMode ? 'white' : state === 'active' ? '#3B82F6' : state === 'denied' ? '#EF4444' : '#64748B',
+          color: followMode ? '#D4621A' : state === 'active' ? '#C9B99A' : state === 'denied' ? '#EF4444' : '#718096',
           transition: 'all 0.2s',
         }}
       >
