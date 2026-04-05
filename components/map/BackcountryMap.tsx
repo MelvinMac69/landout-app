@@ -572,7 +572,7 @@ export function BackcountryMap({
         const lngLat = mapInstance.unproject([touchPos.x, touchPos.y]);
         mapInstance.fire('longpress', { lngLat, point: touchPos });
       }, LONG_PRESS_MS);
-    }, { passive: false, capture: true });
+    }, { passive: true });
 
     canvas.addEventListener('touchmove', () => {
       if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }

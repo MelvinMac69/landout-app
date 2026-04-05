@@ -62,11 +62,15 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
     return () => { delete (window as any).landoutMeasureClear; };
   }, [onMeasurePhaseChange]);
 
-  // ── Right-click → context menu ────────────────────────────────────────────
+  // ── Right-click → context menu (desktop only) ─────────────────────────────────
   useEffect(() => {
     if (!map) return;
+    // Only listen for contextmenu on non-touch devices to avoid iOS Safari conflicts
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (isTouchDevice) return;
+
     function onCtxMenu(e: maplibregl.MapMouseEvent) {
-      e.preventDefault();
+      try { e.preventDefault(); } catch {}
       setCtxMenu({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat });
     }
     map.on('contextmenu', onCtxMenu);

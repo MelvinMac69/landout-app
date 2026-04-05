@@ -83,19 +83,16 @@ function RestrictionBadge({ restriction }: { restriction: string }) {
 export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPin }: InfoCardProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close on any click/touch outside the card — no delay, instant
+  // Close on any click outside the card (desktop mousedown only)
+  // DO NOT add touchstart here — causes mobile Safari crashes during touch handling
   useEffect(() => {
-    function handler(ev: MouseEvent | TouchEvent) {
+    function handler(ev: MouseEvent) {
       if (ref.current && !(ref.current as HTMLElement).contains(ev.target as Node)) {
         onClose();
       }
     }
     document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('touchstart', handler);
-    };
+    return () => { document.removeEventListener('mousedown', handler); };
   }, [onClose]);
 
   // Airport card: position near click, respect screen edges
@@ -189,12 +186,13 @@ export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPi
   // ── Land info card — compact, centered, agency + status only ─────────────
   return (
     <div ref={ref} style={landCardStyle}>
-      {/* Aviation stripe header — compact */}
-      <div style={{ background: '#1B3D2F', padding: '10px 12px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      {/* Header — stripe color reflects landing status */}
+      <div style={{
+        background: card.restriction === 'no-landing' ? '#991B1B' : card.restriction === 'restricted' ? '#92400E' : '#166534',
+        padding: '10px 12px 9px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+      }}>
         <div style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>{card.agency}</div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', padding: 2, flexShrink: 0 }}>
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Body — agency + land name + big status badge, NO coordinates */}
@@ -205,23 +203,7 @@ export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPi
         <RestrictionBadge restriction={card.restriction} />
       </div>
 
-      {/* Actions — Pin + Close */}
-      <div style={{ padding: '6px 12px 12px', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-        {onDropPin && (
-          <button
-            onClick={() => { onDropPin(card.lng, card.lat); onClose(); }}
-            style={{ background: '#3B82F6', color: 'white', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-          >
-            📍 Pin
-          </button>
-        )}
-        <button
-          onClick={onClose}
-          style={{ background: 'transparent', color: '#94A3B8', border: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}
-        >
-          Close
-        </button>
-      </div>
+      {/* No action buttons — tapping away closes; Pin via right-click, Direct To via context menu */}
     </div>
   );
 }
