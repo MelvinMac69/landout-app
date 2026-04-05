@@ -12,15 +12,14 @@ interface LocateButtonProps {
 export function LocateButton({ mapRef }: LocateButtonProps) {
   const [state, setState] = useState<LocState>('idle');
   const [followMode, setFollowMode] = useState(false);
+  const [trackUp, setTrackUpState] = useState(false);
   const [position, setPosition] = useState<{ lat: number; lon: number; heading?: number } | null>(null);
   const watchId = useRef<number | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
-  // Prevent double-taps during permission dialog on iOS
   const isRequesting = useRef(false);
-  // Track follow mode ref for use in watch callback (avoids stale closure)
   const followModeRef = useRef(false);
+  const trackUpRef = useRef(false);
 
-  /** Stable map accessor — uses window singleton as fallback in case mapRef isn't set yet */
   function getMap(): maplibregl.Map | null {
     if (mapRef.current) return mapRef.current;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,7 +45,6 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         border-bottom: 9px solid #3B82F6;
       `;
       el.appendChild(arrow);
-
       markerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
         .setLngLat([lon, lat])
         .addTo(map);
@@ -76,12 +74,22 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     }
   }
 
-  /** Start live tracking after we have an initial position */
+  function applyTrackUp(on: boolean) {
+    trackUpRef.current = on;
+    setTrackUpState(on);
+    const map = getMap();
+    if (!map) return;
+    if (on && position?.heading !== undefined) {
+      map.setBearing(position.heading);
+    } else {
+      map.setBearing(0);
+    }
+  }
+
   function startWatching(lat: number, lon: number, heading?: number) {
     stopWatching();
     setPosition({ lat, lon, heading });
     updateMarker(lat, lon, heading);
-    // Auto-enter follow mode on first acquisition — single tap = full tracking
     followModeRef.current = true;
     setFollowMode(true);
     setState('active');
@@ -93,9 +101,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const h = p.coords.heading ?? undefined;
         setPosition({ lat: la, lon: lo, heading: h });
         updateMarker(la, lo, h);
-        if (followModeRef.current) {
-          const map = getMap();
-          if (map) map.panTo([lo, la], { duration: 500 });
+        const map = getMap();
+        if (followModeRef.current && map) {
+          map.panTo([lo, la], { duration: 500 });
+          if (trackUpRef.current && h !== undefined) {
+            map.setBearing(h);
+          }
         }
       },
       (err) => {
@@ -114,11 +125,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       setState('unavailable');
       return;
     }
-
-    // Prevent double-tap during permission dialog on iOS
     if (isRequesting.current) return;
 
-    // Already tracking — tap = stop
     if (watchId.current !== null) {
       if (followMode) {
         setFollowMode(false);
@@ -132,27 +140,22 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       return;
     }
 
-    // Already denied — try once more (user may have reset in Settings)
     if (state === 'denied') {
       setState('acquiring');
       isRequesting.current = true;
       try {
         const pos = await getCurrentPositionOnce();
         isRequesting.current = false;
-        const { latitude: lat, longitude: lon } = pos.coords;
-        const heading = pos.coords.heading ?? undefined;
+        const { latitude: lat, longitude: lon, heading } = pos.coords;
         const map = getMap();
         if (map) {
-          // Use once('idle') so zoom is set AFTER map sources finish loading,
-          // preventing the initial world-view zoom from overriding our nav zoom.
           const zoomFn = () => map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
           if (map.loaded()) zoomFn();
           else map.once('idle', zoomFn);
         }
-        startWatching(lat, lon, heading);
+        startWatching(lat, lon, heading ?? undefined);
       } catch {
         isRequesting.current = false;
-        // Still denied — stay in denied state
       }
       return;
     }
@@ -160,18 +163,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     setState('acquiring');
     isRequesting.current = true;
 
-    // On iOS Safari: if permission was previously denied (user dismissed prompt without
-    // choosing), getCurrentPosition fails immediately with PERMISSION_DENIED before
-    // the native dialog can appear. Use the Permissions API to check the current
-    // state first — if 'denied', show denied UI without calling getCurrentPosition.
     let permissionState: PermissionState | null = null;
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (navigator.permissions as any).query({ name: 'geolocation' });
       permissionState = result.state as PermissionState;
-    } catch {
-      // Permissions API not available — proceed with getCurrentPosition
-    }
+    } catch { /* Permissions API not available */ }
 
     if (permissionState === 'denied') {
       isRequesting.current = false;
@@ -179,73 +176,56 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       return;
     }
 
-    // permissionState is 'granted' or 'prompt' (or unknown) — proceed
     try {
       const pos = await getCurrentPositionOnce();
       isRequesting.current = false;
-      const { latitude: lat, longitude: lon } = pos.coords;
-      const heading = pos.coords.heading ?? undefined;
+      const { latitude: lat, longitude: lon, heading } = pos.coords;
       const map = getMap();
       if (map) {
         const zoomFn = () => map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
         if (map.loaded()) zoomFn();
         else map.once('idle', zoomFn);
       }
-      startWatching(lat, lon, heading);
+      startWatching(lat, lon, heading ?? undefined);
     } catch (err: unknown) {
       isRequesting.current = false;
       const geolocationErr = err as { code?: number };
-      if (geolocationErr.code === 1 /* PERMISSION_DENIED */) {
-        setState('denied');
-      } else {
-        setState('unavailable');
-      }
+      setState(geolocationErr.code === 1 ? 'denied' : 'unavailable');
     }
   }
 
-  /** getCurrentPosition as a Promise, timeout 20s */
   function getCurrentPositionOnce(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
-      // Use low accuracy for initial fix on iOS — faster Time To First Fix,
-      // then watchPosition with high accuracy for live tracking
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        maximumAge: 0,
-        timeout: 20000,
+        enableHighAccuracy: false, maximumAge: 0, timeout: 20000,
       });
     });
   }
 
-  function toggleFollow() {
-    const next = !followModeRef.current;
-    followModeRef.current = next;
-    setFollowMode(next);
-    if (next && position) {
-      const map = getMap();
-      if (map) map.panTo([position.lon, position.lat], { duration: 500 });
-    }
-  }
-
-  // Expose location state to window for BackcountryMap's Direct To feature.
-  // Update window IMMEDIATELY on any change (not just on re-render) using a stable ref.
-  const stateRef = useRef({ state, followMode, position });
+  // Listen for track-up toggle from page.tsx
   useEffect(() => {
-    stateRef.current = { state, followMode, position };
+    const handler = (e: Event) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      applyTrackUp((e as any).detail ?? false);
+    };
+    window.addEventListener('landoutSetTrackUp', handler);
+    return () => window.removeEventListener('landoutSetTrackUp', handler);
+  }, []);
+
+  // Expose location state to window
+  const stateRef = useRef({ state, followMode, position, trackUp });
+  useEffect(() => {
+    stateRef.current = { state, followMode, position, trackUp };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).landoutLocationState = stateRef.current;
   });
-  // Also write on cleanup
-  useEffect(() => {
-    return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (window as any).landoutLocationState;
-    };
-  }, []);
 
   useEffect(() => {
     return () => {
       stopWatching();
       clearMarker();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).landoutLocationState;
     };
   }, []);
 
@@ -281,15 +261,11 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         onClick={handleLocate}
         title={buttonTitle}
         style={{
-          width: 42,
-          height: 42,
-          borderRadius: 8,
+          width: 42, height: 42, borderRadius: 8,
           background: followMode ? '#1A202C' : state === 'active' ? '#2D3748' : state === 'denied' ? '#2D3748' : '#1A202C',
           border: `1.5px solid ${followMode ? '#D4621A' : state === 'active' ? '#D4621A' : state === 'denied' ? '#EF4444' : '#4A5568'}`,
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer',
           color: followMode ? '#D4621A' : state === 'active' ? '#C9B99A' : state === 'denied' ? '#EF4444' : '#718096',
           transition: 'all 0.2s',

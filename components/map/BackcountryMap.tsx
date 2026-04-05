@@ -450,7 +450,13 @@ export function BackcountryMap({
       closeAllPopups();
 
       const allFeatures = mapInstance.queryRenderedFeatures(e.point);
-      if (!allFeatures.length) return;
+      if (!allFeatures.length) {
+        // Clicked on empty map — dismiss any open popup/card
+        setInfoCard(null);
+        setActionMenu(null);
+        mapInstance.getCanvas().style.cursor = '';
+        return;
+      }
       mapInstance.getCanvas().style.cursor = 'pointer';
 
       // 1. Airport dot tap → InfoCard
