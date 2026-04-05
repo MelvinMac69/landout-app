@@ -4,6 +4,25 @@ import { useState, useCallback } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
 import { NearestPanel } from '@/components/map/NearestPanel';
 
+// Build version indicator — injected at deploy time via NEXT_PUBLIC_GIT_SHA / NEXT_PUBLIC_GIT_BRANCH
+const BUILD_SHA = process.env.NEXT_PUBLIC_GIT_SHA ?? '';
+const BUILD_BRANCH = process.env.NEXT_PUBLIC_GIT_BRANCH ?? '';
+
+function BuildTag() {
+  if (!BUILD_SHA) return null;
+  return (
+    <div style={{
+      position: 'absolute', bottom: 72, right: 8, zIndex: 30,
+      background: 'rgba(26,32,44,0.85)', border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 6, padding: '3px 8px', fontSize: 10,
+      color: '#718096', fontFamily: 'monospace', pointerEvents: 'none',
+      letterSpacing: '0.02em',
+    }}>
+      {BUILD_BRANCH} @ {BUILD_SHA}
+    </div>
+  );
+}
+
 export default function MapPage() {
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
@@ -44,6 +63,9 @@ export default function MapPage() {
 
       {/* Nearest airports panel — bottom-left, above legend */}
       <NearestPanel />
+
+      {/* Build version tag — bottom-right */}
+      <BuildTag />
 
       {/* DISCLAIMER — dark amber, dismissible, top-right corner */}
       {!disclaimerDismissed && (
