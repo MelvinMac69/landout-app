@@ -725,15 +725,6 @@ export function BackcountryMap({
           }}
         />
       )}
-      {/* Touch debug counter — temporary visible badge */}
-      <div style={{
-        position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)',
-        zIndex: 9999, background: 'rgba(0,0,0,0.75)', color: 'white',
-        padding: '2px 8px', borderRadius: 8, fontSize: 10, fontFamily: 'monospace',
-        pointerEvents: 'none',
-      }}>
-        touches: {touchCount}
-      </div>
       {/* Long-0press action menu */}
       {actionMenu && (
         <ActionMenu
