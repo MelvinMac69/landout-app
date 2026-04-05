@@ -323,46 +323,52 @@ export function BackcountryMap({
       }
     } catch (err) { console.error('[load] airports', err); }
     if (routesRef.current?.features?.length) {
-      map.current.addSource('routes-source', { type: 'geojson', data: routesRef.current });
-      map.current.addLayer({
-        id: 'routes-line', type: 'line', source: 'routes-source',
-        paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-dasharray': [2, 1] },
-      });
+      if (!map.current.getSource('routes-source')) {
+        map.current.addSource('routes-source', { type: 'geojson', data: routesRef.current });
+        map.current.addLayer({
+          id: 'routes-line', type: 'line', source: 'routes-source',
+          paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-dasharray': [2, 1] },
+        });
+      }
     }
 
     // Direct To line — magenta line from current GPS to destination
-    map.current.addSource('directto-source', {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    });
-    map.current.addLayer({
-      id: 'directto-line',
-      type: 'line',
-      source: 'directto-source',
-      paint: {
-        'line-color': '#FF00FF',
-        'line-width': 4,
-        'line-opacity': 0.9,
-      },
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-    });
+    if (!map.current.getSource('directto-source')) {
+      map.current.addSource('directto-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.current.addLayer({
+        id: 'directto-line',
+        type: 'line',
+        source: 'directto-source',
+        paint: {
+          'line-color': '#FF00FF',
+          'line-width': 4,
+          'line-opacity': 0.9,
+        },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+    }
 
     // Dropped pins source
-    map.current.addSource('pins-source', {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    });
-    map.current.addLayer({
-      id: 'pins-layer',
-      type: 'circle',
-      source: 'pins-source',
-      paint: {
-        'circle-radius': 6,
-        'circle-color': '#3B82F6',
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#ffffff',
-      },
-    });
+    if (!map.current.getSource('pins-source')) {
+      map.current.addSource('pins-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.current.addLayer({
+        id: 'pins-layer',
+        type: 'circle',
+        source: 'pins-source',
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#3B82F6',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+    }
   }
 
   // Inject popup styles
