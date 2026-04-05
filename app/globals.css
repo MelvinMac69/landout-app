@@ -2,6 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── MapLibre dark-mode overrides ───────────────────────────────────────── */
+/* Zoom in/out buttons: dark bg, light text for contrast */
+.maplibregl-ctrl-group {
+  background: #1a1f2e !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+.maplibregl-ctrl-group button {
+  background-color: transparent !important;
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+.maplibregl-ctrl-group button:last-child {
+  border-bottom: none !important;
+}
+.maplibregl-ctrl-group button:hover {
+  background-color: rgba(255,255,255,0.08) !important;
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) !important;
+}
+.maplibregl-ctrl-scale {
+  background: rgba(26,32,44,0.85) !important;
+  color: #c9b99a !important;
+  border-color: rgba(255,255,255,0.2) !important;
+  font-size: 10px !important;
+  padding: 0 4px !important;
+}
+.maplibregl-ctrl-attrib {
+  background: rgba(26,32,44,0.75) !important;
+  color: #4a5568 !important;
+  font-size: 9px !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: #718096 !important;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1a1f2e; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
