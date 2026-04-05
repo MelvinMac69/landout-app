@@ -77,6 +77,15 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
     return () => { map.off('contextmenu', onCtxMenu); };
   }, [map]);
 
+  // ── Mobile: long-press from BackcountryMap → show context menu ─────────────────
+  useEffect(() => {
+    function handler(lng: number, lat: number, screenX: number, screenY: number) {
+      setCtxMenu({ lng, lat, x: screenX, y: screenY });
+    }
+    (window as any).landoutMeasureLongPress = handler;
+    return () => { delete (window as any).landoutMeasureLongPress; };
+  }, []);
+
   // ── Map click → place point B when in placingB phase ──────────────────────
   useEffect(() => {
     if (!map) return;

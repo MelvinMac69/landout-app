@@ -96,7 +96,7 @@ export function BackcountryMap({
   const map = useRef<maplibregl.Map | null>(null);
   const mapInstanceRef = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [basemap, setBasemap] = useState<BasemapId>('osm');
+  const [basemap, setBasemap] = useState<BasemapId>('satellite');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const diagTapCount = useRef(0);
   const diagTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,6 +114,9 @@ export function BackcountryMap({
   const suppressClickRef = useRef(false);
   // Track measure mode so map click handler can defer to MeasureRuler
   const measurePhaseRef = useRef<'off' | 'placingB' | 'placed'>('off');
+  // Suppress next InfoCard open — set when clicking outside InfoCard closes it
+  // Prevents: click-outside closes → same click reopens another card
+  const suppressInfoCardOpenRef = useRef(false);
 
   // Debug: count touch events reaching the map
   const touchCountRef = useRef(0);
@@ -457,6 +460,13 @@ export function BackcountryMap({
       // If MeasureRuler is in placingB phase, let it handle the click
       if (measurePhaseRef.current === 'placingB') return;
       if (suppressClickRef.current) return;
+      // Click-outside previously closed InfoCard — suppress this click from opening a new one
+      if (suppressInfoCardOpenRef.current) {
+        suppressInfoCardOpenRef.current = false;
+        closeAllPopups();
+        setInfoCard(null);
+        return;
+      }
       closeAllPopups();
 
       const allFeatures = mapInstance.queryRenderedFeatures(e.point);
@@ -690,6 +700,13 @@ export function BackcountryMap({
     win.landoutDropPin = (lng: number, lat: number, name?: string) => {
       handleDropPin(lng, lat, name);
     };
+
+    // MeasureRuler listens for mobile long-press → show context menu at that location
+    if (map.current) {
+      map.current.on('longpress', (e: maplibregl.MapMouseEvent & { point: { x: number; y: number } }) => {
+        (window as any).landoutMeasureLongPress(e.lngLat.lng, e.lngLat.lat, e.point.x, e.point.y);
+      });
+    }
   });
 
   // Actions called from ActionMenu / InfoCard
@@ -781,6 +798,7 @@ export function BackcountryMap({
           screenX={infoCard.screenX}
           screenY={infoCard.screenY}
           onClose={() => setInfoCard(null)}
+          onCloseOutside={() => { suppressInfoCardOpenRef.current = true; }}
           onDirectTo={(lng, lat, name) => handleDirectTo(lng, lat, name)}
           onDropPin={infoCard.data.type === 'land' ? (lng, lat) => handleDropPin(lng, lat) : undefined}
         />

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
 import { Button } from '@/components/ui';
 
 export interface AirportInfo {
@@ -35,6 +34,8 @@ interface InfoCardProps {
   screenX: number;
   screenY: number;
   onClose: () => void;
+  /** Called when closing by clicking/tapping outside the card — suppresses next open */
+  onCloseOutside?: () => void;
   onDirectTo: (lng: number, lat: number, name?: string) => void;
   onDropPin?: (lng: number, lat: number) => void;
 }
@@ -80,20 +81,21 @@ function RestrictionBadge({ restriction }: { restriction: string }) {
   );
 }
 
-export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPin }: InfoCardProps) {
+export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDirectTo, onDropPin }: InfoCardProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close on any click outside the card (desktop mousedown only)
-  // DO NOT add touchstart here — causes mobile Safari crashes during touch handling
+  // Desktop: close on mousedown outside card — tells parent whether it was outside-click
   useEffect(() => {
     function handler(ev: MouseEvent) {
-      if (ref.current && !(ref.current as HTMLElement).contains(ev.target as Node)) {
-        onClose();
-      }
+      if (!ref.current) return;
+      // If clicking inside the card (including the X button), don't suppress next open
+      if (ref.current.contains(ev.target as Node)) return;
+      // Outside click — tell parent to suppress the next map-click from opening a card
+      onCloseOutside?.();
     }
     document.addEventListener('mousedown', handler);
     return () => { document.removeEventListener('mousedown', handler); };
-  }, [onClose]);
+  }, [onCloseOutside]);
 
   // Airport card: position near click, respect screen edges
   const flipUp = screenY > window.innerHeight - 200;
@@ -116,7 +118,7 @@ export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPi
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, calc(-50% + 80px))',
-    width: 220,
+    width: 240,
     zIndex: 200,
     background: 'white',
     borderRadius: 14,
@@ -129,7 +131,6 @@ export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPi
     const identifier = card.faa_ident || card.gps_code || card.iata || '—';
     return (
       <div ref={ref} style={airportStyle}>
-        {/* Aviation stripe header */}
         <div style={{ background: '#D4621A', padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -140,12 +141,8 @@ export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPi
               {identifier}{card.iata ? ` / ${card.iata}` : ''} · {capitalize(card.airportType)}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', padding: 2, flexShrink: 0 }}>
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
-        {/* Body */}
         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {card.elevation_ft != null && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -161,49 +158,57 @@ export function InfoCard({ card, screenX, screenY, onClose, onDirectTo, onDropPi
           )}
         </div>
 
-        {/* Actions */}
         <div style={{ padding: '8px 14px 14px', display: 'flex', gap: 8 }}>
-          <Button
-            variant="aviation"
-            size="sm"
-            onClick={() => onDirectTo(card.lng, card.lat, card.name)}
-            className="flex-1"
-          >
+          <Button variant="aviation" size="sm" onClick={() => onDirectTo(card.lng, card.lat, card.name)} className="flex-1">
             ✈ Direct To
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-          >
-            Close
-          </Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
         </div>
       </div>
     );
   }
 
-  // ── Land info card — compact, centered, agency + status only ─────────────
+  // ── Land info card — compact, centered, agency/label + restriction ────────
+
+  // Determine stripe color from restriction
+  const stripeColor = card.restriction === 'no-landing'
+    ? '#991B1B'
+    : card.restriction === 'restricted'
+      ? '#92400E'
+      : '#166534';
+
+  // Build header label — prefer label (Wilderness, WSA, Wildlife Refuge, etc.), fallback to agency
+  const headerLabel = card.label || card.agency;
+
   return (
     <div ref={ref} style={landCardStyle}>
-      {/* Header — stripe color reflects landing status */}
+      {/* Header — colored stripe with agency/label */}
       <div style={{
-        background: card.restriction === 'no-landing' ? '#991B1B' : card.restriction === 'restricted' ? '#92400E' : '#166534',
+        background: stripeColor,
         padding: '10px 12px 9px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
       }}>
-        <div style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>{card.agency}</div>
+        <div style={{ color: 'white', fontWeight: 700, fontSize: 14, lineHeight: 1.3 }}>
+          {headerLabel}
+        </div>
+        {card.label && card.agency && card.label !== card.agency && (
+          <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11 }}>
+            {card.agency}
+          </div>
+        )}
       </div>
 
-      {/* Body — agency + land name + big status badge, NO coordinates */}
+      {/* Body — land name + restriction badge */}
       <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {card.name && (
-          <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>{card.name}</div>
+          <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.4, fontWeight: 500 }}>
+            {card.name}
+          </div>
         )}
         <RestrictionBadge restriction={card.restriction} />
       </div>
-
-      {/* No action buttons — tapping away closes; Pin via right-click, Direct To via context menu */}
     </div>
   );
 }
