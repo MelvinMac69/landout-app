@@ -2,18 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── MapLibre dark-mode overrides ───────────────────────────────────────── */
+/* Zoom in/out buttons: dark bg, light text for contrast */
+.maplibregl-ctrl-group {
+  background: #1a1f2e !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+.maplibregl-ctrl-group button {
+  background-color: transparent !important;
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+.maplibregl-ctrl-group button:last-child {
+  border-bottom: none !important;
+}
+.maplibregl-ctrl-group button:hover {
+  background-color: rgba(255,255,255,0.08) !important;
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) !important;
+}
+.maplibregl-ctrl-scale {
+  background: rgba(26,32,44,0.85) !important;
+  color: #c9b99a !important;
+  border-color: rgba(255,255,255,0.2) !important;
+  font-size: 10px !important;
+  padding: 0 4px !important;
+}
+.maplibregl-ctrl-attrib {
+  background: rgba(26,32,44,0.75) !important;
+  color: #4a5568 !important;
+  font-size: 9px !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: #718096 !important;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1a1f2e; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
+  /* Landout dark theme palette */
+  --landout-charcoal: #1A202C;
+  --landout-charcoal-light: #2D3748;
+  --landout-sand: #C9B99A;
+  --landout-sand-light: #E8DCC8;
+  --landout-aviation: #D4621A;
+  --landout-forest: #1B3D2F;
+
+  /* Semantic */
+  --surface-primary: var(--landout-charcoal);
+  --surface-secondary: var(--landout-charcoal-light);
+  --text-primary: #F7F4EF;
+  --text-secondary: #C9B99A;
+  --text-muted: #718096;
+  --accent: var(--landout-aviation);
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  background: var(--landout-charcoal);
+  color: var(--text-primary);
   font-family: 'Inter', system-ui, sans-serif;
 }
+
+/* Force dark backgrounds on key surfaces */
+.bg-white {
+  background-color: var(--landout-charcoal-light) !important;
+}
+
+.bg-slate-100 { background-color: var(--landout-charcoal-light) !important; }
+.bg-slate-50 { background-color: var(--landout-charcoal) !important; }
+.border-slate-200 { border-color: #4A5568 !important; }
+.border-slate-100 { border-color: #4A5568 !important; }
+.text-slate-900 { color: #F7F4EF !important; }
+.text-slate-700 { color: #E2DDD6 !important; }
+.text-slate-600 { color: #C9B99A !important; }
+.text-slate-500 { color: #A0998F !important; }
+.text-slate-400 { color: #718096 !important; }
+.bg-slate-900 { background-color: #0D1117 !important; }
 
 .maplibregl-map {
   width: 100%;
@@ -21,17 +95,121 @@ body {
 }
 
 .maplibregl-popup-content {
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   padding: 1rem;
   font-family: 'Inter', system-ui, sans-serif;
+  background: var(--landout-charcoal-light) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.maplibregl-popup-tip {
+  border-top-color: var(--landout-charcoal-light) !important;
 }
 
 .maplibregl-ctrl-group {
   border-radius: 0.5rem !important;
   overflow: hidden;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  background: var(--landout-charcoal-light) !important;
+  border: 1px solid #4A5568 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
 }
 
 .maplibregl-ctrl-group button {
   width: 40px !important;
   height: 40px !important;
+  background: var(--landout-charcoal-light) !important;
+  border-bottom: 1px solid #4A5568 !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background: #3D4A5C !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-zoom-in .maplibregl-ctrl-zoom-out {
+  fill: var(--text-primary) !important;
+}
+
+/* Dark map attribution */
+.maplibregl-ctrl-attrib {
+  background: rgba(26, 32, 44, 0.8) !important;
+  color: #718096 !important;
+  font-size: 10px !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: #A0998F !important;
+}
+
+/* Scale control dark */
+.maplibregl-ctrl-scale {
+  background: rgba(26, 32, 44, 0.85) !important;
+  border-color: #4A5568 !important;
+  color: #C9B99A !important;
+  font-size: 10px !important;
+}
+
+/* ============================================
+   Mobile UX
+   ============================================ */
+
+@media (max-width: 480px) {
+  .map-legend-panel,
+  .map-layer-panel,
+  .map-diagnostics-panel {
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  .maplibregl-ctrl-group {
+    min-width: 42px !important;
+    min-height: 42px !important;
+  }
+
+  .maplibregl-ctrl-group button {
+    min-width: 42px !important;
+    min-height: 42px !important;
+  }
+}
+
+/* Landscape phone */
+@media (max-height: 500px) and (orientation: landscape) {
+  .map-legend-panel {
+    bottom: 8px !important;
+    left: 8px !important;
+    right: auto !important;
+    top: auto !important;
+  }
+}
+
+/* Dark popup styling */
+.landout-popup {
+  max-width: min(320px, 90vw) !important;
+  max-height: 45vh !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.maplibregl-popup-close-button {
+  font-size: 18px !important;
+  width: 28px !important;
+  height: 28px !important;
+  top: 4px !important;
+  right: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(45, 55, 72, 0.9) !important;
+  border-radius: 50% !important;
+  line-height: 1 !important;
+  color: #C9B99A !important;
+}
+
+@media (max-width: 480px) {
+  .maplibregl-popup-close-button {
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
 }

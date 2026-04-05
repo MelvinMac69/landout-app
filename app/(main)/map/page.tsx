@@ -1,80 +1,107 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import { useRef, useState, useCallback } from 'react';
-import maplibregl from 'maplibre-gl';
+import { useState, useCallback } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
-import { Search } from 'lucide-react';
+import { NearestPanel } from '@/components/map/NearestPanel';
+import { BuildBanner } from '@/components/map/BuildBanner';
 
-const BackcountryMapClient = dynamic(
-  () => import('@/components/map/BackcountryMap').then((mod) => mod.BackcountryMap),
-  { ssr: false, loading: () => <Loading /> }
-);
+// Build version indicator — injected at deploy time via NEXT_PUBLIC_GIT_SHA / NEXT_PUBLIC_GIT_BRANCH
+const BUILD_SHA = process.env.NEXT_PUBLIC_GIT_SHA ?? '';
+const BUILD_BRANCH = process.env.NEXT_PUBLIC_GIT_BRANCH ?? '';
 
-function Loading() {
+function BuildTag() {
+  if (!BUILD_SHA) return null;
   return (
-    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-      <span className="text-slate-500">Loading map…</span>
+    <div style={{
+      position: 'absolute', bottom: 72, right: 8, zIndex: 30,
+      background: 'rgba(26,32,44,0.85)', border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 6, padding: '3px 8px', fontSize: 10,
+      color: '#718096', fontFamily: 'monospace', pointerEvents: 'none',
+      letterSpacing: '0.02em',
+    }}>
+      {BUILD_BRANCH} @ {BUILD_SHA}
     </div>
   );
 }
 
 export default function MapPage() {
-  const mapRef = useRef<maplibregl.Map | null>(null);
-
-  // All overlays start visible
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(OVERLAY_LAYERS.map((l) => [l.id, true]))
   );
 
+  const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
+
   const handleMapLoad = useCallback((map: maplibregl.Map) => {
-    mapRef.current = map;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__landoutMap = map;
   }, []);
 
-  const handleToggle = useCallback(
-    (layerId: string) => {
-      const map = mapRef.current;
-      if (!map) return;
-      const next = !activeLayers[layerId];
-      // setOverlayVisibility is attached to the map instance in BackcountryMap
-      const fn = (map as typeof map & { setOverlayVisibility: (id: string, v: boolean) => void }).setOverlayVisibility;
-      if (fn) fn(layerId, next);
-      setActiveLayers((prev) => ({ ...prev, [layerId]: next }));
-    },
-    [activeLayers]
-  );
+  const handleToggle = useCallback((layerId: string) => {
+    const fn = (window as typeof window & { landoutSetOverlayVisibility: (id: string, v: boolean) => void }).landoutSetOverlayVisibility;
+    if (fn) fn(layerId, !activeLayers[layerId]);
+    setActiveLayers((prev) => ({ ...prev, [layerId]: !prev[layerId] }));
+  }, [activeLayers]);
 
   const layers = OVERLAY_LAYERS.map((l) => ({ ...l, visible: activeLayers[l.id] ?? true }));
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] relative">
-      <BackcountryMapClient onMapLoad={handleMapLoad} />
+    <div
+      className="h-[calc(100vh-3.5rem)] relative"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <BackcountryMap onMapLoad={handleMapLoad} />
 
-      <MapLayerToggle layers={layers} onToggle={handleToggle} />
-      <MapLegend />
+      {/* Layers button — top-right, dark charcoal, aviation orange accent */}
+      <div className="absolute right-1 top-1 z-50" style={{ pointerEvents: 'auto' }}>
+        <MapLayerToggle layers={layers} onToggle={handleToggle} />
+      </div>
 
-      {/* Search bar */}
-      <div className="absolute top-4 left-4 right-4 md:left-auto md:right-auto md:w-80 md:left-4 z-10">
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-3">
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search airports, strips, sites…"
-              className="flex-1 text-sm outline-none placeholder:text-slate-400"
-            />
+      {/* Land Status legend — bottom-left, just above mobile nav, default collapsed */}
+      {/* bottom: 72 = 7px above the 65px mobile nav */}
+      <div style={{ position: 'absolute', bottom: 72, left: 8, zIndex: 30, pointerEvents: 'auto' }}>
+        <MapLegend />
+      </div>
+
+      {/* Nearest airports panel — bottom-left, above legend */}
+      <NearestPanel />
+
+      {/* Build banner — top, shows on first visit */}
+      <BuildBanner sha={BUILD_SHA} branch={BUILD_BRANCH} buildTime={new Date().toISOString()} />
+
+      {/* Build version tag — bottom-right */}
+      <BuildTag />
+
+      {/* DISCLAIMER — dark amber, dismissible, top-right corner */}
+      {!disclaimerDismissed && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 4,
+            right: 56,
+            zIndex: 40,
+            maxWidth: 200,
+            cursor: 'pointer',
+          }}
+          onClick={() => setDisclaimerDismissed(true)}
+          title="Click to dismiss"
+        >
+          <div
+            style={{
+              background: 'rgba(26, 32, 44, 0.92)',
+              border: '1px solid #D4621A',
+              borderRadius: 8,
+              padding: '6px 10px',
+              fontSize: 11,
+              color: '#C9B99A',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            }}
+          >
+            <strong style={{ color: '#D4621A' }}>⚠️ NOT FOR NAVIGATION</strong>
+            <br />
+            Land status context only. Does not authorize landings.
           </div>
         </div>
-      </div>
-
-      {/* Disclaimer */}
-      <div className="absolute bottom-24 md:bottom-8 right-4 z-10 max-w-xs">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800">
-          <strong>⚠️ NOT FOR NAVIGATION</strong>
-          <br />
-          Shows land status context only. Does not authorize landings.
-        </div>
-      </div>
+      )}
     </div>
   );
 }

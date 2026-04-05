@@ -5,54 +5,50 @@ import { usePathname } from 'next/navigation';
 
 const navLinks = [
   { href: '/map', label: 'Map' },
-  { href: '/sites/search', label: 'Search Sites' },
-  { href: '/routes/new', label: 'Plan Route' },
-  { href: '/profile', label: 'Profile' },
+  { href: '/sites/search', label: 'Sites' },
+  { href: '/routes/new', label: '+ Route' },
 ];
 
 export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-14">
-          <Link href="/map" className="flex items-center gap-2">
-            <span className="text-xl">🛩️</span>
-            <span className="font-semibold text-slate-900">Backcountry Map</span>
-          </Link>
+    <header className="h-14 bg-[#1a1f2e] border-b border-slate-700/50 flex items-center px-4 gap-6 sticky top-0 z-50">
+      {/* Logo + wordmark */}
+      <div className="flex items-center gap-2">
+        <Link href="/map" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <span className="text-base font-bold tracking-tight">Landout</span>
+        </Link>
+      </div>
 
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const isActive = pathname.startsWith(link.href);
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`
-                    px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                    ${isActive
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="flex items-center gap-2">
+      {/* Nav */}
+      <nav className="flex items-center gap-1">
+        {navLinks.map(({ href, label }) => {
+          const active = pathname === href || (href !== '/map' && pathname.startsWith(href));
+          return (
             <Link
-              href="/sites/new"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+              key={href}
+              href={href}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                active
+                  ? 'bg-slate-700/60 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
+              }`}
             >
-              <span>+</span>
-              <span>Add Site</span>
+              {label}
             </Link>
-          </div>
-        </div>
+          );
+        })}
+      </nav>
+
+      {/* Right side: Add Site */}
+      <div className="ml-auto">
+        <Link
+          href="/sites/new"
+          className="px-3 py-1.5 rounded-md text-sm font-semibold bg-sky-500 text-white hover:bg-sky-400 transition-colors"
+        >
+          + Add Site
+        </Link>
       </div>
     </header>
   );

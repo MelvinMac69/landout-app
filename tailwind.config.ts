@@ -9,26 +9,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        blm: {
-          DEFAULT: '#8B6914',
-          light: '#C4A35A',
-          dark: '#5C4410',
+        landout: {
+          sand: { DEFAULT: '#C9B99A', light: '#E8DCC8', dark: '#A0897A' },
+          aviation: { DEFAULT: '#D4621A', light: '#E8844A', dark: '#A34D14' },
+          charcoal: { DEFAULT: '#2D3748', light: '#4A5568', dark: '#1A202C' },
         },
-        fs: {
-          DEFAULT: '#2D5016',
-          light: '#6B9B4A',
-          dark: '#1A3009',
-        },
-        wilderness: {
-          DEFAULT: '#1D4D1D',
-          light: '#3A7D3A',
-          dark: '#0F2E0F',
-        },
-        wsa: {
-          DEFAULT: '#7B3F00',
-          light: '#A66B2A',
-          dark: '#4A2500',
-        },
+        // Legacy aliases — mapped to Landout palette
+        blm: { DEFAULT: '#C9B99A', light: '#E8DCC8', dark: '#C9B99A' },
+        fs: { DEFAULT: '#1B3D2F', light: '#2D5A45', dark: '#0F2520' },
+        wilderness: { DEFAULT: '#0F2520', light: '#2D5A45', dark: '#0F2520' },
+        wsa: { DEFAULT: '#D4621A', light: '#E8844A', dark: '#A34D14' },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
