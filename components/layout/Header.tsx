@@ -2,18 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+
+const navLinks = [
+  { href: '/map', label: 'Map' },
+  { href: '/sites/search', label: 'Sites' },
+  { href: '/routes/new', label: '+ Route' },
+];
 
 export function Header() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const user = session?.user;
-
-  const nav = [
-    { href: '/map', label: 'Map' },
-    { href: '/sites/search', label: 'Sites' },
-    { href: '/routes/new', label: '+ Route' },
-  ];
 
   return (
     <header className="h-14 bg-[#1a1f2e] border-b border-slate-700/50 flex items-center px-4 gap-6 sticky top-0 z-50">
@@ -26,7 +23,7 @@ export function Header() {
 
       {/* Nav */}
       <nav className="flex items-center gap-1">
-        {nav.map(({ href, label }) => {
+        {navLinks.map(({ href, label }) => {
           const active = pathname === href || (href !== '/map' && pathname.startsWith(href));
           return (
             <Link
@@ -44,27 +41,14 @@ export function Header() {
         })}
       </nav>
 
-      {/* Right side: user */}
-      <div className="ml-auto flex items-center gap-3">
-        {user ? (
-          <>
-            {session?.user?.email && (
-              <span className="hidden md:block text-xs text-slate-400 truncate max-w-[140px]">
-                {session.user.email}
-              </span>
-            )}
-            <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
-              className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
-            >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <Link href="/login" className="text-xs text-slate-400 hover:text-white transition-colors">
-            Sign in
-          </Link>
-        )}
+      {/* Right side: Add Site */}
+      <div className="ml-auto">
+        <Link
+          href="/sites/new"
+          className="px-3 py-1.5 rounded-md text-sm font-semibold bg-sky-500 text-white hover:bg-sky-400 transition-colors"
+        >
+          + Add Site
+        </Link>
       </div>
     </header>
   );
