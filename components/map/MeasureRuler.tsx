@@ -78,11 +78,15 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
   }, [map]);
 
   // ── Mobile: long-press from BackcountryMap → show context menu ─────────────────
+  // Use a stable ref so the handler is always current
+  const handlerRef = useRef<(lng: number, lat: number, screenX: number, screenY: number) => void>();
+  handlerRef.current = (lng, lat, screenX, screenY) => {
+    setCtxMenu({ lng, lat, x: screenX, y: screenY });
+  };
   useEffect(() => {
-    function handler(lng: number, lat: number, screenX: number, screenY: number) {
-      setCtxMenu({ lng, lat, x: screenX, y: screenY });
-    }
-    (window as any).landoutMeasureLongPress = handler;
+    (window as any).landoutMeasureLongPress = (lng: number, lat: number, screenX: number, screenY: number) => {
+      handlerRef.current?.(lng, lat, screenX, screenY);
+    };
     return () => { delete (window as any).landoutMeasureLongPress; };
   }, []);
 

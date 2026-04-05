@@ -703,9 +703,17 @@ export function BackcountryMap({
 
     // MeasureRuler listens for mobile long-press → show context menu at that location
     if (map.current) {
-      map.current.on('longpress', (e: maplibregl.MapMouseEvent & { point: { x: number; y: number } }) => {
-        (window as any).landoutMeasureLongPress(e.lngLat.lng, e.lngLat.lat, e.point.x, e.point.y);
-      });
+      try {
+        map.current.on('longpress', (e: any) => {
+          try {
+            const point = e.point as { x: number; y: number } | undefined;
+            (window as any).landoutMeasureLongPress(
+              e.lngLat.lng, e.lngLat.lat,
+              point?.x ?? 0, point?.y ?? 0
+            );
+          } catch {}
+        });
+      } catch {}
     }
   });
 
