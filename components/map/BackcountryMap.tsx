@@ -112,6 +112,8 @@ export function BackcountryMap({
   const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number } | null>(null);
   // Block click after long-press (300ms)
   const suppressClickRef = useRef(false);
+  // Track measure mode so map click handler can defer to MeasureRuler
+  const measurePhaseRef = useRef<'off' | 'placingB' | 'placed'>('off');
 
   // Debug: count touch events reaching the map
   const touchCountRef = useRef(0);
@@ -446,6 +448,8 @@ export function BackcountryMap({
     // ── Unified click handler ──────────────────────────────────────────────────────────
     // Priority: airport dots (ActionMenu) > dropped pins (ActionMenu) > land (inspector popup)
     mapInstance.on('click', (e) => {
+      // If MeasureRuler is in placingB phase, let it handle the click
+      if (measurePhaseRef.current === 'placingB') return;
       if (suppressClickRef.current) return;
       closeAllPopups();
 
@@ -652,6 +656,7 @@ export function BackcountryMap({
       landoutGetBasemap: () => BasemapId;
       landoutToggleDiagnostics: () => void;
       landoutSetDirectTo: (dest: DirectToDest | null) => void;
+      landoutDropPin: (lng: number, lat: number, name?: string) => void;
     };
     const switchTo = (id: BasemapId) => {
       if (!map.current || id === basemap) return;
@@ -674,6 +679,10 @@ export function BackcountryMap({
       setDirectToDest(dest);
       setInfoCard(null);
       setActionMenu(null);
+    };
+    // MeasureRuler calls this to drop a pin from right-click "Save Pin"
+    win.landoutDropPin = (lng: number, lat: number, name?: string) => {
+      handleDropPin(lng, lat, name);
     };
   });
 
@@ -717,7 +726,11 @@ export function BackcountryMap({
         <LocateButton mapRef={mapInstanceRef} />
       </div>
       {/* Direct To info card */}
-      <MeasureRuler map={mapInstanceRef.current} />
+      {/* MeasureRuler — handles right-click menu, two-finger measure, draggable endpoints */}
+      <MeasureRuler
+        map={mapInstanceRef.current}
+        onMeasurePhaseChange={(phase) => { measurePhaseRef.current = phase; }}
+      />
       {directToDest && (
         <DirectToPanel
           dest={directToDest}
