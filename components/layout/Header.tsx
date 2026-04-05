@@ -2,99 +2,69 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
-const navLinks = [
-  { href: '/map', label: 'Map' },
-  { href: '/sites/search', label: 'Search Sites' },
-  { href: '/routes/new', label: 'Plan Route' },
-  { href: '/profile', label: 'Profile' },
-];
+import { useSession, signOut } from 'next-auth/react';
 
 export function Header() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const user = session?.user;
+
+  const nav = [
+    { href: '/map', label: 'Map' },
+    { href: '/sites/search', label: 'Sites' },
+    { href: '/routes/new', label: '+ Route' },
+  ];
 
   return (
-    <header
-      className="sticky top-0 z-50"
-      style={{
-        background: 'var(--landout-charcoal)',
-        borderBottom: '1px solid #4A5568',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-      }}
-    >
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-14">
-          <Link href="/map" className="flex items-center gap-2">
-            <span className="text-xl">🛩️</span>
-            <span
-              style={{
-                fontFamily: 'Inter, system-ui, sans-serif',
-                fontWeight: 800,
-                fontSize: 18,
-                color: 'var(--landout-aviation)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              LANDOUT
-            </span>
-            <span
-              style={{
-                fontSize: 11,
-                color: 'var(--text-muted)',
-                fontWeight: 400,
-                marginLeft: 4,
-              }}
-            >
-              Maps for where the runway ends.
-            </span>
-          </Link>
+    <header className="h-14 bg-[#1a1f2e] border-b border-slate-700/50 flex items-center px-4 gap-6 sticky top-0 z-50">
+      {/* Logo + wordmark */}
+      <div className="flex items-center gap-2">
+        <Link href="/map" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <span className="text-base font-bold tracking-tight">Landout</span>
+        </Link>
+      </div>
 
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const isActive = pathname.startsWith(link.href);
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    transition: 'all 0.15s',
-                    background: isActive ? 'var(--landout-charcoal-light)' : 'transparent',
-                    color: isActive ? 'var(--landout-aviation)' : 'var(--text-secondary)',
-                    border: isActive ? '1px solid var(--landout-aviation)' : '1px solid transparent',
-                  }}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Desktop only — Add Site top-right */}
-          <div className="hidden md:flex items-center gap-2">
+      {/* Nav */}
+      <nav className="flex items-center gap-1">
+        {nav.map(({ href, label }) => {
+          const active = pathname === href || (href !== '/map' && pathname.startsWith(href));
+          return (
             <Link
-              href="/sites/new"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                background: 'var(--landout-aviation)',
-                color: 'white',
-                transition: 'all 0.15s',
-              }}
+              key={href}
+              href={href}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                active
+                  ? 'bg-slate-700/60 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
+              }`}
             >
-              <span>+</span>
-              <span>Add Site</span>
+              {label}
             </Link>
-          </div>
-        </div>
+          );
+        })}
+      </nav>
+
+      {/* Right side: user */}
+      <div className="ml-auto flex items-center gap-3">
+        {user ? (
+          <>
+            {session?.user?.email && (
+              <span className="hidden md:block text-xs text-slate-400 truncate max-w-[140px]">
+                {session.user.email}
+              </span>
+            )}
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <Link href="/login" className="text-xs text-slate-400 hover:text-white transition-colors">
+            Sign in
+          </Link>
+        )}
       </div>
     </header>
   );
