@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
 import { NearestPanel } from '@/components/map/NearestPanel';
+import { BuildBanner } from '@/components/map/BuildBanner';
 
 // Build version indicator — injected at deploy time via NEXT_PUBLIC_GIT_SHA / NEXT_PUBLIC_GIT_BRANCH
 const BUILD_SHA = process.env.NEXT_PUBLIC_GIT_SHA ?? '';
@@ -63,6 +64,9 @@ export default function MapPage() {
 
       {/* Nearest airports panel — bottom-left, above legend */}
       <NearestPanel />
+
+      {/* Build banner — top, shows on first visit */}
+      <BuildBanner sha={BUILD_SHA} branch={BUILD_BRANCH} buildTime={new Date().toISOString()} />
 
       {/* Build version tag — bottom-right */}
       <BuildTag />

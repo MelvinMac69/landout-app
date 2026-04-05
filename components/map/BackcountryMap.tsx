@@ -6,6 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { LocateButton } from './LocateButton';
 import { DirectToPanel, ActionMenu } from './DirectTo';
+import { MeasureRuler } from './MeasureRuler';
 import { InfoCard } from './InfoCard';
 import type { AirportInfo, LandInfo } from './InfoCard';
 
@@ -710,6 +711,7 @@ export function BackcountryMap({
         <LocateButton mapRef={mapInstanceRef} />
       </div>
       {/* Direct To info card */}
+      <MeasureRuler map={mapInstanceRef.current} />
       {directToDest && (
         <DirectToPanel
           dest={directToDest}
