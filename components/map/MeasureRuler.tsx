@@ -41,7 +41,6 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
   const [pointB, setPointB] = useState<ScreenPoint & GeoPoint | null>(null);
   const [dragging, setDragging] = useState<'A' | 'B' | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; lng: number; lat: number } | null>(null);
-  const [touchPending, setTouchPending] = useState(false);
 
   const phaseRef = useRef<Phase>('off');
   const mapRef = useRef(map);
@@ -89,56 +88,8 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
     return () => { map.off('click', onClick); };
   }, [map, onMeasurePhaseChange]);
 
-  // ── Two-finger long-press on mobile ───────────────────────────────────────
-  useEffect(() => {
-    if (!map) return;
-    const canvas = map.getCanvas();
-    let touchIds: number[] = [];
-    let holdTimer: ReturnType<typeof setTimeout> | null = null;
-
-    function onTouchStart(e: TouchEvent) {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        touchIds = Array.from(e.touches).map(t => t.identifier);
-        setTouchPending(true);
-        holdTimer = setTimeout(() => {
-          const t0 = Array.from(e.touches).find(t => t.identifier === touchIds[0]);
-          const t1 = Array.from(e.touches).find(t => t.identifier === touchIds[1]);
-          if (!t0 || !t1 || !mapRef.current) { setTouchPending(false); return; }
-          const rect = canvas.getBoundingClientRect();
-          const mx = ((t0.clientX + t1.clientX) / 2) - rect.left;
-          const my = ((t0.clientY + t1.clientY) / 2) - rect.top;
-          const ll = mapRef.current.unproject([mx, my]);
-          const p = mapRef.current.project([ll.lng, ll.lat]);
-          phaseRef.current = 'placingB';
-          setPhase('placingB');
-          setPointA({ x: p.x, y: p.y, lng: ll.lng, lat: ll.lat });
-          setPointB(null);
-          onMeasurePhaseChange('placingB');
-          setTouchPending(false);
-        }, 500);
-      }
-    }
-
-    function onTouchEnd(e: TouchEvent) {
-      const remaining = Array.from(e.touches).filter(t => touchIds.includes(t.identifier));
-      if (remaining.length < 2 && holdTimer) {
-        clearTimeout(holdTimer);
-        setTouchPending(false);
-      }
-      if (e.touches.length < 2) touchIds = [];
-    }
-
-    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
-    canvas.addEventListener('touchend', onTouchEnd, { passive: true });
-    canvas.addEventListener('touchcancel', onTouchEnd, { passive: true });
-    return () => {
-      canvas.removeEventListener('touchstart', onTouchStart);
-      canvas.removeEventListener('touchend', onTouchEnd);
-      canvas.removeEventListener('touchcancel', onTouchEnd);
-      if (holdTimer) clearTimeout(holdTimer);
-    };
-  }, [map, onMeasurePhaseChange]);
+  // Two-finger touch removed — mobile users use right-click context menu (desktop)
+  // or the existing ActionMenu long-press for Direct To / Save Pin
 
   // ── Drag endpoints ───────────────────────────────────────────────────────
   const onEndpointPointerDown = useCallback((id: 'A' | 'B', e: React.PointerEvent) => {
@@ -345,12 +296,7 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
         </div>
       )}
 
-      {/* Two-finger hold indicator */}
-      {touchPending && (
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 300, pointerEvents: 'none', background: 'rgba(26,32,44,0.85)', border: '1.5px solid #FF6B00', borderRadius: 10, padding: '8px 16px', color: '#FF6B00', fontSize: 13, fontWeight: 600 }}>
-          📏 Hold to measure…
-        </div>
-      )}
+
     </>
   );
 }
