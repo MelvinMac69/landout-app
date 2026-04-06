@@ -761,6 +761,7 @@ export function BackcountryMap({
       <MeasureRuler
         map={mapInstanceRef.current}
         onMeasurePhaseChange={(phase) => { measurePhaseRef.current = phase; }}
+        onCtxMenuOpen={() => { suppressClickRef.current = true; }}
       />
       {directToDest && (
         <DirectToPanel

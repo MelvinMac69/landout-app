@@ -33,9 +33,11 @@ interface MeasureRulerProps {
   map: maplibregl.Map | null;
   /** Called whenever measure phase changes — lets BackcountryMap sync its click-guard ref */
   onMeasurePhaseChange: (phase: 'off' | 'placingB' | 'placed') => void;
+  /** Called when context menu (right-click / long-press) opens — suppresses next click from opening InfoCard */
+  onCtxMenuOpen?: () => void;
 }
 
-export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
+export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: MeasureRulerProps) {
   const [phase, setPhase] = useState<Phase>('off');
   const [pointA, setPointA] = useState<ScreenPoint & GeoPoint | null>(null);
   const [pointB, setPointB] = useState<ScreenPoint & GeoPoint | null>(null);
@@ -72,6 +74,7 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
     function onCtxMenu(e: maplibregl.MapMouseEvent) {
       try { e.preventDefault(); } catch {}
       setCtxMenu({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat });
+      onCtxMenuOpen?.();
     }
     map.on('contextmenu', onCtxMenu);
     return () => { map.off('contextmenu', onCtxMenu); };
@@ -80,8 +83,11 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
   // ── Mobile: long-press from BackcountryMap → show context menu ─────────────────
   // Use a stable ref so the handler is always current
   const handlerRef = useRef<(lng: number, lat: number, screenX: number, screenY: number) => void>();
+  const onCtxMenuOpenRef = useRef(onCtxMenuOpen);
+  onCtxMenuOpenRef.current = onCtxMenuOpen;
   handlerRef.current = (lng, lat, screenX, screenY) => {
     setCtxMenu({ lng, lat, x: screenX, y: screenY });
+    onCtxMenuOpenRef.current?.();
   };
   useEffect(() => {
     (window as any).landoutMeasureLongPress = (lng: number, lat: number, screenX: number, screenY: number) => {
