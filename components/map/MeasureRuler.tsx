@@ -65,7 +65,6 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
   // ── Right-click → context menu (desktop only) ─────────────────────────────────
   useEffect(() => {
     if (!map) return;
-    // Only listen for contextmenu on non-touch devices to avoid iOS Safari conflicts
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if (isTouchDevice) return;
 
@@ -76,6 +75,18 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
     map.on('contextmenu', onCtxMenu);
     return () => { map.off('contextmenu', onCtxMenu); };
   }, [map]);
+
+  // ── Mobile: long-press from BackcountryMap → show context menu ─────────────────
+  const handlerRef = useRef<(lng: number, lat: number, screenX: number, screenY: number) => void>();
+  handlerRef.current = (lng, lat, screenX, screenY) => {
+    setCtxMenu({ lng, lat, x: screenX, y: screenY });
+  };
+  useEffect(() => {
+    (window as any).landoutMeasureLongPress = (lng: number, lat: number, screenX: number, screenY: number) => {
+      handlerRef.current?.(lng, lat, screenX, screenY);
+    };
+    return () => { delete (window as any).landoutMeasureLongPress; };
+  }, []);
 
   // ── Mobile: long-press from BackcountryMap → show context menu ─────────────────
   // Use a stable ref so the handler is always current
@@ -230,20 +241,16 @@ export function MeasureRuler({ map, onMeasurePhaseChange }: MeasureRulerProps) {
         </svg>
       )}
 
-      {/* Right-click context menu */}
-      {ctxMenu && (
-        <div
-          style={{
-            position: 'absolute', top: ctxMenu.y, left: ctxMenu.x,
-            zIndex: 300, background: 'rgba(26,32,44,0.97)',
-            border: '1.5px solid #D4621A', borderRadius: 12,
-            padding: '10px 14px', minWidth: 210,
-            boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
-            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-            pointerEvents: 'auto',
-          }}
-          onClick={e => e.stopPropagation()}
-        >
+      {/* Right-click / long-press context menu */}
+      {ctxMenu && (() => {
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+        const wrapStyle: React.CSSProperties = isMobile
+          ? { position: 'absolute' as const, bottom: 120, left: '50%', transform: 'translateX(-50%)', zIndex: 300 }
+          : { position: 'absolute' as const, top: ctxMenu.y, left: ctxMenu.x, zIndex: 300 };
+        return (
+          <div style={{ ...wrapStyle, background: 'rgba(26,32,44,0.97)', border: '1.5px solid #D4621A', borderRadius: 12, padding: '10px 14px', minWidth: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.5)', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', pointerEvents: 'auto' as const }} onClick={e => e.stopPropagation()}>
+        );
+      })()}
           <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
             Coordinates
           </div>

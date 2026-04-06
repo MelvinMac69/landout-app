@@ -157,7 +157,7 @@ export default function MapPage() {
       <NearestPanel />
 
       {/* Track-Up button — bottom-right, above Locate button */}
-      <div style={{ position: 'absolute', bottom: 160, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 145, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <button
           onClick={() => {
             const next = !trackUp;
@@ -229,7 +229,7 @@ export default function MapPage() {
         <div
           style={{
             position: 'absolute',
-            bottom: typeof window !== 'undefined' && window.innerWidth < 640 ? 100 : 72,
+            bottom: 100,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 40,

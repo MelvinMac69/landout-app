@@ -21,9 +21,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const trackUpRef = useRef(false);
 
   function getMap(): maplibregl.Map | null {
+    // Try mapRef first (set during Map mount), then window fallback
     if (mapRef.current) return mapRef.current;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (window as any).__landoutMap ?? null;
+    const winMap = (window as any).__landoutMap ?? null;
+    if (winMap) return winMap;
+    return null;
   }
 
   function updateMarker(lat: number, lon: number, heading?: number) {
@@ -149,7 +152,11 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const { latitude: lat, longitude: lon, heading } = pos.coords;
         const map = getMap();
         if (map) {
-          map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+          // flyTo queues safely even if map not fully loaded
+          try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch (e) {
+            // If flyTo fails (map not ready), try once it is
+            map.once('idle', () => { try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch {} });
+          }
         }
         startWatching(lat, lon, heading ?? undefined);
       } catch {
