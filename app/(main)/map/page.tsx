@@ -157,7 +157,7 @@ export default function MapPage() {
       <NearestPanel />
 
       {/* North-Up button — bottom-right, directly above Locate button */}
-      <div style={{ position: 'absolute', bottom: 166, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 62, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <button
           onClick={() => {
             const next = !trackUp;
@@ -201,7 +201,7 @@ export default function MapPage() {
         title="Toggle debug grid (G)"
         style={{
           position: 'absolute',
-          bottom: 212,
+          bottom: 108,
           right: 8,
           zIndex: 60,
           width: 34,
@@ -225,9 +225,9 @@ export default function MapPage() {
         <div
           style={{
             position: 'absolute',
-            bottom: 100,
+            top: '45%',
             left: '50%',
-            transform: 'translateX(-50%)',
+            transform: 'translate(-50%, -50%)',
             zIndex: 40,
             maxWidth: 280,
             cursor: 'pointer',
