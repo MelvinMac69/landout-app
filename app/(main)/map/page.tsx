@@ -156,8 +156,8 @@ export default function MapPage() {
       {/* Nearest airports panel — bottom-left, above legend */}
       <NearestPanel />
 
-      {/* Track-Up button — bottom-right, above Locate button */}
-      <div style={{ position: 'absolute', bottom: 145, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      {/* North-Up button — bottom-right, directly above Locate button */}
+      <div style={{ position: 'absolute', bottom: 166, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <button
           onClick={() => {
             const next = !trackUp;
@@ -166,57 +166,28 @@ export default function MapPage() {
             const fn = (window as any).landoutSetTrackUp;
             if (fn) fn(next);
           }}
-          title={trackUp ? 'Track-Up ON — tap for North-Up' : 'North-Up — tap for Track-Up'}
+          title={trackUp ? 'North-Up ON — tap for Track-Up' : 'North-Up — tap for Track-Up'}
           style={{
             width: 42,
             height: 42,
             borderRadius: 8,
-            background: trackUp ? '#1A202C' : '#1A202C',
-            border: `1.5px solid ${trackUp ? '#D4621A' : '#4A5568'}`,
+            background: '#1A202C',
+            border: `1.5px solid ${trackUp ? '#3B82F6' : '#4A5568'}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            color: trackUp ? '#D4621A' : '#718096',
+            color: trackUp ? '#3B82F6' : '#718096',
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: '0.02em',
             transition: 'all 0.2s',
           }}
         >
-          HDG
+          N
         </button>
       </div>
-
-      {/* Direct To button — bottom-right, above Track-Up button */}
-      <div style={{ position: 'absolute', bottom: 208, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
-        <button
-          onClick={() => setDirectToPrompt(true)}
-          title="Direct To — fly to coordinates"
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 8,
-            background: '#1A202C',
-            border: '1.5px solid #4A5568',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: '#718096',
-            transition: 'all 0.2s',
-          }}
-        >
-          <span style={{ fontSize: 18 }}>✈</span>
-        </button>
-      </div>
-
-      {/* Direct To prompt modal */}
-      {directToPrompt && (
-        <DirectToPrompt onClose={() => setDirectToPrompt(false)} />
-      )}
 
       {/* Build banner — top, shows on first visit */}
       <BuildBanner sha={BUILD_SHA} branch={BUILD_BRANCH} buildTime={new Date().toISOString()} />
