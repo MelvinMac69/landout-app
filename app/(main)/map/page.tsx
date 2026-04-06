@@ -93,7 +93,7 @@ function BuildTag() {
   if (!BUILD_SHA) return null;
   return (
     <div style={{
-      position: 'absolute', bottom: 72, right: 8, zIndex: 30,
+      position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 72px)', right: 8, zIndex: 30,
       background: 'rgba(26,32,44,0.85)', border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 6, padding: '3px 8px', fontSize: 10,
       color: '#718096', fontFamily: 'monospace', pointerEvents: 'none',
@@ -149,7 +149,7 @@ export default function MapPage() {
 
       {/* Land Status legend — bottom-left, just above mobile nav, default collapsed */}
       {/* bottom: 72 = 7px above the 65px mobile nav */}
-      <div style={{ position: 'absolute', bottom: 72, left: 8, zIndex: 30, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 72px)', left: 8, zIndex: 30, pointerEvents: 'auto' }}>
         <MapLegend />
       </div>
 
@@ -157,7 +157,7 @@ export default function MapPage() {
       <NearestPanel />
 
       {/* North-Up button — bottom-right, directly above Locate button */}
-      <div style={{ position: 'absolute', bottom: 236, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 236px)', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <button
           onClick={() => {
             const next = !trackUp;
@@ -201,7 +201,7 @@ export default function MapPage() {
         title="Toggle debug grid (G)"
         style={{
           position: 'absolute',
-          bottom: 282,
+          bottom: 'calc(env(safe-area-inset-bottom) + 282px)',
           right: 8,
           zIndex: 60,
           width: 34,
