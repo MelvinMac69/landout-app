@@ -148,8 +148,8 @@ export default function MapPage() {
       </div>
 
       {/* Land Status legend — bottom-left, just above mobile nav, default collapsed */}
-      {/* bottom: 72 = 7px above the 65px mobile nav */}
-      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 72px)', left: 8, zIndex: 30, pointerEvents: 'auto' }}>
+      {/* bottom: 112 = moved 40px down from 72 */}
+      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 112px)', left: 8, zIndex: 30, pointerEvents: 'auto' }}>
         <MapLegend />
       </div>
 
@@ -157,7 +157,7 @@ export default function MapPage() {
       <NearestPanel />
 
       {/* North-Up button — bottom-right, directly above Locate button */}
-      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 236px)', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 336px)', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <button
           onClick={() => {
             const next = !trackUp;
@@ -200,9 +200,8 @@ export default function MapPage() {
         onClick={() => { (window as any).landoutToggleGrid?.(); }}
         title="Toggle debug grid (G)"
         style={{
-          position: 'absolute',
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom) + 282px)',
+          bottom: 'calc(env(safe-area-inset-bottom) + 382px)',
           right: 8,
           zIndex: 60,
           width: 34,
@@ -226,7 +225,7 @@ export default function MapPage() {
         <div
           style={{
             position: 'absolute',
-            top: '85%',
+            top: '75%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
             zIndex: 40,
