@@ -247,6 +247,22 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     (window as any).landoutLocationState = stateRef.current;
   });
 
+  // Exit follow mode when user manually pans the map
+  useEffect(() => {
+    function onMapMoveStart() {
+      if (followModeRef.current) {
+        followModeRef.current = false;
+        setFollowMode(false);
+        setState('active');
+      }
+    }
+    const map = getMap();
+    if (map) {
+      map.on('movestart', onMapMoveStart);
+      return () => { map.off('movestart', onMapMoveStart); };
+    }
+  }, [state]);
+
   useEffect(() => {
     return () => {
       stopWatching();
