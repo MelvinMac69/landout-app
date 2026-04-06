@@ -692,6 +692,7 @@ export function BackcountryMap({
     };
     win.landoutGetBasemap = () => basemap;
     win.landoutToggleDiagnostics = () => setShowDiagnostics((v) => !v);
+    (window as any).landoutToggleGrid = () => setShowGrid((v) => !v);
     win.landoutSetDirectTo = (dest) => {
       setDirectToDest(dest);
       setInfoCard(null);

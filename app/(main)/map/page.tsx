@@ -195,6 +195,31 @@ export default function MapPage() {
       {/* Build version tag — bottom-right */}
       <BuildTag />
 
+      {/* Grid toggle — bottom-right, above NorthUp */}
+      <button
+        onClick={() => { (window as any).landoutToggleGrid?.(); }}
+        title="Toggle debug grid (G)"
+        style={{
+          position: 'absolute',
+          bottom: 212,
+          right: 8,
+          zIndex: 60,
+          width: 34,
+          height: 28,
+          background: 'rgba(26,32,44,0.85)',
+          border: '1.5px solid #4A5568',
+          borderRadius: 6,
+          color: '#718096',
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: 'pointer',
+          backdropFilter: 'blur(4px)',
+          letterSpacing: '0.02em',
+        }}
+      >
+        GRID
+      </button>
+
       {/* DISCLAIMER — dark amber, dismissible, bottom-center */}
       {!disclaimerDismissed && (
         <div
