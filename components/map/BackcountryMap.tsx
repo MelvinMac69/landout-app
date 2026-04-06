@@ -769,7 +769,7 @@ export function BackcountryMap({
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
       {/* Locate button — bottom-right, keeps BasemapToggle clear on left side */}
-      <div style={{ position: 'absolute', bottom: 250, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 120, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
       {/* Direct To info card */}
