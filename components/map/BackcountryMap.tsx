@@ -606,6 +606,7 @@ export function BackcountryMap({
     mapInstance.on('contextmenu', (e) => {
       e.preventDefault();
       suppressClickRef.current = true;
+      setInfoCard(null); // Immediately close InfoCard — don't wait for click handler
       setTimeout(() => { suppressClickRef.current = false; }, 400);
       mapInstance.fire('longpress', { lngLat: e.lngLat, point: { x: e.point.x, y: e.point.y } });
     });
