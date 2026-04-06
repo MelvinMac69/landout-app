@@ -45,7 +45,7 @@ export function MapLegend() {
     <div
       style={{
         position: 'absolute',
-        bottom: 320,     // above mobile nav, above Locate button stack
+        bottom: 120,     // just above bottom area
         left: 8,
         zIndex: 30,
         background: 'var(--landout-charcoal-light)',
