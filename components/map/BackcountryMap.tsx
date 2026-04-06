@@ -602,24 +602,19 @@ export function BackcountryMap({
       touchPos = null;
     }, { passive: true, capture: true });
 
-    // Desktop right-click / long-press
+    // Desktop right-click — directly open MeasureRuler context menu.
+    // Do NOT fire 'longpress' (which would also fire ActionMenu).
     mapInstance.on('contextmenu', (e) => {
       e.preventDefault();
       suppressClickRef.current = true;
-      setInfoCard(null); // Immediately close InfoCard — don't wait for click handler
+      setInfoCard(null);
+      setActionMenu(null);
       setTimeout(() => { suppressClickRef.current = false; }, 400);
-      mapInstance.fire('longpress', { lngLat: e.lngLat, point: { x: e.point.x, y: e.point.y } });
-    });
-
-    // Handle the longpress event (unified for both desktop and mobile)
-    mapInstance.on('longpress', (e: any) => {
-      closeAllPopups();
-      const { lngLat, point } = e;
-      // Check if there's an airport feature at this point
-      const features = mapInstance.queryRenderedFeatures(point as maplibregl.Point);
-      const airportFeature = features.find((f: maplibregl.MapGeoJSONFeature) => f.layer?.id === 'airport-fill');
-      const airportName = airportFeature?.properties?.name;
-      setActionMenu({ x: point.x, y: point.y, lng: lngLat.lng, lat: lngLat.lat, airportName });
+      // Open MeasureRuler's dark context menu directly
+      const win = window as typeof window & { landoutMeasureLongPress?: (lng: number, lat: number, screenX: number, screenY: number) => void };
+      if (win.landoutMeasureLongPress) {
+        win.landoutMeasureLongPress(e.lngLat.lng, e.lngLat.lat, e.point.x, e.point.y);
+      }
     });
 
     // ── GPS sync from LocateButton ────────────────────────────────────────────────
