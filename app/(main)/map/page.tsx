@@ -146,11 +146,8 @@ export default function MapPage() {
         <MapLayerToggle layers={layers} onToggle={handleToggle} />
       </div>
 
-      {/* Land Status legend — bottom-left, just above mobile nav, default collapsed */}
-      {/* bottom: 112 = moved 40px down from 72 */}
-      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 80px)', left: 8, zIndex: 30, pointerEvents: 'auto' }}>
-        <MapLegend />
-      </div>
+      {/* Land Status legend — bottom-left, just above mobile nav */}
+      <MapLegend />
 
       {/* Nearest airports panel — bottom-left, above legend */}
       <NearestPanel />

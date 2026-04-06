@@ -45,7 +45,7 @@ export function MapLegend() {
     <div
       style={{
         position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom) + 120px)',
+        bottom: 'calc(env(safe-area-inset-bottom) + 65px)',
         left: 8,
         zIndex: 30,
         background: 'var(--landout-charcoal-light)',
