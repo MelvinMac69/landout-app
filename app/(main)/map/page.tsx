@@ -149,7 +149,7 @@ export default function MapPage() {
 
       {/* Land Status legend — bottom-left, just above mobile nav, default collapsed */}
       {/* bottom: 112 = moved 40px down from 72 */}
-      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 92px)', left: 8, zIndex: 30, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 20px)', left: 8, zIndex: 30, pointerEvents: 'auto' }}>
         <MapLegend />
       </div>
 
