@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
 import { NearestPanel } from '@/components/map/NearestPanel';
-import { BuildBanner } from '@/components/map/BuildBanner';
 
 /** Simple prompt to enter lat/lon and trigger Direct To */
 function DirectToPrompt({ onClose }: { onClose: () => void }) {
@@ -149,7 +148,7 @@ export default function MapPage() {
 
       {/* Land Status legend — bottom-left, just above mobile nav, default collapsed */}
       {/* bottom: 112 = moved 40px down from 72 */}
-      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 20px)', left: 8, zIndex: 30, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 80px)', left: 8, zIndex: 30, pointerEvents: 'auto' }}>
         <MapLegend />
       </div>
 
@@ -190,7 +189,6 @@ export default function MapPage() {
       </div>
 
       {/* Build banner — top, shows on first visit */}
-      <BuildBanner sha={BUILD_SHA} branch={BUILD_BRANCH} buildTime={new Date().toISOString()} />
 
       {/* Build version tag — bottom-right */}
       <BuildTag />
