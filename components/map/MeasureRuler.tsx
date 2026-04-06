@@ -93,7 +93,17 @@ export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: Measu
     (window as any).landoutMeasureLongPress = (lng: number, lat: number, screenX: number, screenY: number) => {
       handlerRef.current?.(lng, lat, screenX, screenY);
     };
-    return () => { delete (window as any).landoutMeasureLongPress; };
+    // Suppress next click on touchstart — before longpress fires.
+    // This ensures the click (touchend) is suppressed on mobile even though
+    // touchend fires BEFORE the custom longpress event.
+    function onTouchStart() {
+      onCtxMenuOpenRef.current?.();
+    }
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    return () => {
+      delete (window as any).landoutMeasureLongPress;
+      document.removeEventListener('touchstart', onTouchStart);
+    };
   }, []);
 
   // ── Map click → place point B when in placingB phase ──────────────────────
