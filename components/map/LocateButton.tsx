@@ -135,10 +135,14 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         setFollowMode(false);
         setState('active');
       } else {
-        stopWatching();
-        clearMarker();
-        setPosition(null);
-        setState('idle');
+        // Restore following mode (user panned, then tapped to re-center)
+        followModeRef.current = true;
+        setFollowMode(true);
+        setState('following');
+        const map = getMap();
+        if (map && position) {
+          try { map.flyTo({ center: [position.lon, position.lat], zoom: 13, duration: 800 }); } catch {}
+        }
       }
       return;
     }
