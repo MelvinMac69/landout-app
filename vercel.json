@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "NEXT_PUBLIC_GIT_SHA=bcfe737 NEXT_PUBLIC_GIT_BRANCH=landout-rescue npm run build",
+  "buildCommand": "NEXT_PUBLIC_GIT_SHA=db7e8cd NEXT_PUBLIC_GIT_BRANCH=landout-rescue npm run build",
   "outputDirectory": ".next",
   "installCommand": "npm install"
 }

@@ -691,6 +691,7 @@ export function BackcountryMap({
       applyVisibility(id);
     };
     win.landoutGetBasemap = () => basemap;
+    (window as any).landoutToggleGrid = () => setShowGrid((v) => !v);
     win.landoutSetDirectTo = (dest) => {
       setDirectToDest(dest);
       setInfoCard(null);
@@ -741,6 +742,18 @@ export function BackcountryMap({
       if (src) src.setData({ type: 'FeatureCollection', features: [] });
     }
   }
+
+  // Grid overlay toggle — press G to show/hide debug grid
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'g' || e.key === 'G') {
+        if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+        setShowGrid((v) => !v);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div className="relative w-full h-full">
