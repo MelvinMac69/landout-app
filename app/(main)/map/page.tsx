@@ -157,7 +157,7 @@ export default function MapPage() {
       <NearestPanel />
 
       {/* Track-Up button — bottom-right, above Locate button */}
-      <div style={{ position: 'absolute', bottom: 170, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 160, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <button
           onClick={() => {
             const next = !trackUp;
@@ -190,7 +190,7 @@ export default function MapPage() {
       </div>
 
       {/* Direct To button — bottom-right, above Track-Up button */}
-      <div style={{ position: 'absolute', bottom: 218, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', bottom: 208, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <button
           onClick={() => setDirectToPrompt(true)}
           title="Direct To — fly to coordinates"
@@ -229,7 +229,7 @@ export default function MapPage() {
         <div
           style={{
             position: 'absolute',
-            bottom: 72,
+            bottom: typeof window !== 'undefined' && window.innerWidth < 640 ? 100 : 72,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 40,

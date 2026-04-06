@@ -149,9 +149,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const { latitude: lat, longitude: lon, heading } = pos.coords;
         const map = getMap();
         if (map) {
-          const zoomFn = () => map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
-          if (map.loaded()) zoomFn();
-          else map.once('idle', zoomFn);
+          map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
         }
         startWatching(lat, lon, heading ?? undefined);
       } catch {
