@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
+import { MapGrid } from './MapGrid';
 import { LocateButton } from './LocateButton';
 import { DirectToPanel, ActionMenu } from './DirectTo';
 import { MeasureRuler } from './MeasureRuler';
@@ -98,6 +99,7 @@ export function BackcountryMap({
   const [loaded, setLoaded] = useState(false);
   const [basemap, setBasemap] = useState<BasemapId>('satellite');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
   const diagTapCount = useRef(0);
   const diagTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -716,6 +718,18 @@ export function BackcountryMap({
     }
   });
 
+  // ── Grid overlay toggle — press G to show/hide debug grid ─────────────────
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'g' || e.key === 'G') {
+        if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+        setShowGrid((v) => !v);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Actions called from ActionMenu / InfoCard
   function handleDirectTo(lng: number, lat: number, name?: string) {
     setDirectToDest({ lng, lat, name, type: 'map' });
@@ -743,6 +757,8 @@ export function BackcountryMap({
     <div className="relative w-full h-full">
       {/* Full-screen map container */}
       <div ref={mapContainer} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+      {/* Debug grid overlay — press G to toggle */}
+      <MapGrid visible={showGrid} cols={10} rows={8} />
       {!loaded && (
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>
