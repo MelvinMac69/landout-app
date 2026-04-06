@@ -106,7 +106,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         updateMarker(la, lo, h);
         const map = getMap();
         if (followModeRef.current && map) {
-          map.panTo([lo, la], { duration: 500 });
+          try { map.flyTo({ center: [lo, la], zoom: 13, duration: 500 }); } catch { map.panTo([lo, la], { duration: 500 }); }
           if (trackUpRef.current && h !== undefined) {
             map.setBearing(h);
           }
@@ -152,14 +152,24 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const { latitude: lat, longitude: lon, heading } = pos.coords;
         const map = getMap();
         if (map) {
-          try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch { /* queued */ }
+          try {
+            map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+            // After flyTo animation ends, enforce zoom level
+            map.once('moveend', () => { try { if (map.getZoom() < 12) map.zoomTo(13, { duration: 400 }); } catch {} });
+          } catch { /* queued */ }
         } else {
           // Map not ready — poll until it is, then flyTo
           let waited = 0;
           const poll = setInterval(() => {
             waited += 100;
             const m = getMap();
-            if (m) { clearInterval(poll); try { m.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch {} }
+            if (m) {
+              clearInterval(poll);
+              try {
+                m.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+                m.once('moveend', () => { try { if (m.getZoom() < 12) m.zoomTo(13, { duration: 400 }); } catch {} });
+              } catch {}
+            }
             else if (waited >= 5000) { clearInterval(poll); }
           }, 100);
         }
