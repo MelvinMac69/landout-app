@@ -152,11 +152,16 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const { latitude: lat, longitude: lon, heading } = pos.coords;
         const map = getMap();
         if (map) {
-          // flyTo queues safely even if map not fully loaded
-          try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch (e) {
-            // If flyTo fails (map not ready), try once it is
-            map.once('idle', () => { try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch {} });
-          }
+          try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch { /* queued */ }
+        } else {
+          // Map not ready — poll until it is, then flyTo
+          let waited = 0;
+          const poll = setInterval(() => {
+            waited += 100;
+            const m = getMap();
+            if (m) { clearInterval(poll); try { m.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch {} }
+            else if (waited >= 5000) { clearInterval(poll); }
+          }, 100);
         }
         startWatching(lat, lon, heading ?? undefined);
       } catch {
@@ -187,9 +192,16 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       const { latitude: lat, longitude: lon, heading } = pos.coords;
       const map = getMap();
       if (map) {
-        const zoomFn = () => map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
-        if (map.loaded()) zoomFn();
-        else map.once('idle', zoomFn);
+        try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch { /* queued */ }
+      } else {
+        // Map not ready — poll until it is, then flyTo
+        let waited = 0;
+        const poll = setInterval(() => {
+          waited += 100;
+          const m = getMap();
+          if (m) { clearInterval(poll); try { m.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch {} }
+          else if (waited >= 5000) { clearInterval(poll); }
+        }, 100);
       }
       startWatching(lat, lon, heading ?? undefined);
     } catch (err: unknown) {
