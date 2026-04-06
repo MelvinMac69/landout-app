@@ -143,7 +143,7 @@ export default function MapPage() {
       <BackcountryMap onMapLoad={handleMapLoad} />
 
       {/* Layers button — top-right, dark charcoal, aviation orange accent */}
-      <div className="absolute right-1 top-1 z-50" style={{ pointerEvents: 'auto' }}>
+      <div className="absolute right-1 z-50" style={{ top: 19, pointerEvents: 'auto' }}>
         <MapLayerToggle layers={layers} onToggle={handleToggle} />
       </div>
 
