@@ -407,7 +407,7 @@ export function BackcountryMap({
     const style = document.createElement('style');
     style.textContent = `
       .maplibregl-ctrl-top-left { top: max(4px, env(safe-area-inset-top)) !important; left: 8px !important; }
-      .maplibregl-ctrl-bottom-left { bottom: 170px !important; left: 8px !important; }
+      .maplibregl-ctrl-bottom-left { bottom: 230px !important; left: 8px !important; }
       .maplibregl-ctrl-scale { border-color: #64748B !important; color: #64748B !important; background: rgba(255,255,255,0.85) !important; font-size: 10px !important; }
     `;
     document.head.appendChild(style);

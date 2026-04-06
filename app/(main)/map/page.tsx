@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
-import { NearestPanel } from '@/components/map/NearestPanel';
 
 /** Simple prompt to enter lat/lon and trigger Direct To */
 function DirectToPrompt({ onClose }: { onClose: () => void }) {
@@ -175,7 +174,6 @@ export default function MapPage() {
       <MapLegend />
 
       {/* Nearest airports panel — bottom-left, above legend */}
-      <NearestPanel />
 
       {/* North-Up button — bottom-right, directly above Locate button */}
       <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 136px)', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
