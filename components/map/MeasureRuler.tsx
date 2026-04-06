@@ -64,21 +64,10 @@ export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: Measu
     return () => { delete (window as any).landoutMeasureClear; };
   }, [onMeasurePhaseChange]);
 
-  // ── Right-click → context menu (desktop only) ─────────────────────────────────
-  useEffect(() => {
-    if (!map) return;
-    // Only listen for contextmenu on non-touch devices to avoid iOS Safari conflicts
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (isTouchDevice) return;
-
-    function onCtxMenu(e: maplibregl.MapMouseEvent) {
-      try { e.preventDefault(); } catch {}
-      setCtxMenu({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat });
-      onCtxMenuOpen?.();
-    }
-    map.on('contextmenu', onCtxMenu);
-    return () => { map.off('contextmenu', onCtxMenu); };
-  }, [map]);
+  // Desktop right-click is handled by BackcountryMap's contextmenu handler,
+  // which fires a 'longpress' event → landoutMeasureLongPress → handlerRef.current.
+  // MeasureRuler does NOT need its own contextmenu listener on desktop.
+  // Mobile long-press still goes through landoutMeasureLongPress (from BackcountryMap).
 
   // ── Mobile: long-press from BackcountryMap → show context menu ─────────────────
   // Use a stable ref so the handler is always current
