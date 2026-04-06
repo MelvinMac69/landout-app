@@ -460,6 +460,9 @@ export function BackcountryMap({
       // If MeasureRuler is in placingB phase, let it handle the click
       if (measurePhaseRef.current === 'placingB') return;
       if (suppressClickRef.current) return;
+      // Right-click (button=2) — contextmenu will handle it, suppress InfoCard
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((e.originalEvent as any)?.button === 2) return;
       // Click-outside previously closed InfoCard — suppress this click from opening a new one
       if (suppressInfoCardOpenRef.current) {
         suppressInfoCardOpenRef.current = false;
