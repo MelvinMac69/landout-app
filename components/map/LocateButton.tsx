@@ -260,8 +260,28 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     state === 'denied' ? 'Location denied — tap to retry' :
     'GPS unavailable';
 
+  const northUpTitle = trackUp ? 'North Up — tap to disable' : 'Track Up — tap to enable';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <button
+        onClick={() => applyTrackUp(!trackUp)}
+        title={northUpTitle}
+        style={{
+          width: 42, height: 42, borderRadius: 8,
+          background: '#1A202C',
+          border: `1.5px solid ${trackUp ? '#3B82F6' : '#4A5568'}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+          color: trackUp ? '#3B82F6' : '#718096',
+          transition: 'all 0.2s',
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 19 21 12 17 5 21 12 2" fill={trackUp ? 'currentColor' : 'none'}/>
+        </svg>
+      </button>
       <button
         onClick={handleLocate}
         title={buttonTitle}

@@ -784,12 +784,6 @@ export function BackcountryMap({
           y={actionMenu.y}
           items={[
             {
-              label: 'Direct To',
-              icon: '✈',
-              onClick: () => handleDirectTo(actionMenu.lng, actionMenu.lat, actionMenu.airportName),
-              color: '#BE185D',
-            },
-            {
               label: 'Drop Pin',
               icon: '📍',
               onClick: () => handleDropPin(actionMenu.lng, actionMenu.lat),
