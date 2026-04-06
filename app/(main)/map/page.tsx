@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
 import { NearestPanel } from '@/components/map/NearestPanel';
 
@@ -111,6 +111,30 @@ export default function MapPage() {
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
   const [trackUp, setTrackUp] = useState(false);
   const [directToPrompt, setDirectToPrompt] = useState(false);
+  const [showBuildInfo, setShowBuildInfo] = useState(false);
+  const buildClickRef = useRef(0);
+
+  // 5-click easter egg: after 5 rapid clicks on the map, show build info
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    function handleBuildClick() {
+      buildClickRef.current++;
+      clearTimeout(timer);
+      if (buildClickRef.current >= 5) {
+        buildClickRef.current = 0;
+        setShowBuildInfo(true);
+      } else {
+        timer = setTimeout(() => {
+          buildClickRef.current = 0;
+        }, 2000);
+      }
+    }
+    window.addEventListener('buildinfo-click', handleBuildClick);
+    return () => {
+      window.removeEventListener('buildinfo-click', handleBuildClick);
+      clearTimeout(timer);
+    };
+  }, []);
 
   const handleMapLoad = useCallback((map: maplibregl.Map) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,6 +162,7 @@ export default function MapPage() {
     <div
       className="h-[calc(100vh-3.5rem)] relative"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      onClick={() => window.dispatchEvent(new Event('buildinfo-click'))}
     >
       <BackcountryMap onMapLoad={handleMapLoad} />
 
@@ -188,7 +213,6 @@ export default function MapPage() {
       {/* Build banner — top, shows on first visit */}
 
       {/* Build version tag — bottom-right */}
-      <BuildTag />
 
       {/* DISCLAIMER — dark amber, dismissible, bottom-center */}
       {!disclaimerDismissed && (
@@ -220,6 +244,43 @@ export default function MapPage() {
             <strong style={{ color: '#D4621A' }}>⚠️ NOT FOR NAVIGATION</strong>
             <br />
             Land status context only. Does not authorize landings.
+          </div>
+        </div>
+      )}
+
+      {/* Build info easter egg — 5 clicks reveals this */}
+      {showBuildInfo && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 9999,
+            cursor: 'pointer',
+          }}
+          onClick={() => setShowBuildInfo(false)}
+        >
+          <div
+            style={{
+              background: 'rgba(26, 32, 44, 0.95)',
+              border: '1.5px solid #D4621A',
+              borderRadius: 10,
+              padding: '16px 24px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+              textAlign: 'center',
+              minWidth: 200,
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#D4621A', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+              Build Info
+            </div>
+            <div style={{ fontSize: 12, color: '#C9B99A', fontFamily: 'monospace', marginBottom: 4 }}>
+              {BUILD_BRANCH} @ {BUILD_SHA?.slice(0, 7)}
+            </div>
+            <div style={{ fontSize: 10, color: '#718096', marginTop: 8 }}>
+              Click to dismiss
+            </div>
           </div>
         </div>
       )}
