@@ -268,15 +268,19 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       const pos = positionRef.current;
       if (!map || !pos) return;
 
-      // Dead zone: 25% inset from each edge — position can move within
-      // this center zone without exiting follow mode.
+      // Dead zone: 15% inset from each edge (70% of screen width/height).
+      // GPS position can drift within this zone without exiting follow mode.
+      const w = window.innerWidth || 1;
+      const h = window.innerHeight || 1;
       const dz = {
-        left: window.innerWidth * 0.2,
-        right: window.innerWidth * 0.8,
-        top: window.innerHeight * 0.25,
-        bottom: window.innerHeight * 0.75,
+        left: w * 0.15,
+        right: w * 0.85,
+        top: h * 0.20,
+        bottom: h * 0.80,
       };
-      const screenPt = map.project([pos.lon, pos.lat]);
+      let screenPt: maplibregl.Point | null = null;
+      try { screenPt = map.project([pos.lon, pos.lat]); } catch { /* projection failed */ }
+      if (!screenPt) return; // Can't project — stay in follow mode
       if (
         screenPt.x >= dz.left &&
         screenPt.x <= dz.right &&
