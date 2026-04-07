@@ -800,25 +800,9 @@ export function BackcountryMap({
         <ActionMenu
           x={actionMenu.x}
           y={actionMenu.y}
+          lat={actionMenu.lat}
+          lng={actionMenu.lng}
           items={[
-            {
-              label: 'Copy Coords',
-              icon: '📋',
-              onClick: () => {
-                const coordStr = `${actionMenu.lat.toFixed(6)}, ${actionMenu.lng.toFixed(6)}`;
-                try {
-                  navigator.clipboard.writeText(coordStr).catch(() => {
-                    const el = document.createElement('textarea');
-                    el.value = coordStr;
-                    el.style.cssText = 'position:fixed;opacity:0';
-                    document.body.appendChild(el);
-                    el.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(el);
-                  });
-                } catch {}
-              },
-            },
             {
               label: 'Drop Pin',
               icon: '📍',

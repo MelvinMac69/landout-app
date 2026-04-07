@@ -183,15 +183,20 @@ export function DirectToPanel({
 export function ActionMenu({
   x,
   y,
+  lat,
+  lng,
   items,
   onClose,
 }: {
   x: number;
   y: number;
+  lat?: number;
+  lng?: number;
   items: { label: string; icon: string; onClick: () => void; color?: string }[];
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const handler = (ev: MouseEvent | TouchEvent) => {
@@ -209,15 +214,37 @@ export function ActionMenu({
     };
   }, [onClose]);
 
+  async function copyCoords() {
+    const text = `${lat?.toFixed(6)}, ${lng?.toFixed(6)}`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  const totalRows = items.length + (lat != null ? 1 : 0);
   // Determine position: if y > 60% of screen height, flip menu up
   const isHigh = y > window.innerHeight * 0.6;
+  // 36px per row for menu items + 32px for coords header
+  const headerPx = lat != null ? 32 : 0;
+  const rowPx = 36;
+  const menuHeight = headerPx + rowPx * items.length;
 
   return (
     <div
       ref={ref}
       style={{
         position: 'fixed',
-        top: isHigh ? y - 44 * items.length - 8 : y + 8,
+        top: isHigh ? y - menuHeight - 8 : y + 8,
         left: Math.min(x, window.innerWidth - 160),
         zIndex: 200,
         background: 'white',
@@ -227,6 +254,41 @@ export function ActionMenu({
         minWidth: 140,
       }}
     >
+      {/* Coordinates row at top */}
+      {lat != null && lng != null && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '6px 14px',
+            borderBottom: items.length > 0 ? '1px solid #f1f5f9' : 'none',
+            marginBottom: items.length > 0 ? 2 : 0,
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#475569' }}>
+            {lat.toFixed(6)}, {lng.toFixed(6)}
+          </span>
+          <button
+            onClick={copyCoords}
+            title="Copy coordinates"
+            style={{
+              fontSize: 10,
+              padding: '2px 6px',
+              background: copied ? '#dcfce7' : '#f1f5f9',
+              border: `1px solid ${copied ? '#86efac' : '#cbd5e1'}`,
+              borderRadius: 4,
+              color: copied ? '#16a34a' : '#64748b',
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {copied ? '✓' : '📋'}
+          </button>
+        </div>
+      )}
       {items.map((item) => (
         <button
           key={item.label}
