@@ -202,17 +202,6 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
               <span style={{ fontSize: 12, color: '#475569' }}>{[card.municipality, card.state].filter(Boolean).join(', ')}</span>
             </div>
           )}
-          {/* Coordinates + copy */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginTop: 4 }}>
-            <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coords</span>
-            <span style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>
-              {card.lat.toFixed(6)}, {card.lng.toFixed(6)}
-            </span>
-            <CopyButton
-              text={`${card.lat.toFixed(6)}, ${card.lng.toFixed(6)}`}
-              label="coordinates"
-            />
-          </div>
         </div>
 
         <div style={{ padding: '8px 14px 14px', display: 'flex', gap: 8 }}>

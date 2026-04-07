@@ -802,6 +802,24 @@ export function BackcountryMap({
           y={actionMenu.y}
           items={[
             {
+              label: 'Copy Coords',
+              icon: '📋',
+              onClick: () => {
+                const coordStr = `${actionMenu.lat.toFixed(6)}, ${actionMenu.lng.toFixed(6)}`;
+                try {
+                  navigator.clipboard.writeText(coordStr).catch(() => {
+                    const el = document.createElement('textarea');
+                    el.value = coordStr;
+                    el.style.cssText = 'position:fixed;opacity:0';
+                    document.body.appendChild(el);
+                    el.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(el);
+                  });
+                } catch {}
+              },
+            },
+            {
               label: 'Drop Pin',
               icon: '📍',
               onClick: () => handleDropPin(actionMenu.lng, actionMenu.lat),
