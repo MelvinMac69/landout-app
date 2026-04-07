@@ -137,7 +137,7 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
               <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>{card.name || 'Unknown Airport'}</span>
               <TypePill type={card.airportType} />
             </div>
-            <div style={{ color: 'rgbaD255,255,255,0.75)', fontSize: 12, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>{identifier}{card.iata ? ` / ${card.iata}` : ''} · {capitalize(card.airportType)}</span>
               <button
                 onClick={() => { navigator.clipboard.writeText(identifier).catch(() => {}); }}
