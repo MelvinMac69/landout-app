@@ -294,31 +294,6 @@ export default function MapPage() {
       {/* Build banner — top, shows on first visit */}
 
 
-      {/* Grid toggle — bottom-right, above NorthUp */}
-      <button
-        onClick={() => { (window as any).landoutToggleGrid?.(); }}
-        title="Toggle debug grid (G)"
-        style={{
-          position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom) + 182px)',
-          right: 8,
-          zIndex: 60,
-          width: 34,
-          height: 28,
-          background: 'rgba(26,32,44,0.85)',
-          border: '1.5px solid #4A5568',
-          borderRadius: 6,
-          color: '#718096',
-          fontSize: 12,
-          fontWeight: 700,
-          cursor: 'pointer',
-          backdropFilter: 'blur(4px)',
-          letterSpacing: '0.02em',
-        }}
-      >
-        GRID
-      </button>
-
       {/* Build version tag — bottom-right */}
 
       {/* DISCLAIMER — dark amber, dismissible, bottom-center */}
@@ -385,6 +360,24 @@ export default function MapPage() {
             <div style={{ fontSize: 12, color: '#C9B99A', fontFamily: 'monospace', marginBottom: 4 }}>
               {BUILD_BRANCH} @ {BUILD_SHA?.slice(0, 7)}
             </div>
+            {/* Grid toggle hidden in easter egg */}
+            <button
+              onClick={() => { (window as any).landoutToggleGrid?.(); }}
+              style={{
+                marginTop: 8,
+                padding: '4px 10px',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 6,
+                color: '#94A3B8',
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+                letterSpacing: '0.05em',
+              }}
+            >
+              TOGGLE GRID
+            </button>
             <div style={{ fontSize: 10, color: '#718096', marginTop: 8 }}>
               Click to dismiss
             </div>
