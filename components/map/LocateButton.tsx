@@ -81,13 +81,9 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   function applyTrackUp(on: boolean) {
     trackUpRef.current = on;
     setTrackUpState(on);
-    const map = getMap();
-    if (!map) return;
-    if (on && position?.heading !== undefined) {
-      map.setBearing(position.heading);
-    } else {
-      map.setBearing(0);
-    }
+    // Don't force a bearing here — the next watchPosition update will set it
+    // based on the latest GPS heading. Forcing 0 can override good heading
+    // data if position.heading was undefined at the moment of toggle.
   }
 
   function startWatching(lat: number, lon: number, heading?: number) {

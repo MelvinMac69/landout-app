@@ -150,9 +150,12 @@ export default function MapPage() {
     // Expose direct-to trigger from prompt button
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).landoutTriggerDirectTo = () => setDirectToPrompt(true);
-    // Track map bearing for compass
+    // Track map bearing for compass (rotate fires when bearing changes; move doesn't)
     setCompassBearingRef.current(map.getBearing());
-    map.on('move', () => {
+    map.on('rotate', () => {
+      setCompassBearingRef.current(map.getBearing());
+    });
+    map.on('moveend', () => {
       setCompassBearingRef.current(map.getBearing());
     });
   }, []);
