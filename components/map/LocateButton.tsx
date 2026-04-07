@@ -19,6 +19,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const isRequesting = useRef(false);
   const followModeRef = useRef(false);
   const trackUpRef = useRef(false);
+  const positionRef = useRef<{ lat: number; lon: number; heading?: number } | null>(null);
 
   function getMap(): maplibregl.Map | null {
     // Try mapRef first (set during Map mount), then window fallback
@@ -92,6 +93,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   function startWatching(lat: number, lon: number, heading?: number) {
     stopWatching();
     setPosition({ lat, lon, heading });
+    positionRef.current = { lat, lon, heading };
     updateMarker(lat, lon, heading);
     followModeRef.current = true;
     setFollowMode(true);
@@ -103,6 +105,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const lo = p.coords.longitude;
         const h = p.coords.heading ?? undefined;
         setPosition({ lat: la, lon: lo, heading: h });
+        positionRef.current = { lat: la, lon: lo, heading: h };
         updateMarker(la, lo, h);
         const map = getMap();
         if (followModeRef.current && map) {
@@ -254,16 +257,40 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   // Exit follow mode when user manually pans the map
   useEffect(() => {
     function onMapMoveStart(e: maplibregl.MapMouseEvent) {
-      // Only exit follow mode for user gestures (those with originalEvent).
-      // Programmatic movements via flyTo/panTo have no originalEvent.
+      // Ignore programmatic movements (flyTo/panTo from position updates)
       if (e.originalEvent === undefined && followModeRef.current) {
-        return; // programmatic — do not exit follow mode
+        return;
       }
-      if (followModeRef.current) {
-        followModeRef.current = false;
-        setFollowMode(false);
-        setState('active');
+
+      if (!followModeRef.current) return;
+
+      const map = getMap();
+      const pos = positionRef.current;
+      if (!map || !pos) return;
+
+      // Dead zone: 25% inset from each edge — position can move within
+      // this center zone without exiting follow mode.
+      const dz = {
+        left: window.innerWidth * 0.2,
+        right: window.innerWidth * 0.8,
+        top: window.innerHeight * 0.25,
+        bottom: window.innerHeight * 0.75,
+      };
+      const screenPt = map.project([pos.lon, pos.lat]);
+      if (
+        screenPt.x >= dz.left &&
+        screenPt.x <= dz.right &&
+        screenPt.y >= dz.top &&
+        screenPt.y <= dz.bottom
+      ) {
+        // Still inside dead zone — stay in follow mode
+        return;
       }
+
+      // Outside dead zone — exit follow mode
+      followModeRef.current = false;
+      setFollowMode(false);
+      setState('active');
     }
     const map = getMap();
     if (map) {
