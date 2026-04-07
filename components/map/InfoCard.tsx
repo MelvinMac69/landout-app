@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui';
 
 export interface AirportInfo {
@@ -38,6 +38,52 @@ interface InfoCardProps {
   onCloseOutside?: () => void;
   onDirectTo: (lng: number, lat: number, name?: string) => void;
   onDropPin?: (lng: number, lat: number) => void;
+}
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Fallback for older browsers
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      title={`Copy ${label}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        padding: '2px 6px',
+        background: copied ? '#dcfce7' : '#f1f5f9',
+        border: `1px solid ${copied ? '#86efac' : '#cbd5e1'}`,
+        borderRadius: 4,
+        fontSize: 10,
+        color: copied ? '#16a34a' : '#64748b',
+        cursor: 'pointer',
+        fontFamily: 'monospace',
+        transition: 'all 0.15s',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {copied ? '✓ Copied' : '📋 Copy'}
+    </button>
+  );
 }
 
 function capitalize(str?: string): string {
@@ -156,6 +202,17 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
               <span style={{ fontSize: 12, color: '#475569' }}>{[card.municipality, card.state].filter(Boolean).join(', ')}</span>
             </div>
           )}
+          {/* Coordinates + copy */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coords</span>
+            <span style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>
+              {card.lat.toFixed(6)}, {card.lng.toFixed(6)}
+            </span>
+            <CopyButton
+              text={`${card.lat.toFixed(6)}, ${card.lng.toFixed(6)}`}
+              label="coordinates"
+            />
+          </div>
         </div>
 
         <div style={{ padding: '8px 14px 14px', display: 'flex', gap: 8 }}>
@@ -208,6 +265,17 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
           </div>
         )}
         <RestrictionBadge restriction={card.restriction} />
+        {/* Coordinates + copy */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginTop: 2 }}>
+          <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coords</span>
+          <span style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>
+            {card.lat.toFixed(6)}, {card.lng.toFixed(6)}
+          </span>
+          <CopyButton
+            text={`${card.lat.toFixed(6)}, ${card.lng.toFixed(6)}`}
+            label="coordinates"
+          />
+        </div>
       </div>
     </div>
   );
