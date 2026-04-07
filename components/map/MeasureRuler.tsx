@@ -43,6 +43,7 @@ export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: Measu
   const [pointB, setPointB] = useState<ScreenPoint & GeoPoint | null>(null);
   const [dragging, setDragging] = useState<'A' | 'B' | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; lng: number; lat: number } | null>(null);
+  const [coordsCopied, setCoordsCopied] = useState(false);
 
   const phaseRef = useRef<Phase>('off');
   const mapRef = useRef(map);
@@ -246,8 +247,35 @@ export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: Measu
           <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
             Coordinates
           </div>
-          <div style={{ fontSize: 12, color: '#C9B99A', fontFamily: 'monospace', marginBottom: 10 }}>
-            {formatCoord(ctxMenu.lat, ctxMenu.lng)}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+            <span style={{ fontSize: 12, color: '#C9B99A', fontFamily: 'monospace' }}>
+              {formatCoord(ctxMenu.lat, ctxMenu.lng)}
+            </span>
+            <button
+              onClick={() => {
+                const text = `${ctxMenu.lat.toFixed(6)}, ${ctxMenu.lng.toFixed(6)}`;
+                try { navigator.clipboard.writeText(text); } catch {
+                  const el = document.createElement('textarea');
+                  el.value = text; el.style.cssText = 'position:fixed;opacity:0';
+                  document.body.appendChild(el); el.select();
+                  document.execCommand('copy'); document.body.removeChild(el);
+                }
+                setCoordsCopied(true);
+                setTimeout(() => setCoordsCopied(false), 1500);
+              }}
+              style={{
+                fontSize: 10,
+                padding: '2px 6px',
+                background: coordsCopied ? '#dcfce7' : 'rgba(255,255,255,0.1)',
+                border: `1px solid ${coordsCopied ? '#86efac' : 'rgba(255,255,255,0.2)'}`,
+                borderRadius: 4,
+                color: coordsCopied ? '#86efac' : 'rgba(255,255,255,0.7)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {coordsCopied ? '✓' : '📋'}
+            </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button

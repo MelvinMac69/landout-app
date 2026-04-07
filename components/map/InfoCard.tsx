@@ -116,7 +116,8 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
   const airportStyle: React.CSSProperties = {
     position: 'fixed',
     top: flipUp ? screenY - 20 : screenY + 20,
-    left: flipLeft ? screenX - 20 : Math.max(8, Math.min(screenX, window.innerWidth - 292)),
+    left: '50%',
+    transform: 'translateX(-50%)',
     width: 280,
     zIndex: 200,
     background: 'white',
