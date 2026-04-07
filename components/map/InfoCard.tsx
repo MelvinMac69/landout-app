@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui';
 
 export interface AirportInfo {
@@ -83,6 +83,19 @@ function RestrictionBadge({ restriction }: { restriction: string }) {
 
 export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDirectTo, onDropPin }: InfoCardProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const [idCopied, setIdCopied] = useState(false);
+  const [coordsCopied, setCoordsCopied] = useState(false);
+
+  async function copyToClipboard(text: string, setFn: React.Dispatch<React.SetStateAction<boolean>>) {
+    try { await navigator.clipboard.writeText(text); } catch {
+      const el = document.createElement('textarea');
+      el.value = text; el.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(el); el.select();
+      document.execCommand('copy'); document.body.removeChild(el);
+    }
+    setFn(true);
+    setTimeout(() => setFn(false), 1500);
+  }
 
   // Desktop: close on mousedown outside card — tells parent whether it was outside-click
   useEffect(() => {
@@ -140,19 +153,21 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
             <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>{identifier}{card.iata ? ` / ${card.iata}` : ''} · {capitalize(card.airportType)}</span>
               <button
-                onClick={() => { navigator.clipboard.writeText(identifier).catch(() => {}); }}
+                onClick={() => copyToClipboard(identifier, setIdCopied)}
                 title="Copy identifier"
                 style={{
                   fontSize: 10,
                   padding: '1px 5px',
-                  background: 'rgba(255,255,255,0.2)',
+                  background: idCopied ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)',
                   border: '1px solid rgba(255,255,255,0.3)',
                   borderRadius: 4,
-                  color: 'rgba(255,255,255,0.9)',
+                  color: idCopied ? 'white' : 'rgba(255,255,255,0.9)',
                   cursor: 'pointer',
+                  minWidth: 40,
+                  textAlign: 'center',
                 }}
               >
-                📋
+                {idCopied ? '✓ Copied!' : '📋'}
               </button>
             </div>
           </div>
@@ -171,6 +186,30 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
               <span style={{ fontSize: 12, color: '#475569' }}>{[card.municipality, card.state].filter(Boolean).join(', ')}</span>
             </div>
           )}
+          {/* Coordinates + copy */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coordinates</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#475569' }}>
+                {card.lat.toFixed(4)}, {card.lng.toFixed(4)}
+              </span>
+              <button
+                onClick={() => copyToClipboard(`${card.lat.toFixed(6)}, ${card.lng.toFixed(6)}`, setCoordsCopied)}
+                title="Copy coordinates"
+                style={{
+                  fontSize: 10,
+                  padding: '1px 5px',
+                  background: coordsCopied ? '#dcfce7' : '#f1f5f9',
+                  border: `1px solid ${coordsCopied ? '#86efac' : '#cbd5e1'}`,
+                  borderRadius: 4,
+                  color: coordsCopied ? '#16a34a' : '#64748b',
+                  cursor: 'pointer',
+                }}
+              >
+                {coordsCopied ? '✓' : '📋'}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div style={{ padding: '8px 14px 14px', display: 'flex', gap: 8 }}>
@@ -215,7 +254,7 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
         )}
       </div>
 
-      {/* Body — land name + restriction badge */}
+      {/* Body — land name + restriction badge + coordinates */}
       <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {card.name && (
           <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.4, fontWeight: 500 }}>
@@ -224,6 +263,29 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
         )}
         <RestrictionBadge restriction={card.restriction} />
         {/* Coordinates + copy */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coordinates</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#475569' }}>
+              {card.lat.toFixed(4)}, {card.lng.toFixed(4)}
+            </span>
+            <button
+              onClick={() => copyToClipboard(`${card.lat.toFixed(6)}, ${card.lng.toFixed(6)}`, setCoordsCopied)}
+              title="Copy coordinates"
+              style={{
+                fontSize: 10,
+                padding: '1px 5px',
+                background: coordsCopied ? '#dcfce7' : '#f1f5f9',
+                border: `1px solid ${coordsCopied ? '#86efac' : '#cbd5e1'}`,
+                borderRadius: 4,
+                color: coordsCopied ? '#16a34a' : '#64748b',
+                cursor: 'pointer',
+              }}
+            >
+              {coordsCopied ? '✓' : '📋'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
