@@ -253,7 +253,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
 
   // Exit follow mode when user manually pans the map
   useEffect(() => {
-    function onMapMoveStart() {
+    function onMapMoveStart(e: maplibregl.MapMouseEvent) {
+      // Only exit follow mode for user gestures (those with originalEvent).
+      // Programmatic movements via flyTo/panTo have no originalEvent.
+      if (e.originalEvent === undefined && followModeRef.current) {
+        return; // programmatic — do not exit follow mode
+      }
       if (followModeRef.current) {
         followModeRef.current = false;
         setFollowMode(false);
