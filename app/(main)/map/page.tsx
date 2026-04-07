@@ -128,7 +128,7 @@ export default function MapPage() {
       } else {
         timer = setTimeout(() => {
           buildClickRef.current = 0;
-        }, 2000);
+        }, 1000);
       }
     }
     window.addEventListener('buildinfo-click', handleBuildClick);
