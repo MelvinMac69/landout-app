@@ -111,7 +111,10 @@ export default function MapPage() {
   const [trackUp, setTrackUp] = useState(false);
   const [directToPrompt, setDirectToPrompt] = useState(false);
   const [showBuildInfo, setShowBuildInfo] = useState(false);
+  const [compassBearing, setCompassBearing] = useState(0);
   const buildClickRef = useRef(0);
+  const setCompassBearingRef = useRef(setCompassBearing);
+  setCompassBearingRef.current = setCompassBearing;
 
   // 5-click easter egg: after 5 rapid clicks on the map, show build info
   useEffect(() => {
@@ -147,6 +150,11 @@ export default function MapPage() {
     // Expose direct-to trigger from prompt button
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).landoutTriggerDirectTo = () => setDirectToPrompt(true);
+    // Track map bearing for compass
+    setCompassBearingRef.current(map.getBearing());
+    map.on('move', () => {
+      setCompassBearingRef.current(map.getBearing());
+    });
   }, []);
 
   const handleToggle = useCallback((layerId: string) => {
@@ -174,6 +182,72 @@ export default function MapPage() {
       <MapLegend />
 
       {/* Nearest airports panel — bottom-left, above legend */}
+
+      {/* Compass — visible when track-up is active, shows current bearing and north direction */}
+      {trackUp && (
+        <div style={{
+          position: 'fixed',
+          bottom: 'calc(env(safe-area-inset-bottom) + 182px)',
+          right: 8,
+          zIndex: 60,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 2,
+          pointerEvents: 'none',
+        }}>
+          {/* Compass rose */}
+          <div style={{
+            width: 52,
+            height: 52,
+            borderRadius: '50%',
+            background: 'rgba(26,32,44,0.95)',
+            border: '1.5px solid #4A5568',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            {/* Cardinal labels */}
+            <span style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', fontSize: 8, fontWeight: 700, color: '#EF4444', fontFamily: 'system-ui' }}>N</span>
+            <span style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: '#94A3B8', fontFamily: 'system-ui' }}>S</span>
+            <span style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', fontSize: 7, fontWeight: 600, color: '#94A3B8', fontFamily: 'system-ui' }}>W</span>
+            <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', fontSize: 7, fontWeight: 600, color: '#94A3B8', fontFamily: 'system-ui' }}>E</span>
+            {/* Rotating needle (points north — opposite of bearing) */}
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: 2,
+              height: 20,
+              transformOrigin: '50% 100%',
+              transform: `translate(-50%, -100%) rotate(${-compassBearing}deg)`,
+            }}>
+              {/* North pointer (red) */}
+              <div style={{
+                width: 0, height: 0,
+                borderLeft: '3px solid transparent',
+                borderRight: '3px solid transparent',
+                borderBottom: '12px solid #EF4444',
+                margin: '0 auto',
+              }} />
+              {/* South pointer (gray) */}
+              <div style={{
+                width: 0, height: 0,
+                borderLeft: '2.5px solid transparent',
+                borderRight: '2.5px solid transparent',
+                borderTop: '8px solid #94A3B8',
+                margin: '0 auto',
+              }} />
+            </div>
+            {/* Center dot */}
+            <div style={{ position: 'absolute', top: '50%', left: '50%', width: 5, height: 5, borderRadius: '50%', background: '#D4621A', transform: 'translate(-50%, -50%)' }} />
+          </div>
+          {/* Bearing label */}
+          <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#3B82F6', fontWeight: 600 }}>
+            {Math.round(compassBearing)}°
+          </span>
+        </div>
+      )}
 
       {/* North-Up button — bottom-right, directly above Locate button */}
       <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 136px)', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
@@ -204,7 +278,13 @@ export default function MapPage() {
             transition: 'all 0.2s',
           }}
         >
-          N
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            {/* Rotating arrow: rotates opposite to bearing so it always points to north */}
+            <g transform={`rotate(${-compassBearing})`}>
+              <polygon points="9,2 12,9 9,7 6,9" fill={trackUp ? '#3B82F6' : '#718096'} />
+              <polygon points="9,16 12,9 9,11 6,9" fill={trackUp ? '#1E40AF' : '#4A5568'} />
+            </g>
+          </svg>
         </button>
       </div>
 
