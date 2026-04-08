@@ -23,9 +23,8 @@ interface DirectToDest {
 
 interface DirectToPanelProps {
   dest: DirectToDest;
-  currentPos: { lat: number; lon: number; heading?: number } | null;
+  currentPos: { lat: number; lon: number; heading?: number; speed?: number } | null;
   onClear: () => void;
-  onRecenter?: () => void;
 }
 
 function formatETE(distanceNm: number, groundSpeedKts: number): string {
@@ -47,7 +46,7 @@ function formatDist(nm: number): string {
   return `${Math.round(nm)} NM`;
 }
 
-export function DirectToPanel({ dest, currentPos, onClear, onRecenter }: DirectToPanelProps) {
+export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps) {
   const [visible, setVisible] = useState(false);
   const [bottomVisible, setBottomVisible] = useState(false);
   const prevDestRef = useRef<DirectToDest | null>(null);
@@ -78,8 +77,14 @@ export function DirectToPanel({ dest, currentPos, onClear, onRecenter }: DirectT
     ? calcDistanceNm(currentPos.lat, currentPos.lon, dest.lat, dest.lng)
     : null;
   // Ground speed in knots from heading-bearing approximation using position deltas
-  const gsKts = currentPos?.heading ?? null; // heading ≈ track when moving
-  const ete = distanceNm != null && gsKts ? formatETE(distanceNm, gsKts) : '—';
+  // GPS speed in m/s → knots. Heading is compass direction, not travel direction.
+  const gpsSpeedKts = currentPos?.speed != null ? currentPos.speed * 1.94384 : null;
+  const MOVING_THRESHOLD_KTS = 5;
+  // Use actual GPS speed if moving; otherwise use 90kt cruise for ETE
+  const gsKts = gpsSpeedKts != null ? gpsSpeedKts : null;
+  const ete = distanceNm != null
+    ? formatETE(distanceNm, (gsKts ?? 0) > MOVING_THRESHOLD_KTS ? gsKts! : 90)
+    : '—';
 
   return (
     <>

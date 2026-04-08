@@ -13,13 +13,13 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const [state, setState] = useState<LocState>('idle');
   const [followMode, setFollowMode] = useState(false);
   const [trackUp, setTrackUpState] = useState(false);
-  const [position, setPosition] = useState<{ lat: number; lon: number; heading?: number } | null>(null);
+  const [position, setPosition] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
   const watchId = useRef<number | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const isRequesting = useRef(false);
   const followModeRef = useRef(false);
   const trackUpRef = useRef(false);
-  const positionRef = useRef<{ lat: number; lon: number; heading?: number } | null>(null);
+  const positionRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
   const programmaticRef = useRef(false);
   // True on the very first position update after locate is pressed
   const initialLocateRef = useRef(false);
@@ -90,10 +90,10 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     // in a way that needs suppression. The dead zone handles it correctly.
   }
 
-  function startWatching(lat: number, lon: number, heading?: number) {
+  function startWatching(lat: number, lon: number, heading?: number, speed?: number) {
     stopWatching();
-    setPosition({ lat, lon, heading });
-    positionRef.current = { lat, lon, heading };
+    setPosition({ lat, lon, heading, speed });
+    positionRef.current = { lat, lon, heading, speed };
     updateMarker(lat, lon, heading);
     followModeRef.current = true;
     initialLocateRef.current = true; // first update gets the full flyTo treatment
@@ -105,8 +105,9 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const la = p.coords.latitude;
         const lo = p.coords.longitude;
         const h = p.coords.heading ?? undefined;
-        setPosition({ lat: la, lon: lo, heading: h });
-        positionRef.current = { lat: la, lon: lo, heading: h };
+        const s = p.coords.speed ?? undefined; // m/s
+        setPosition({ lat: la, lon: lo, heading: h, speed: s });
+        positionRef.current = { lat: la, lon: lo, heading: h, speed: s };
         updateMarker(la, lo, h);
         const map = getMap();
         if (followModeRef.current && map) {
@@ -196,7 +197,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       try {
         const pos = await getCurrentPositionOnce();
         isRequesting.current = false;
-        const { latitude: lat, longitude: lon, heading } = pos.coords;
+        const { latitude: lat, longitude: lon, heading, speed } = pos.coords;
         const map = getMap();
         if (map) {
           try {
@@ -220,7 +221,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
             else if (waited >= 5000) { clearInterval(poll); }
           }, 100);
         }
-        startWatching(lat, lon, heading ?? undefined);
+        startWatching(lat, lon, heading ?? undefined, speed ?? undefined);
       } catch {
         isRequesting.current = false;
       }
@@ -246,7 +247,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     try {
       const pos = await getCurrentPositionOnce();
       isRequesting.current = false;
-      const { latitude: lat, longitude: lon, heading } = pos.coords;
+      const { latitude: lat, longitude: lon, heading, speed } = pos.coords;
       const map = getMap();
       if (map) {
         try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch { /* queued */ }
@@ -260,7 +261,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           else if (waited >= 5000) { clearInterval(poll); }
         }, 100);
       }
-      startWatching(lat, lon, heading ?? undefined);
+      startWatching(lat, lon, heading ?? undefined, speed ?? undefined);
     } catch (err: unknown) {
       isRequesting.current = false;
       const geolocationErr = err as { code?: number };

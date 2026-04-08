@@ -784,14 +784,6 @@ export function BackcountryMap({
           dest={directToDest}
           currentPos={currentPosState}
           onClear={handleClearDirectTo}
-          onRecenter={() => {
-            if (currentPosRef.current) {
-              mapInstanceRef.current?.panTo(
-                [currentPosRef.current.lon, currentPosRef.current.lat],
-                { duration: 600 }
-              );
-            }
-          }}
         />
       )}
       {/* Long-0press action menu */}
