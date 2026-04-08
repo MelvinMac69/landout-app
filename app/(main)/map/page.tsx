@@ -179,6 +179,7 @@ export default function MapPage() {
     function onDirectToChange(e: Event) {
       const detail = (e as CustomEvent<{ dest: any; currentPos: any }>).detail;
       if (detail?.dest) {
+        // Start with 95px estimate; will be updated by ResizeObserver via landoutDirectToHeight
         document.documentElement.style.setProperty('--direct-to-offset', '95px');
         setDirectToShift(95);
         setDirectToData(detail);
@@ -188,8 +189,17 @@ export default function MapPage() {
         setDirectToData(null);
       }
     }
+    function onDirectToHeight(e: Event) {
+      const h = (e as CustomEvent<number>).detail;
+      document.documentElement.style.setProperty('--direct-to-offset', `${h}px`);
+      setDirectToShift(h);
+    }
     window.addEventListener('landoutDirectToChange', onDirectToChange);
-    return () => { window.removeEventListener('landoutDirectToChange', onDirectToChange); };
+    window.addEventListener('landoutDirectToHeight', onDirectToHeight);
+    return () => {
+      window.removeEventListener('landoutDirectToChange', onDirectToChange);
+      window.removeEventListener('landoutDirectToHeight', onDirectToHeight);
+    };
   }, []);
 
   return (

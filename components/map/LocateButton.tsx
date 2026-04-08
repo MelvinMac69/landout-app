@@ -23,6 +23,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const programmaticRef = useRef(false);
   // True on the very first position update after locate is pressed
   const initialLocateRef = useRef(false);
+  // True after the FIRST-EVER locate zoom completes — prevents zooming on subsequent re-center taps
+  const hasEverInitiallyLocatedRef = useRef(false);
   // Track the last map center we set (in screen pixels) so we can measure movement
   const lastSetCenterRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -111,9 +113,10 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         updateMarker(la, lo, h);
         const map = getMap();
         if (followModeRef.current && map) {
-          if (initialLocateRef.current) {
-            // First position update after locate: fly to center and zoom in
+          if (initialLocateRef.current && !hasEverInitiallyLocatedRef.current) {
+            // FIRST-EVER locate: fly to center AND zoom in — only happens once ever
             initialLocateRef.current = false;
+            hasEverInitiallyLocatedRef.current = true;
             programmaticRef.current = true;
             try {
               map.flyTo({ center: [lo, la], zoom: 13, duration: 800 });
@@ -185,7 +188,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         setState('following');
         const map = getMap();
         if (map && position) {
-          try { map.flyTo({ center: [position.lon, position.lat], zoom: 13, duration: 800 }); } catch {}
+          // Re-center without zooming — preserves current zoom level
+          try { map.setCenter([position.lon, position.lat]); } catch {}
         }
       }
       return;

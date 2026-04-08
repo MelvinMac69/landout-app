@@ -90,6 +90,16 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
     <>
       {/* ── Top data panel — slides down from top ── */}
       <div
+        ref={(el) => {
+          if (!el) return;
+          const ro = new ResizeObserver(([entry]) => {
+            const h = entry.contentRect.height;
+            if (h > 0) {
+              window.dispatchEvent(new CustomEvent('landoutDirectToHeight', { detail: h }));
+            }
+          });
+          ro.observe(el);
+        }}
         style={{
           position: 'fixed',
           top: 0,
