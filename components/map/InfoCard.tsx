@@ -191,7 +191,7 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
           {/* Runway length (or coordinates fallback) + copy */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {card.runway_length_ft ? 'Runway' : 'Coordinates'}
+              {card.runway_length_ft ? 'Runway Length' : 'Coordinates'}
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {card.runway_length_ft ? (
