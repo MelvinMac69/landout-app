@@ -92,9 +92,12 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
       <div
         ref={(el) => {
           if (!el) return;
+          let lastH = 0;
           const ro = new ResizeObserver(([entry]) => {
-            const h = entry.contentRect.height;
-            if (h > 0) {
+            const h = Math.round(entry.contentRect.height);
+            // Only fire when height actually changes (ignore intermediate animation frames)
+            if (h !== lastH && h > 0) {
+              lastH = h;
               window.dispatchEvent(new CustomEvent('landoutDirectToHeight', { detail: h }));
             }
           });
