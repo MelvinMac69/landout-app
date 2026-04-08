@@ -28,20 +28,22 @@ async function loadLandData(): Promise<{
   nps: GeoJSON.FeatureCollection | null;
   fws: GeoJSON.FeatureCollection | null;
   wilderness: GeoJSON.FeatureCollection | null;
+  fsWilderness: GeoJSON.FeatureCollection | null;
   wsa: GeoJSON.FeatureCollection | null;
 }> {
   try {
-    const [blm, usfs, nps, fws, wilderness, wsa] = await Promise.all([
+    const [blm, usfs, nps, fws, wilderness, fsWilderness, wsa] = await Promise.all([
       fetch('/data/sma-blm.geojson').then(r => r.json()),
       fetch('/data/sma-usfs.geojson').then(r => r.json()),
       fetch('/data/sma-nps.geojson').then(r => r.json()),
       fetch('/data/sma-fws.geojson').then(r => r.json()),
       fetch('/data/wilderness.geojson').then(r => r.json()),
+      fetch('/data/fs-wilderness.geojson').then(r => r.json()),
       fetch('/data/wsa.geojson').then(r => r.json()),
     ]);
-    return { blm, usfs, nps, fws, wilderness, wsa };
+    return { blm, usfs, nps, fws, wilderness, fsWilderness, wsa };
   } catch {
-    return { blm: null, usfs: null, nps: null, fws: null, wilderness: null, wsa: null };
+    return { blm: null, usfs: null, nps: null, fws: null, wilderness: null, fsWilderness: null, wsa: null };
   }
 }
 
@@ -66,30 +68,35 @@ function checkLandStatus(lat: number, lon: number, landData: Awaited<ReturnType<
   try {
     const pt = point([lon, lat]);
 
-    // Check in priority order (most restrictive first)
-    if (pointInAny(pt, landData.blm)) {
-      return { name: 'blm', color: '#DC2626', label: 'BLM' };
-    }
-    if (pointInAny(pt, landData.usfs)) {
-      return { name: 'usfs', color: '#DC2626', label: 'USFS' };
-    }
-    if (pointInAny(pt, landData.nps)) {
-      return { name: 'nps', color: '#DC2626', label: 'NPS' };
-    }
-    if (pointInAny(pt, landData.fws)) {
-      return { name: 'fws', color: '#DC2626', label: 'FWS' };
-    }
+    // Red: Wilderness (BLM or USFS) / WSA = no-go federal restricted
     if (pointInAny(pt, landData.wilderness)) {
       return { name: 'wilderness', color: '#DC2626', label: 'Wilderness' };
     }
+    if (pointInAny(pt, landData.fsWilderness)) {
+      return { name: 'fs-wilderness', color: '#DC2626', label: 'Wilderness' };
+    }
     if (pointInAny(pt, landData.wsa)) {
-      return { name: 'wsa', color: '#D97706', label: 'WSA' };
+      return { name: 'wsa', color: '#DC2626', label: 'WSA' };
     }
 
-    // Not in any restricted overlay — treat as open
-    return { name: 'open', color: '#16A34A', label: 'Open' };
+    // Green: BLM / USFS / NPS / FWS = open multiple-use federal land
+    if (pointInAny(pt, landData.blm)) {
+      return { name: 'blm', color: '#16A34A', label: 'BLM' };
+    }
+    if (pointInAny(pt, landData.usfs)) {
+      return { name: 'usfs', color: '#16A34A', label: 'USFS' };
+    }
+    if (pointInAny(pt, landData.nps)) {
+      return { name: 'nps', color: '#16A34A', label: 'NPS' };
+    }
+    if (pointInAny(pt, landData.fws)) {
+      return { name: 'fws', color: '#16A34A', label: 'FWS' };
+    }
+
+    // Orange: not in any federal overlay = private land
+    return { name: 'private', color: '#D97706', label: 'Private' };
   } catch {
-    return { name: 'open', color: '#16A34A', label: 'Open' };
+    return { name: 'private', color: '#D97706', label: 'Private' };
   }
 }
 
