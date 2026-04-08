@@ -1,27 +1,25 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as turf from '@turf/turf';
 import { point, polygon, booleanPointInPolygon } from '@turf/turf';
 
-// Land overlay data — loaded once at module level
+// Land overlay data
 type LandOverlay = {
   name: string;
-  color: string; // CSS color
+  color: string;
   label: string;
 };
 
 type Position = {
   lat: number;
   lon: number;
-  altitude?: number | null; // meters
-  speed?: number | null; // m/s
+  altitude?: number | null;
+  speed?: number | null;
   heading?: number | null;
 };
 
 type LandStatus = LandOverlay | null;
 
-// Load GeoJSON data for point-in-polygon checks
 async function loadLandData(): Promise<{
   blm: GeoJSON.FeatureCollection | null;
   usfs: GeoJSON.FeatureCollection | null;
@@ -59,7 +57,7 @@ function pointInAny(pt: ReturnType<typeof point>, data: GeoJSON.FeatureCollectio
           if (booleanPointInPolygon(pt, polygon(poly))) return feature;
         }
       }
-    } catch { /* skip invalid geometry */ }
+    } catch { /* skip */ }
   }
   return null;
 }
@@ -69,29 +67,15 @@ function checkLandStatus(lat: number, lon: number, landData: Awaited<ReturnType<
     const pt = point([lon, lat]);
 
     // Red: Wilderness (BLM or USFS) / WSA = no-go federal restricted
-    if (pointInAny(pt, landData.wilderness)) {
-      return { name: 'wilderness', color: '#DC2626', label: 'Wilderness' };
-    }
-    if (pointInAny(pt, landData.fsWilderness)) {
-      return { name: 'fs-wilderness', color: '#DC2626', label: 'Wilderness' };
-    }
-    if (pointInAny(pt, landData.wsa)) {
-      return { name: 'wsa', color: '#DC2626', label: 'WSA' };
-    }
+    if (pointInAny(pt, landData.wilderness)) return { name: 'wilderness', color: '#DC2626', label: 'Wilderness' };
+    if (pointInAny(pt, landData.fsWilderness)) return { name: 'fs-wilderness', color: '#DC2626', label: 'Wilderness' };
+    if (pointInAny(pt, landData.wsa)) return { name: 'wsa', color: '#DC2626', label: 'WSA' };
 
     // Green: BLM / USFS / NPS / FWS = open multiple-use federal land
-    if (pointInAny(pt, landData.blm)) {
-      return { name: 'blm', color: '#16A34A', label: 'BLM' };
-    }
-    if (pointInAny(pt, landData.usfs)) {
-      return { name: 'usfs', color: '#16A34A', label: 'USFS' };
-    }
-    if (pointInAny(pt, landData.nps)) {
-      return { name: 'nps', color: '#16A34A', label: 'NPS' };
-    }
-    if (pointInAny(pt, landData.fws)) {
-      return { name: 'fws', color: '#16A34A', label: 'FWS' };
-    }
+    if (pointInAny(pt, landData.blm)) return { name: 'blm', color: '#16A34A', label: 'BLM' };
+    if (pointInAny(pt, landData.usfs)) return { name: 'usfs', color: '#16A34A', label: 'USFS' };
+    if (pointInAny(pt, landData.nps)) return { name: 'nps', color: '#16A34A', label: 'NPS' };
+    if (pointInAny(pt, landData.fws)) return { name: 'fws', color: '#16A34A', label: 'FWS' };
 
     // Orange: not in any federal overlay = private land
     return { name: 'private', color: '#D97706', label: 'Private' };
@@ -116,21 +100,40 @@ function formatAltitude(altMeters: number | null | undefined): string {
 
 export function DataDashboard() {
   const [position, setPosition] = useState<Position | null>(null);
-  const [landStatus, setLandStatus] = useState<LandStatus>({ name: 'open', color: '#16A34A', label: 'Open' });
+  const [landStatus, setLandStatus] = useState<LandStatus>({ name: 'private', color: '#D97706', label: 'Private' });
   const [speedUnit, setSpeedUnit] = useState<'kts' | 'mph'>('kts');
+  const [isVisible, setIsVisible] = useState(false);
   const landDataRef = useRef<Awaited<ReturnType<typeof loadLandData>> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastHeightRef = useRef<number>(0);
 
   // Load land overlay data once
   useEffect(() => {
     loadLandData().then(data => { landDataRef.current = data; });
   }, []);
 
-  // Listen for position updates from BackcountryMap
+  // Measure height and fire event when visible
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const h = Math.round(entry.contentRect.height);
+        if (h > 0 && h !== lastHeightRef.current) {
+          lastHeightRef.current = h;
+          window.dispatchEvent(new CustomEvent('landoutDataDashboardHeight', { detail: h }));
+        }
+      }
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // Listen for position updates from LocateButton
   useEffect(() => {
     function onPositionUpdate(e: Event) {
       const pos = (e as CustomEvent<Position>).detail;
       setPosition(pos);
-      // Check land status
+      setIsVisible(true);
       if (pos && pos.lat != null && pos.lon != null && landDataRef.current) {
         const status = checkLandStatus(pos.lat, pos.lon, landDataRef.current);
         setLandStatus(status);
@@ -145,80 +148,81 @@ export function DataDashboard() {
 
   return (
     <div
+      ref={containerRef}
       style={{
         position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom) + 67px)',
-        left: 8,
-        zIndex: 50,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        pointerEvents: 'auto',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 40,
+        // Slide down from top: start hidden (translateY(-100%)), slide in when visible
+        transform: isVisible ? 'translateY(0)' : 'translateY(-100%)',
+        transition: 'transform 0.3s ease',
+        paddingTop: 'calc(8px + env(safe-area-inset-top))',
+        paddingBottom: 8,
+        paddingLeft: 12,
+        paddingRight: 12,
+        background: '#141414',
+        borderBottom: `2px solid ${landStatus?.color ?? '#16A34A'}`,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
       }}
     >
-      {/* Land status — color-coded by overlay */}
-      <div
-        onClick={() => {}} // future: could show overlay name
-        style={{
-          background: '#141414',
-          border: `1.5px solid ${landStatus?.color ?? '#16A34A'}`,
-          borderRadius: 8,
-          padding: '5px 10px',
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: landStatus?.color ?? '#16A34A',
-          textAlign: 'center',
-          minWidth: 72,
-          boxShadow: `0 2px 8px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)`,
-          cursor: 'default',
-          userSelect: 'none',
-        }}
-      >
-        {landStatus?.label ?? 'Open'}
-      </div>
-
-      {/* Speed + Altitude */}
-      <div
-        style={{
-          background: '#141414',
-          border: '1.5px solid rgba(255,255,255,0.1)',
-          borderRadius: 8,
-          padding: '5px 10px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)',
-          minWidth: 80,
-        }}
-      >
-        {/* Speed — tap to toggle kts/mph */}
+      {/* Horizontal row: speed | altitude | land status */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* Speed */}
         <div
           onClick={() => setSpeedUnit(u => u === 'kts' ? 'mph' : 'kts')}
           style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: '#F97316', // aviation orange
+            fontSize: 13,
+            fontWeight: 700,
+            color: '#F97316',
             cursor: 'pointer',
             userSelect: 'none',
-            lineHeight: 1.2,
+            minWidth: 64,
           }}
           title="Tap to toggle kts/mph"
         >
           {formatSpeed(speed, speedUnit)}
         </div>
 
+        {/* Divider */}
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.15)' }} />
+
         {/* Altitude */}
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: '#94A3B8',
-            lineHeight: 1.2,
-          }}
-        >
+        <div style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: '#94A3B8',
+        }}>
           {formatAltitude(altitude)}
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Land status indicator — colored dot + label */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          <div style={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: landStatus?.color ?? '#16A34A',
+            boxShadow: `0 0 6px ${landStatus?.color ?? '#16A34A'}80`,
+            flexShrink: 0,
+          }} />
+          <span style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: landStatus?.color ?? '#16A34A',
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+          }}>
+            {landStatus?.label ?? 'Private'}
+          </span>
         </div>
       </div>
     </div>
