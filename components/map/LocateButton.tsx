@@ -12,19 +12,29 @@ interface LocateButtonProps {
 export function LocateButton({ mapRef }: LocateButtonProps) {
   const [state, setState] = useState<LocState>('idle');
   const [followMode, setFollowMode] = useState(false);
-  const [position, setPosition] = useState<{ lat: number; lon: number; heading?: number } | null>(null);
+  const [trackUp, setTrackUpState] = useState(false);
+  const [position, setPosition] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
   const watchId = useRef<number | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
-  // Prevent double-taps during permission dialog on iOS
   const isRequesting = useRef(false);
-  // Track follow mode ref for use in watch callback (avoids stale closure)
   const followModeRef = useRef(false);
+  const trackUpRef = useRef(false);
+  const positionRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
+  const programmaticRef = useRef(false);
+  // True on the very first position update after locate is pressed
+  const initialLocateRef = useRef(false);
+  // True after the FIRST-EVER locate zoom completes — prevents zooming on subsequent re-center taps
+  const hasEverInitiallyLocatedRef = useRef(false);
+  // Track the last map center we set (in screen pixels) so we can measure movement
+  const lastSetCenterRef = useRef<{ x: number; y: number } | null>(null);
 
-  /** Stable map accessor — uses window singleton as fallback in case mapRef isn't set yet */
   function getMap(): maplibregl.Map | null {
+    // Try mapRef first (set during Map mount), then window fallback
     if (mapRef.current) return mapRef.current;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (window as any).__landoutMap ?? null;
+    const winMap = (window as any).__landoutMap ?? null;
+    if (winMap) return winMap;
+    return null;
   }
 
   function updateMarker(lat: number, lon: number, heading?: number) {
@@ -46,7 +56,6 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         border-bottom: 9px solid #3B82F6;
       `;
       el.appendChild(arrow);
-
       markerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
         .setLngLat([lon, lat])
         .addTo(map);
@@ -76,13 +85,20 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     }
   }
 
-  /** Start live tracking after we have an initial position */
-  function startWatching(lat: number, lon: number, heading?: number) {
+  function applyTrackUp(on: boolean) {
+    trackUpRef.current = on;
+    setTrackUpState(on);
+    // Don't set programmaticRef here — setBearing doesn't trigger movestart
+    // in a way that needs suppression. The dead zone handles it correctly.
+  }
+
+  function startWatching(lat: number, lon: number, heading?: number, speed?: number) {
     stopWatching();
-    setPosition({ lat, lon, heading });
+    setPosition({ lat, lon, heading, speed });
+    positionRef.current = { lat, lon, heading, speed };
     updateMarker(lat, lon, heading);
-    // Auto-enter follow mode on first acquisition — single tap = full tracking
     followModeRef.current = true;
+    initialLocateRef.current = true; // first update gets the full flyTo treatment
     setFollowMode(true);
     setState('active');
 
@@ -91,11 +107,56 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const la = p.coords.latitude;
         const lo = p.coords.longitude;
         const h = p.coords.heading ?? undefined;
-        setPosition({ lat: la, lon: lo, heading: h });
+        const s = p.coords.speed ?? undefined; // m/s
+        setPosition({ lat: la, lon: lo, heading: h, speed: s });
+        positionRef.current = { lat: la, lon: lo, heading: h, speed: s };
         updateMarker(la, lo, h);
-        if (followModeRef.current) {
-          const map = getMap();
-          if (map) map.panTo([lo, la], { duration: 500 });
+        const map = getMap();
+        if (followModeRef.current && map) {
+          if (initialLocateRef.current && !hasEverInitiallyLocatedRef.current) {
+            // FIRST-EVER locate: fly to center AND zoom in — only happens once ever
+            initialLocateRef.current = false;
+            hasEverInitiallyLocatedRef.current = true;
+            programmaticRef.current = true;
+            try {
+              map.flyTo({ center: [lo, la], zoom: 13, duration: 800 });
+            } catch {
+              map.setCenter([lo, la]);
+              map.zoomTo(13);
+            }
+            // Track where we set the center so we can measure movement from it
+            try {
+              lastSetCenterRef.current = map.project([lo, la]);
+            } catch { /* ignore */ }
+            map.once('moveend', () => { programmaticRef.current = false; });
+          } else {
+            // Subsequent updates: only recenter if user has moved significantly off-center
+            // Use a 200px dead zone — only pan when the user drifts beyond this radius
+            const DEAD_ZONE_PX = 150;
+            let currentMapCenter: maplibregl.LngLat | null = null;
+            try { currentMapCenter = map.getCenter(); } catch { /* ignore */ }
+            if (currentMapCenter) {
+              const lastCenter = lastSetCenterRef.current;
+              const projectedPos = (() => { try { return map.project([lo, la]); } catch { return null; } })();
+              if (lastCenter && projectedPos) {
+                const dx = projectedPos.x - lastCenter.x;
+                const dy = projectedPos.y - lastCenter.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > DEAD_ZONE_PX) {
+                  // User has moved significantly — recenter without animation
+                  programmaticRef.current = true;
+                  map.setCenter([lo, la]);
+                  lastSetCenterRef.current = projectedPos;
+                  // Clear programmatic flag after a tick
+                  requestAnimationFrame(() => { programmaticRef.current = false; });
+                }
+                // If within dead zone, do nothing — don't recenter
+              }
+            }
+          }
+          if (trackUpRef.current && h !== undefined) {
+            map.setBearing(h);
+          }
         }
       },
       (err) => {
@@ -114,45 +175,59 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       setState('unavailable');
       return;
     }
-
-    // Prevent double-tap during permission dialog on iOS
     if (isRequesting.current) return;
 
-    // Already tracking — tap = stop
     if (watchId.current !== null) {
       if (followMode) {
         setFollowMode(false);
         setState('active');
       } else {
-        stopWatching();
-        clearMarker();
-        setPosition(null);
-        setState('idle');
+        // Restore following mode (user panned, then tapped to re-center)
+        followModeRef.current = true;
+        setFollowMode(true);
+        setState('following');
+        const map = getMap();
+        if (map && position) {
+          // Re-center without zooming — preserves current zoom level
+          try { map.setCenter([position.lon, position.lat]); } catch {}
+        }
       }
       return;
     }
 
-    // Already denied — try once more (user may have reset in Settings)
     if (state === 'denied') {
       setState('acquiring');
       isRequesting.current = true;
       try {
         const pos = await getCurrentPositionOnce();
         isRequesting.current = false;
-        const { latitude: lat, longitude: lon } = pos.coords;
-        const heading = pos.coords.heading ?? undefined;
+        const { latitude: lat, longitude: lon, heading, speed } = pos.coords;
         const map = getMap();
         if (map) {
-          // Use once('idle') so zoom is set AFTER map sources finish loading,
-          // preventing the initial world-view zoom from overriding our nav zoom.
-          const zoomFn = () => map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
-          if (map.loaded()) zoomFn();
-          else map.once('idle', zoomFn);
+          try {
+            map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+            // After flyTo animation ends, enforce zoom level
+            map.once('moveend', () => { try { if (map.getZoom() < 12) map.zoomTo(13, { duration: 400 }); } catch {} });
+          } catch { /* queued */ }
+        } else {
+          // Map not ready — poll until it is, then flyTo
+          let waited = 0;
+          const poll = setInterval(() => {
+            waited += 100;
+            const m = getMap();
+            if (m) {
+              clearInterval(poll);
+              try {
+                m.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+                m.once('moveend', () => { try { if (m.getZoom() < 12) m.zoomTo(13, { duration: 400 }); } catch {} });
+              } catch {}
+            }
+            else if (waited >= 5000) { clearInterval(poll); }
+          }, 100);
         }
-        startWatching(lat, lon, heading);
+        startWatching(lat, lon, heading ?? undefined, speed ?? undefined);
       } catch {
         isRequesting.current = false;
-        // Still denied — stay in denied state
       }
       return;
     }
@@ -160,18 +235,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     setState('acquiring');
     isRequesting.current = true;
 
-    // On iOS Safari: if permission was previously denied (user dismissed prompt without
-    // choosing), getCurrentPosition fails immediately with PERMISSION_DENIED before
-    // the native dialog can appear. Use the Permissions API to check the current
-    // state first — if 'denied', show denied UI without calling getCurrentPosition.
     let permissionState: PermissionState | null = null;
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (navigator.permissions as any).query({ name: 'geolocation' });
       permissionState = result.state as PermissionState;
-    } catch {
-      // Permissions API not available — proceed with getCurrentPosition
-    }
+    } catch { /* Permissions API not available */ }
 
     if (permissionState === 'denied') {
       isRequesting.current = false;
@@ -179,73 +248,113 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       return;
     }
 
-    // permissionState is 'granted' or 'prompt' (or unknown) — proceed
     try {
       const pos = await getCurrentPositionOnce();
       isRequesting.current = false;
-      const { latitude: lat, longitude: lon } = pos.coords;
-      const heading = pos.coords.heading ?? undefined;
+      const { latitude: lat, longitude: lon, heading, speed } = pos.coords;
       const map = getMap();
       if (map) {
-        const zoomFn = () => map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
-        if (map.loaded()) zoomFn();
-        else map.once('idle', zoomFn);
+        try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch { /* queued */ }
+      } else {
+        // Map not ready — poll until it is, then flyTo
+        let waited = 0;
+        const poll = setInterval(() => {
+          waited += 100;
+          const m = getMap();
+          if (m) { clearInterval(poll); try { m.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch {} }
+          else if (waited >= 5000) { clearInterval(poll); }
+        }, 100);
       }
-      startWatching(lat, lon, heading);
+      startWatching(lat, lon, heading ?? undefined, speed ?? undefined);
     } catch (err: unknown) {
       isRequesting.current = false;
       const geolocationErr = err as { code?: number };
-      if (geolocationErr.code === 1 /* PERMISSION_DENIED */) {
-        setState('denied');
-      } else {
-        setState('unavailable');
-      }
+      setState(geolocationErr.code === 1 ? 'denied' : 'unavailable');
     }
   }
 
-  /** getCurrentPosition as a Promise, timeout 20s */
   function getCurrentPositionOnce(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
-      // Use low accuracy for initial fix on iOS — faster Time To First Fix,
-      // then watchPosition with high accuracy for live tracking
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        maximumAge: 0,
-        timeout: 20000,
+        enableHighAccuracy: false, maximumAge: 0, timeout: 20000,
       });
     });
   }
 
-  function toggleFollow() {
-    const next = !followModeRef.current;
-    followModeRef.current = next;
-    setFollowMode(next);
-    if (next && position) {
-      const map = getMap();
-      if (map) map.panTo([position.lon, position.lat], { duration: 500 });
-    }
-  }
-
-  // Expose location state to window for BackcountryMap's Direct To feature.
-  // Update window IMMEDIATELY on any change (not just on re-render) using a stable ref.
-  const stateRef = useRef({ state, followMode, position });
+  // Listen for track-up toggle from page.tsx
   useEffect(() => {
-    stateRef.current = { state, followMode, position };
+    const handler = (e: Event) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      applyTrackUp((e as any).detail ?? false);
+    };
+    window.addEventListener('landoutSetTrackUp', handler);
+    return () => window.removeEventListener('landoutSetTrackUp', handler);
+  }, []);
+
+  // Expose location state to window
+  const stateRef = useRef({ state, followMode, position, trackUp });
+  useEffect(() => {
+    stateRef.current = { state, followMode, position, trackUp };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).landoutLocationState = stateRef.current;
   });
-  // Also write on cleanup
+
+  // Exit follow mode when user manually pans the map
   useEffect(() => {
-    return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (window as any).landoutLocationState;
-    };
-  }, []);
+    function onMapMoveStart(e: maplibregl.MapMouseEvent) {
+      // Skip dead-zone check for our own programmatic flyTo movements.
+      // Clear programmaticRef on moveend so user pans work immediately after.
+      if (e.originalEvent === undefined && programmaticRef.current && followModeRef.current) {
+        return;
+      }
+
+      if (!followModeRef.current) return;
+
+      const map = getMap();
+      const pos = positionRef.current;
+      if (!map || !pos) return;
+
+      // Dead zone: 15% inset from each edge (70% of screen width/height).
+      // GPS position can drift within this zone without exiting follow mode.
+      const w = window.innerWidth || 1;
+      const h = window.innerHeight || 1;
+      const dz = {
+        left: w * 0.15,
+        right: w * 0.85,
+        top: h * 0.20,
+        bottom: h * 0.80,
+      };
+      let screenPt: maplibregl.Point | null = null;
+      try { screenPt = map.project([pos.lon, pos.lat]); } catch { /* projection failed */ }
+      if (!screenPt) return; // Can't project — stay in follow mode
+      if (
+        screenPt.x >= dz.left &&
+        screenPt.x <= dz.right &&
+        screenPt.y >= dz.top &&
+        screenPt.y <= dz.bottom
+      ) {
+        // Still inside dead zone — stay in follow mode
+        return;
+      }
+
+      // Outside dead zone — exit follow mode
+      followModeRef.current = false;
+      setFollowMode(false);
+      setState('active');
+    }
+    const map = getMap();
+    if (map) {
+      map.on('movestart', onMapMoveStart);
+      return () => { map.off('movestart', onMapMoveStart); };
+    }
+  }, [state]);
 
   useEffect(() => {
     return () => {
       stopWatching();
       clearMarker();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).landoutLocationState;
     };
   }, []);
 
@@ -281,21 +390,17 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         onClick={handleLocate}
         title={buttonTitle}
         style={{
-          width: 42,
-          height: 42,
-          borderRadius: 8,
-          background: followMode ? '#1A202C' : state === 'active' ? '#2D3748' : state === 'denied' ? '#2D3748' : '#1A202C',
+          width: 42, height: 42, borderRadius: 8,
+          background: followMode ? '#141414' : state === 'active' ? '#1A1A1A' : state === 'denied' ? '#1A1A1A' : '#141414',
           border: `1.5px solid ${followMode ? '#D4621A' : state === 'active' ? '#D4621A' : state === 'denied' ? '#EF4444' : '#4A5568'}`,
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer',
           color: followMode ? '#D4621A' : state === 'active' ? '#C9B99A' : state === 'denied' ? '#EF4444' : '#718096',
           transition: 'all 0.2s',
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill={followMode ? '#1A202C' : 'none'} stroke={followMode ? 'white' : stateColors[state]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill={followMode ? '#141414' : 'none'} stroke={followMode ? 'white' : stateColors[state]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {state === 'acquiring' ? (
             <><circle cx="12" cy="12" r="10" strokeDasharray="5 3"/><circle cx="12" cy="12" r="3" fill="#F59E0B" stroke="none"/></>
           ) : state === 'denied' ? (

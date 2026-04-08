@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Layers, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { BASEMAP_STYLES, type BasemapId } from './BackcountryMap';
@@ -19,16 +19,16 @@ interface MapLayerToggleProps {
 }
 
 const LAYER_COLOR_OVERRIDES: Partial<Record<string, string>> = {
-  'wilderness-fill':    '#1A202C',
+  'wilderness-fill':    '#141414',
   'wsa-fill':          '#D4621A',
-  'fs-wilderness-fill': '#1A202C',
-  'sma-nps-fill':      '#1A202C',
+  'fs-wilderness-fill': '#141414',
+  'sma-nps-fill':      '#141414',
   'sma-fws-fill':      '#D97706',
   'sma-blm-fill':      '#C9B99A',
-  'sma-usfs-fill':     '#2D3748',
+  'sma-usfs-fill':     '#1A1A1A',
   'airport-fill':      '#1D4ED8',
   'sma-blm-ak-fill':  '#C9B99A',
-  'ak-ond-fill':       '#1A202C',
+  'ak-ond-fill':       '#141414',
 };
 
 function SectionHeader({
@@ -72,6 +72,25 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [basemapsOpen, setBasemapsOpen] = useState(true);
   const [overlaysOpen, setOverlaysOpen] = useState(true);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close panel when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    // Delay to avoid immediately closing from the same click that opened it
+    const t = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 50);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const visibleCount = layers.filter((l) => l.visible).length;
 
@@ -87,7 +106,7 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
   }
 
   return (
-    <div>
+    <div ref={panelRef}>
       {isOpen ? (
         /* Open panel — dark charcoal */
         <div
@@ -148,7 +167,7 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
                         cursor: 'pointer',
                         fontSize: 11,
                         fontWeight: 700,
-                        background: isActive ? 'var(--landout-aviation)' : '#1A202C',
+                        background: isActive ? 'var(--landout-aviation)' : '#141414',
                         color: isActive ? 'white' : '#A0998F',
                         transition: 'all 0.15s',
                         display: 'flex',

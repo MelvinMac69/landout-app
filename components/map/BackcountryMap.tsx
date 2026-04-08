@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
+import { MapGrid } from './MapGrid';
 import { LocateButton } from './LocateButton';
-import { DirectToPanel, ActionMenu } from './DirectTo';
+import { ActionMenu } from './DirectTo';
 import { MeasureRuler } from './MeasureRuler';
 import { InfoCard } from './InfoCard';
 import type { AirportInfo, LandInfo } from './InfoCard';
@@ -48,13 +49,12 @@ export const OVERLAY_LAYERS = [
   { id: 'ak-ond-fill', label: 'AK Wilderness/WSA', color: '#DC2626', description: 'Alaska designated wilderness and WSAs — no landing' },
 ] as const;
 
-export type BasemapId = 'osm' | 'topo' | 'satellite' | 'vfr';
+export type BasemapId = 'osm' | 'topo' | 'satellite';
 
 export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> = {
   osm:      { label: 'Map',      icon: '🗺️' },
   topo:     { label: 'Topo',     icon: '⛰️' },
   satellite:{ label: 'Satellite', icon: '🛰️' },
-  vfr:      { label: 'VFR Chart', icon: '✈️' },
 };
 
 function buildStyle(basemap: BasemapId) {
@@ -74,8 +74,8 @@ function buildStyle(basemap: BasemapId) {
     tiles = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
     attribution = '© Esri World Imagery';
   } else {
-    tiles = ['https://server.arcgisonline.com/arcgis/rest/services/Specialty/World_Navigation_Charts/MapServer/tile/{z}/{y}/{x}'];
-    attribution = '© Esri — For planning only, not for navigation';
+    // Exhaustive check — should never be reached since BasemapId = 'osm' | 'topo' | 'satellite'
+    throw new Error(`Unknown basemap: ${basemap}`);
   }
   return {
     version: 8 as const,
@@ -98,20 +98,39 @@ export function BackcountryMap({
   const [loaded, setLoaded] = useState(false);
   const [basemap, setBasemap] = useState<BasemapId>('osm');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
   const diagTapCount = useRef(0);
   const diagTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Direct To state
   const [directToDest, setDirectToDest] = useState<DirectToDest | null>(null);
+  // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
+  const currentPosRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
+  const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
+
+  // Fire window event when Direct To changes so page.tsx can render the panel
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+      detail: { dest: directToDest, currentPos: currentPosState },
+    }));
+  }, [directToDest, currentPosState]);
   const [droppedPins, setDroppedPins] = useState<DroppedPin[]>([]);
   const [actionMenu, setActionMenu] = useState<{ x: number; y: number; lng: number; lat: number; airportName?: string } | null>(null);
   const [infoCard, setInfoCard] = useState<{ data: AirportInfo | LandInfo; screenX: number; screenY: number } | null>(null);
-
-  // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
-  const currentPosRef = useRef<{ lat: number; lon: number; heading?: number } | null>(null);
-  const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number } | null>(null);
   // Block click after long-press (300ms)
   const suppressClickRef = useRef(false);
+  // Track measure mode so map click handler can defer to MeasureRuler
+  const measurePhaseRef = useRef<'off' | 'placingB' | 'placed'>('off');
+  // Suppress next InfoCard open — set when clicking outside InfoCard closes it
+  // Prevents: click-outside closes → same click reopens another card
+  const suppressInfoCardOpenRef = useRef(false);
+
+  // Expose setDirectToDest so page.tsx can clear Direct To
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    (window as any).__landoutSetDirectToDest = setDirectToDest;
+    return () => { delete (window as any).__landoutSetDirectToDest; };
+  }, []);
 
   // Debug: count touch events reaching the map
   const touchCountRef = useRef(0);
@@ -321,46 +340,52 @@ export function BackcountryMap({
       }
     } catch (err) { console.error('[load] airports', err); }
     if (routesRef.current?.features?.length) {
-      map.current.addSource('routes-source', { type: 'geojson', data: routesRef.current });
-      map.current.addLayer({
-        id: 'routes-line', type: 'line', source: 'routes-source',
-        paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-dasharray': [2, 1] },
-      });
+      if (!map.current.getSource('routes-source')) {
+        map.current.addSource('routes-source', { type: 'geojson', data: routesRef.current });
+        map.current.addLayer({
+          id: 'routes-line', type: 'line', source: 'routes-source',
+          paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-dasharray': [2, 1] },
+        });
+      }
     }
 
     // Direct To line — magenta line from current GPS to destination
-    map.current.addSource('directto-source', {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    });
-    map.current.addLayer({
-      id: 'directto-line',
-      type: 'line',
-      source: 'directto-source',
-      paint: {
-        'line-color': '#FF00FF',
-        'line-width': 4,
-        'line-opacity': 0.9,
-      },
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-    });
+    if (!map.current.getSource('directto-source')) {
+      map.current.addSource('directto-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.current.addLayer({
+        id: 'directto-line',
+        type: 'line',
+        source: 'directto-source',
+        paint: {
+          'line-color': '#FF00FF',
+          'line-width': 4,
+          'line-opacity': 0.9,
+        },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+    }
 
     // Dropped pins source
-    map.current.addSource('pins-source', {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    });
-    map.current.addLayer({
-      id: 'pins-layer',
-      type: 'circle',
-      source: 'pins-source',
-      paint: {
-        'circle-radius': 6,
-        'circle-color': '#3B82F6',
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#ffffff',
-      },
-    });
+    if (!map.current.getSource('pins-source')) {
+      map.current.addSource('pins-source', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.current.addLayer({
+        id: 'pins-layer',
+        type: 'circle',
+        source: 'pins-source',
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#3B82F6',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+    }
   }
 
   // Inject popup styles
@@ -394,7 +419,7 @@ export function BackcountryMap({
     const style = document.createElement('style');
     style.textContent = `
       .maplibregl-ctrl-top-left { top: max(4px, env(safe-area-inset-top)) !important; left: 8px !important; }
-      .maplibregl-ctrl-bottom-left { bottom: 170px !important; left: 8px !important; }
+      .maplibregl-ctrl-bottom-left { bottom: 110px !important; left: 8px !important; }
       .maplibregl-ctrl-scale { border-color: #64748B !important; color: #64748B !important; background: rgba(255,255,255,0.85) !important; font-size: 10px !important; }
     `;
     document.head.appendChild(style);
@@ -446,11 +471,29 @@ export function BackcountryMap({
     // ── Unified click handler ──────────────────────────────────────────────────────────
     // Priority: airport dots (ActionMenu) > dropped pins (ActionMenu) > land (inspector popup)
     mapInstance.on('click', (e) => {
+      // If MeasureRuler is in placingB phase, let it handle the click
+      if (measurePhaseRef.current === 'placingB') return;
       if (suppressClickRef.current) return;
+      // Right-click (button=2) — contextmenu will handle it, suppress InfoCard
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((e.originalEvent as any)?.button === 2) return;
+      // Click-outside previously closed InfoCard — suppress this click from opening a new one
+      if (suppressInfoCardOpenRef.current) {
+        suppressInfoCardOpenRef.current = false;
+        closeAllPopups();
+        setInfoCard(null);
+        return;
+      }
       closeAllPopups();
 
       const allFeatures = mapInstance.queryRenderedFeatures(e.point);
-      if (!allFeatures.length) return;
+      if (!allFeatures.length) {
+        // Clicked on empty map — dismiss any open popup/card
+        setInfoCard(null);
+        setActionMenu(null);
+        mapInstance.getCanvas().style.cursor = '';
+        return;
+      }
       mapInstance.getCanvas().style.cursor = 'pointer';
 
       // 1. Airport dot tap → InfoCard
@@ -556,7 +599,7 @@ export function BackcountryMap({
         const lngLat = mapInstance.unproject([touchPos.x, touchPos.y]);
         mapInstance.fire('longpress', { lngLat, point: touchPos });
       }, LONG_PRESS_MS);
-    }, { passive: false, capture: true });
+    }, { passive: true });
 
     canvas.addEventListener('touchmove', () => {
       if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
@@ -573,23 +616,19 @@ export function BackcountryMap({
       touchPos = null;
     }, { passive: true, capture: true });
 
-    // Desktop right-click / long-press
+    // Desktop right-click — directly open MeasureRuler context menu.
+    // Do NOT fire 'longpress' (which would also fire ActionMenu).
     mapInstance.on('contextmenu', (e) => {
       e.preventDefault();
       suppressClickRef.current = true;
+      setInfoCard(null);
+      setActionMenu(null);
       setTimeout(() => { suppressClickRef.current = false; }, 400);
-      mapInstance.fire('longpress', { lngLat: e.lngLat, point: { x: e.point.x, y: e.point.y } });
-    });
-
-    // Handle the longpress event (unified for both desktop and mobile)
-    mapInstance.on('longpress', (e: any) => {
-      closeAllPopups();
-      const { lngLat, point } = e;
-      // Check if there's an airport feature at this point
-      const features = mapInstance.queryRenderedFeatures(point as maplibregl.Point);
-      const airportFeature = features.find((f: maplibregl.MapGeoJSONFeature) => f.layer?.id === 'airport-fill');
-      const airportName = airportFeature?.properties?.name;
-      setActionMenu({ x: point.x, y: point.y, lng: lngLat.lng, lat: lngLat.lat, airportName });
+      // Open MeasureRuler's dark context menu directly
+      const win = window as typeof window & { landoutMeasureLongPress?: (lng: number, lat: number, screenX: number, screenY: number) => void };
+      if (win.landoutMeasureLongPress) {
+        win.landoutMeasureLongPress(e.lngLat.lng, e.lngLat.lat, e.point.x, e.point.y);
+      }
     });
 
     // ── GPS sync from LocateButton ────────────────────────────────────────────────
@@ -646,6 +685,7 @@ export function BackcountryMap({
       landoutGetBasemap: () => BasemapId;
       landoutToggleDiagnostics: () => void;
       landoutSetDirectTo: (dest: DirectToDest | null) => void;
+      landoutDropPin: (lng: number, lat: number, name?: string) => void;
     };
     const switchTo = (id: BasemapId) => {
       if (!map.current || id === basemap) return;
@@ -663,13 +703,34 @@ export function BackcountryMap({
       applyVisibility(id);
     };
     win.landoutGetBasemap = () => basemap;
-    win.landoutToggleDiagnostics = () => setShowDiagnostics((v) => !v);
+    (window as any).landoutToggleGrid = () => setShowGrid((v) => !v);
     win.landoutSetDirectTo = (dest) => {
       setDirectToDest(dest);
       setInfoCard(null);
       setActionMenu(null);
     };
+    // MeasureRuler calls this to drop a pin from right-click "Save Pin"
+    win.landoutDropPin = (lng: number, lat: number, name?: string) => {
+      handleDropPin(lng, lat, name);
+    };
+
+    // MeasureRuler listens for mobile long-press → show context menu at that location
+    if (map.current) {
+      try {
+        map.current.on('longpress', (e: any) => {
+          try {
+            const point = e.point as { x: number; y: number } | undefined;
+            (window as any).landoutMeasureLongPress(
+              e.lngLat.lng, e.lngLat.lat,
+              point?.x ?? 0, point?.y ?? 0
+            );
+          } catch {}
+        });
+      } catch {}
+    }
   });
+
+
 
   // Actions called from ActionMenu / InfoCard
   function handleDirectTo(lng: number, lat: number, name?: string) {
@@ -694,10 +755,24 @@ export function BackcountryMap({
     }
   }
 
+  // Grid overlay toggle — press G to show/hide debug grid
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'g' || e.key === 'G') {
+        if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+        setShowGrid((v) => !v);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <div className="relative w-full h-full">
       {/* Full-screen map container */}
       <div ref={mapContainer} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+      {/* Debug grid overlay — press G to toggle */}
+      <MapGrid visible={showGrid} cols={10} rows={8} />
       {!loaded && (
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>
@@ -707,38 +782,25 @@ export function BackcountryMap({
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
       {/* Locate button — bottom-right, keeps BasemapToggle clear on left side */}
-      <div style={{ position: 'absolute', bottom: 120, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 90px + var(--direct-to-offset, 0px))', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
       {/* Direct To info card */}
-      <MeasureRuler map={mapInstanceRef.current} />
-      {directToDest && (
-        <DirectToPanel
-          dest={directToDest}
-          currentPos={currentPosState}
-          onClear={handleClearDirectTo}
-          onRecenter={() => {
-            if (currentPosRef.current) {
-              mapInstanceRef.current?.panTo(
-                [currentPosRef.current.lon, currentPosRef.current.lat],
-                { duration: 600 }
-              );
-            }
-          }}
-        />
-      )}
+      {/* MeasureRuler — handles right-click menu, two-finger measure, draggable endpoints */}
+      <MeasureRuler
+        map={mapInstanceRef.current}
+        onMeasurePhaseChange={(phase) => { measurePhaseRef.current = phase; }}
+        onCtxMenuOpen={() => { suppressClickRef.current = true; }}
+      />
+
       {/* Long-0press action menu */}
       {actionMenu && (
         <ActionMenu
           x={actionMenu.x}
           y={actionMenu.y}
+          lat={actionMenu.lat}
+          lng={actionMenu.lng}
           items={[
-            {
-              label: 'Direct To',
-              icon: '✈',
-              onClick: () => handleDirectTo(actionMenu.lng, actionMenu.lat, actionMenu.airportName),
-              color: '#BE185D',
-            },
             {
               label: 'Drop Pin',
               icon: '📍',
@@ -756,6 +818,7 @@ export function BackcountryMap({
           screenX={infoCard.screenX}
           screenY={infoCard.screenY}
           onClose={() => setInfoCard(null)}
+          onCloseOutside={() => { suppressInfoCardOpenRef.current = true; }}
           onDirectTo={(lng, lat, name) => handleDirectTo(lng, lat, name)}
           onDropPin={infoCard.data.type === 'land' ? (lng, lat) => handleDropPin(lng, lat) : undefined}
         />

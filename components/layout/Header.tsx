@@ -13,7 +13,7 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="h-14 bg-[#1a1f2e] border-b border-slate-700/50 flex items-center px-4 gap-6 sticky top-0 z-50">
+    <header className="h-14 bg-[#1a1f2e] border-b border-slate-700/50 flex items-center px-4 gap-6 sticky top-0 z-50 hidden md:flex">
       {/* Logo + wordmark */}
       <div className="flex items-center gap-2">
         <Link href="/map" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -51,5 +51,25 @@ export function Header() {
         </Link>
       </div>
     </header>
+  );
+}
+
+// Slim mobile-only branding bar — shown above map on mobile, invisible on desktop
+export function MobileHeader() {
+  return (
+    <div className="h-9 bg-[#1a1f2e] flex items-center px-3 gap-3 md:hidden flex-shrink-0">
+      <span
+        className="text-sm font-black tracking-widest"
+        style={{ color: '#D4621A' }}
+      >
+        LANDOUT
+      </span>
+      <span
+        className="text-xs"
+        style={{ color: '#9CA3AF' }}
+      >
+        maps for where the runway ends
+      </span>
+    </div>
   );
 }

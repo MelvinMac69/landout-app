@@ -31,7 +31,7 @@ export function MapLegend() {
 
   const items = [
     { color: '#C9B99A', label: 'BLM Land', agency: 'Bureau of Land Management' },
-    { color: '#2D3748', label: 'USFS Land', agency: 'Forest Service' },
+    { color: '#1A1A1A', label: 'USFS Land', agency: 'Forest Service' },
     { color: '#DC2626', label: 'Wilderness', agency: 'Designated wilderness — avoid' },
     { color: '#D4621A', label: 'WSA', agency: 'Wilderness Study Area' },
     { color: '#1D4ED8', label: 'Airport / Strip', agency: 'Reference data — not legal authority' },
@@ -44,8 +44,8 @@ export function MapLegend() {
   return (
     <div
       style={{
-        position: 'absolute',
-        bottom: 80,       // above mobile nav (65px) + some gap
+        position: 'fixed',
+        bottom: 'calc(env(safe-area-inset-bottom) + 65px)',
         left: 8,
         zIndex: 30,
         background: 'var(--landout-charcoal-light)',
