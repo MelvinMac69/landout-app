@@ -128,7 +128,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           } else {
             // Subsequent updates: only recenter if user has moved significantly off-center
             // Use a 200px dead zone — only pan when the user drifts beyond this radius
-            const DEAD_ZONE_PX = 200;
+            const DEAD_ZONE_PX = 150;
             let currentMapCenter: maplibregl.LngLat | null = null;
             try { currentMapCenter = map.getCenter(); } catch { /* ignore */ }
             if (currentMapCenter) {
