@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
+import { MapLegend, MapLayerToggle, BackcountryMap, DataDashboard, OVERLAY_LAYERS } from '@/components/map';
 import { DirectToPanel } from '@/components/map/DirectTo';
 
 /** Simple prompt to enter lat/lon and trigger Direct To */
@@ -231,6 +231,9 @@ export default function MapPage() {
       {/* MapLegend has its own position: fixed with bottom: calc(env(safe-area-inset-bottom) + 65px)
           It references --direct-to-offset CSS variable internally */}
       <MapLegend />
+
+      {/* Persistent flight data dashboard — always visible, bottom-left */}
+      <DataDashboard />
 
       {/* Nearest airports panel — bottom-left, above legend */}
 

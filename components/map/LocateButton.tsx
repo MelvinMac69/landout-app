@@ -13,13 +13,13 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const [state, setState] = useState<LocState>('idle');
   const [followMode, setFollowMode] = useState(false);
   const [trackUp, setTrackUpState] = useState(false);
-  const [position, setPosition] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
+  const [position, setPosition] = useState<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null } | null>(null);
   const watchId = useRef<number | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const isRequesting = useRef(false);
   const followModeRef = useRef(false);
   const trackUpRef = useRef(false);
-  const positionRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
+  const positionRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null } | null>(null);
   const programmaticRef = useRef(false);
   // True on the very first position update after locate is pressed
   const initialLocateRef = useRef(false);
@@ -95,11 +95,15 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     }
   }
 
-  function startWatching(lat: number, lon: number, heading?: number, speed?: number) {
+  function startWatching(lat: number, lon: number, heading?: number, speed?: number, altitude?: number | null) {
     stopWatching();
-    setPosition({ lat, lon, heading, speed });
-    positionRef.current = { lat, lon, heading, speed };
+    setPosition({ lat, lon, heading, speed, altitude });
+    positionRef.current = { lat, lon, heading, speed, altitude };
     updateMarker(lat, lon, heading);
+    // Notify DataDashboard of position update
+    window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
+      detail: { lat, lon, heading, speed, altitude }
+    }));
     followModeRef.current = true;
     initialLocateRef.current = true; // first update gets the full flyTo treatment
     setFollowMode(true);
@@ -111,9 +115,13 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const lo = p.coords.longitude;
         const h = p.coords.heading ?? undefined;
         const s = p.coords.speed ?? undefined; // m/s
-        setPosition({ lat: la, lon: lo, heading: h, speed: s });
-        positionRef.current = { lat: la, lon: lo, heading: h, speed: s };
+        const alt = p.coords.altitude ?? null;
+        setPosition({ lat: la, lon: lo, heading: h, speed: s, altitude: alt });
+        positionRef.current = { lat: la, lon: lo, heading: h, speed: s, altitude: alt };
         updateMarker(la, lo, h);
+        window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
+          detail: { lat: la, lon: lo, heading: h, speed: s, altitude: alt }
+        }));
         const map = getMap();
         if (followModeRef.current && map) {
           if (initialLocateRef.current && !hasEverInitiallyLocatedRef.current) {
@@ -208,7 +216,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       try {
         const pos = await getCurrentPositionOnce();
         isRequesting.current = false;
-        const { latitude: lat, longitude: lon, heading, speed } = pos.coords;
+        const { latitude: lat, longitude: lon, heading, speed, altitude } = pos.coords;
         const map = getMap();
         if (map) {
           try {
@@ -232,7 +240,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
             else if (waited >= 5000) { clearInterval(poll); }
           }, 100);
         }
-        startWatching(lat, lon, heading ?? undefined, speed ?? undefined);
+        startWatching(lat, lon, heading ?? undefined, speed ?? undefined, altitude ?? null);
       } catch {
         isRequesting.current = false;
       }
@@ -258,7 +266,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     try {
       const pos = await getCurrentPositionOnce();
       isRequesting.current = false;
-      const { latitude: lat, longitude: lon, heading, speed } = pos.coords;
+      const { latitude: lat, longitude: lon, heading, speed, altitude } = pos.coords;
       const map = getMap();
       if (map) {
         try { map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 }); } catch { /* queued */ }
@@ -272,7 +280,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           else if (waited >= 5000) { clearInterval(poll); }
         }, 100);
       }
-      startWatching(lat, lon, heading ?? undefined, speed ?? undefined);
+      startWatching(lat, lon, heading ?? undefined, speed ?? undefined, altitude ?? null);
     } catch (err: unknown) {
       isRequesting.current = false;
       const geolocationErr = err as { code?: number };
