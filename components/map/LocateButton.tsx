@@ -88,8 +88,11 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   function applyTrackUp(on: boolean) {
     trackUpRef.current = on;
     setTrackUpState(on);
-    // Don't set programmaticRef here — setBearing doesn't trigger movestart
-    // in a way that needs suppression. The dead zone handles it correctly.
+    const map = getMap();
+    if (!on && map) {
+      // Turning off track-up: reset bearing to north
+      map.setBearing(0);
+    }
   }
 
   function startWatching(lat: number, lon: number, heading?: number, speed?: number) {

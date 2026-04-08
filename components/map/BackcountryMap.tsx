@@ -514,6 +514,7 @@ export function BackcountryMap({
             elevation_ft: props.elevation_ft != null ? Number(props.elevation_ft) : undefined,
             municipality: props.municipality,
             state: props.state,
+            runway_length_ft: props.runway_length_ft != null ? Number(props.runway_length_ft) : null,
           },
         });
         setActionMenu(null);

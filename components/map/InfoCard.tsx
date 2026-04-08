@@ -15,6 +15,7 @@ export interface AirportInfo {
   elevation_ft?: number;
   municipality?: string;
   state?: string;
+  runway_length_ft?: number | null;
 }
 
 export interface LandInfo {
@@ -187,13 +188,21 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
               <span style={{ fontSize: 12, color: '#475569' }}>{[card.municipality, card.state].filter(Boolean).join(', ')}</span>
             </div>
           )}
-          {/* Coordinates + copy */}
+          {/* Runway length (or coordinates fallback) + copy */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coordinates</span>
+            <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {card.runway_length_ft ? 'Runway' : 'Coordinates'}
+            </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#475569' }}>
-                {card.lat.toFixed(4)}, {card.lng.toFixed(4)}
-              </span>
+              {card.runway_length_ft ? (
+                <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 600, color: '#D4621A' }}>
+                  {card.runway_length_ft.toLocaleString()} ft
+                </span>
+              ) : (
+                <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#475569' }}>
+                  {card.lat.toFixed(4)}, {card.lng.toFixed(4)}
+                </span>
+              )}
               <button
                 onClick={() => copyToClipboard(`${card.lat.toFixed(6)}, ${card.lng.toFixed(6)}`, setCoordsCopied)}
                 title="Copy coordinates"
