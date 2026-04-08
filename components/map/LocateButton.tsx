@@ -196,6 +196,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const pos = positionRef.current ?? position;
         if (map && pos) {
           try { map.setCenter([pos.lon, pos.lat]); } catch {}
+          // Re-initialize lastSetCenterRef so dead zone tracking resumes from new center
+          try { lastSetCenterRef.current = map.project([pos.lon, pos.lat]); } catch {}
         }
       }
       return;
