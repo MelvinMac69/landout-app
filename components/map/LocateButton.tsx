@@ -180,7 +180,9 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     if (isRequesting.current) return;
 
     if (watchId.current !== null) {
-      if (followMode) {
+      if (followModeRef.current) {
+        // Currently following — toggle off
+        followModeRef.current = false;
         setFollowMode(false);
         setState('active');
       } else {
@@ -309,41 +311,34 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   // Exit follow mode when user manually pans the map
   useEffect(() => {
     function onMapMoveStart(e: maplibregl.MapMouseEvent) {
-      // Skip dead-zone check for our own programmatic flyTo movements.
-      // Clear programmaticRef on moveend so user pans work immediately after.
-      if (e.originalEvent === undefined && programmaticRef.current && followModeRef.current) {
-        return;
-      }
+      // Skip for our own programmatic movements
+      if (e.originalEvent === undefined && programmaticRef.current) return;
 
       if (!followModeRef.current) return;
 
       const map = getMap();
-      const pos = positionRef.current;
-      if (!map || !pos) return;
+      if (!map) return;
 
-      // Dead zone: 15% inset from each edge (70% of screen width/height).
-      // GPS position can drift within this zone without exiting follow mode.
-      const w = window.innerWidth || 1;
-      const h = window.innerHeight || 1;
-      const dz = {
-        left: w * 0.15,
-        right: w * 0.85,
-        top: h * 0.20,
-        bottom: h * 0.80,
-      };
-      let screenPt: maplibregl.Point | null = null;
-      try { screenPt = map.project([pos.lon, pos.lat]); } catch { /* projection failed */ }
-      if (!screenPt) return; // Can't project — stay in follow mode
-      if (
-        screenPt.x >= dz.left &&
-        screenPt.x <= dz.right &&
-        screenPt.y >= dz.top &&
-        screenPt.y <= dz.bottom
-      ) {
-        // Still inside dead zone — stay in follow mode
+      // Track-up mode: any user pan exits follow mode immediately.
+      if (trackUpRef.current) {
+        followModeRef.current = false;
+        setFollowMode(false);
+        setState('active');
         return;
       }
 
+      // North-up mode: only exit if panned outside the dead zone.
+      const pos = positionRef.current;
+      if (!pos) return;
+      const w = window.innerWidth || 1;
+      const h = window.innerHeight || 1;
+      const dz = { left: w * 0.15, right: w * 0.85, top: h * 0.20, bottom: h * 0.80 };
+      let screenPt: maplibregl.Point | null = null;
+      try { screenPt = map.project([pos.lon, pos.lat]); } catch { return; }
+      if (!screenPt) return;
+      if (screenPt.x >= dz.left && screenPt.x <= dz.right && screenPt.y >= dz.top && screenPt.y <= dz.bottom) {
+        return; // Inside dead zone — stay in follow mode
+      }
       // Outside dead zone — exit follow mode
       followModeRef.current = false;
       setFollowMode(false);
@@ -354,7 +349,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       map.on('movestart', onMapMoveStart);
       return () => { map.off('movestart', onMapMoveStart); };
     }
-  }, [state]);
+  }, [state, followMode]);
 
   useEffect(() => {
     return () => {
