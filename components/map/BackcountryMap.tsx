@@ -49,13 +49,12 @@ export const OVERLAY_LAYERS = [
   { id: 'ak-ond-fill', label: 'AK Wilderness/WSA', color: '#DC2626', description: 'Alaska designated wilderness and WSAs — no landing' },
 ] as const;
 
-export type BasemapId = 'osm' | 'topo' | 'satellite' | 'vfr';
+export type BasemapId = 'osm' | 'topo' | 'satellite';
 
 export const BASEMAP_STYLES: Record<BasemapId, { label: string; icon: string }> = {
   osm:      { label: 'Map',      icon: '🗺️' },
   topo:     { label: 'Topo',     icon: '⛰️' },
   satellite:{ label: 'Satellite', icon: '🛰️' },
-  vfr:      { label: 'VFR Chart', icon: '✈️' },
 };
 
 function buildStyle(basemap: BasemapId) {
@@ -75,8 +74,8 @@ function buildStyle(basemap: BasemapId) {
     tiles = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
     attribution = '© Esri World Imagery';
   } else {
-    tiles = ['https://server.arcgisonline.com/arcgis/rest/services/Specialty/World_Navigation_Charts/MapServer/tile/{z}/{y}/{x}'];
-    attribution = '© Esri — For planning only, not for navigation';
+    // Exhaustive check — should never be reached since BasemapId = 'osm' | 'topo' | 'satellite'
+    throw new Error(`Unknown basemap: ${basemap}`);
   }
   return {
     version: 8 as const,
