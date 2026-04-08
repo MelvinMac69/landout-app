@@ -9,6 +9,9 @@
   border: 1px solid rgba(255,255,255,0.1) !important;
   border-radius: 8px !important;
   overflow: hidden;
+  /* Shift down when Direct To panel is active */
+  transform: translateY(var(--direct-to-offset, 0px));
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 .maplibregl-ctrl-group button {
   background-color: transparent !important;

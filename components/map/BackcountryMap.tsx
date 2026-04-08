@@ -6,7 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { MapGrid } from './MapGrid';
 import { LocateButton } from './LocateButton';
-import { DirectToPanel, ActionMenu } from './DirectTo';
+import { ActionMenu } from './DirectTo';
 import { MeasureRuler } from './MeasureRuler';
 import { InfoCard } from './InfoCard';
 import type { AirportInfo, LandInfo } from './InfoCard';
@@ -104,13 +104,19 @@ export function BackcountryMap({
 
   // Direct To state
   const [directToDest, setDirectToDest] = useState<DirectToDest | null>(null);
+  // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
+  const currentPosRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
+  const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
+
+  // Fire window event when Direct To changes so page.tsx can render the panel
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+      detail: { dest: directToDest, currentPos: currentPosState },
+    }));
+  }, [directToDest, currentPosState]);
   const [droppedPins, setDroppedPins] = useState<DroppedPin[]>([]);
   const [actionMenu, setActionMenu] = useState<{ x: number; y: number; lng: number; lat: number; airportName?: string } | null>(null);
   const [infoCard, setInfoCard] = useState<{ data: AirportInfo | LandInfo; screenX: number; screenY: number } | null>(null);
-
-  // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
-  const currentPosRef = useRef<{ lat: number; lon: number; heading?: number } | null>(null);
-  const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number } | null>(null);
   // Block click after long-press (300ms)
   const suppressClickRef = useRef(false);
   // Track measure mode so map click handler can defer to MeasureRuler
@@ -118,6 +124,13 @@ export function BackcountryMap({
   // Suppress next InfoCard open — set when clicking outside InfoCard closes it
   // Prevents: click-outside closes → same click reopens another card
   const suppressInfoCardOpenRef = useRef(false);
+
+  // Expose setDirectToDest so page.tsx can clear Direct To
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    (window as any).__landoutSetDirectToDest = setDirectToDest;
+    return () => { delete (window as any).__landoutSetDirectToDest; };
+  }, []);
 
   // Debug: count touch events reaching the map
   const touchCountRef = useRef(0);
@@ -769,7 +782,7 @@ export function BackcountryMap({
         <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
       {/* Locate button — bottom-right, keeps BasemapToggle clear on left side */}
-      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 90px)', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 90px + var(--direct-to-offset, 0px))', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
       {/* Direct To info card */}
@@ -779,13 +792,7 @@ export function BackcountryMap({
         onMeasurePhaseChange={(phase) => { measurePhaseRef.current = phase; }}
         onCtxMenuOpen={() => { suppressClickRef.current = true; }}
       />
-      {directToDest && (
-        <DirectToPanel
-          dest={directToDest}
-          currentPos={currentPosState}
-          onClear={handleClearDirectTo}
-        />
-      )}
+
       {/* Long-0press action menu */}
       {actionMenu && (
         <ActionMenu

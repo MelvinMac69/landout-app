@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, OVERLAY_LAYERS } from '@/components/map';
+import { DirectToPanel } from '@/components/map/DirectTo';
 
 /** Simple prompt to enter lat/lon and trigger Direct To */
 function DirectToPrompt({ onClose }: { onClose: () => void }) {
@@ -112,6 +113,11 @@ export default function MapPage() {
   const [directToPrompt, setDirectToPrompt] = useState(false);
   const [showBuildInfo, setShowBuildInfo] = useState(false);
   const [compassBearing, setCompassBearing] = useState(0);
+  const [directToShift, setDirectToShift] = useState(0);
+  const [directToData, setDirectToData] = useState<{
+    dest: { lng: number; lat: number; name?: string; type: 'map' | 'airport' | 'pin' };
+    currentPos: { lat: number; lon: number; heading?: number; speed?: number } | null;
+  } | null>(null);
   const buildClickRef = useRef(0);
   const setCompassBearingRef = useRef(setCompassBearing);
   setCompassBearingRef.current = setCompassBearing;
@@ -168,6 +174,24 @@ export default function MapPage() {
 
   const layers = OVERLAY_LAYERS.map((l) => ({ ...l, visible: activeLayers[l.id] ?? true }));
 
+  // Listen for Direct To panel activation to shift map controls down
+  useEffect(() => {
+    function onDirectToChange(e: Event) {
+      const detail = (e as CustomEvent<{ dest: any; currentPos: any }>).detail;
+      if (detail?.dest) {
+        document.documentElement.style.setProperty('--direct-to-offset', '95px');
+        setDirectToShift(95);
+        setDirectToData(detail);
+      } else {
+        document.documentElement.style.setProperty('--direct-to-offset', '0px');
+        setDirectToShift(0);
+        setDirectToData(null);
+      }
+    }
+    window.addEventListener('landoutDirectToChange', onDirectToChange);
+    return () => { window.removeEventListener('landoutDirectToChange', onDirectToChange); };
+  }, []);
+
   return (
     <div
       className="h-[calc(100vh-3.5rem)] relative"
@@ -176,12 +200,26 @@ export default function MapPage() {
     >
       <BackcountryMap onMapLoad={handleMapLoad} />
 
+      {/* Direct To navigation panel — rendered at page level so it stays fixed */}
+      {directToData && (
+        <DirectToPanel
+          dest={directToData.dest}
+          currentPos={directToData.currentPos}
+          onClear={() => {
+            const fn = (window as any).__landoutSetDirectToDest;
+            if (fn) fn(null);
+          }}
+        />
+      )}
+
       {/* Layers button — top-right, dark charcoal, aviation orange accent */}
-      <div className="absolute right-1 z-50" style={{ top: 19, pointerEvents: 'auto' }}>
+      <div className="absolute right-1 z-50" style={{ top: `calc(19px + var(--direct-to-offset, 0px))`, pointerEvents: 'auto' }}>
         <MapLayerToggle layers={layers} onToggle={handleToggle} />
       </div>
 
       {/* Land Status legend — bottom-left, just above mobile nav */}
+      {/* MapLegend has its own position: fixed with bottom: calc(env(safe-area-inset-bottom) + 65px)
+          It references --direct-to-offset CSS variable internally */}
       <MapLegend />
 
       {/* Nearest airports panel — bottom-left, above legend */}
@@ -190,7 +228,7 @@ export default function MapPage() {
       {trackUp && (
         <div style={{
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom) + 182px)',
+          bottom: 'calc(env(safe-area-inset-bottom) + 182px + var(--direct-to-offset, 0px))',
           right: 8,
           zIndex: 60,
           display: 'flex',
@@ -253,7 +291,7 @@ export default function MapPage() {
       )}
 
       {/* North-Up button — bottom-right, directly above Locate button */}
-      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 136px)', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 136px + var(--direct-to-offset, 0px))', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <button
           onClick={() => {
             const next = !trackUp;
