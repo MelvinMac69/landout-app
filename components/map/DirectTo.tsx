@@ -96,12 +96,11 @@ export function DirectToPanel({ dest, currentPos, onClear, onRecenter }: DirectT
           background: 'rgba(26,32,44,0.97)',
           borderBottom: '1.5px solid #D4621A',
           boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-          padding: 'calc(16px + env(safe-area-inset-top)) 16px 12px',
-          paddingBottom: 12,
+          padding: 'calc(10px + env(safe-area-inset-top)) 14px 8px',
         }}
       >
         {/* Destination name */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 16, color: '#D4621A' }}>✈</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'white', fontFamily: 'system-ui' }}>
@@ -152,41 +151,20 @@ export function DirectToPanel({ dest, currentPos, onClear, onRecenter }: DirectT
 
           {/* Ground Speed */}
           <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 12px', textAlign: 'center' }}>
-            <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>GS</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'white', fontFamily: 'monospace' }}>
+            <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>GS</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'white', fontFamily: 'monospace' }}>
               {gsKts != null ? `${Math.round(gsKts)} kts` : '—'}
             </div>
           </div>
         </div>
-
-        {/* Recentering hint */}
-        {onRecenter && (
-          <button
-            onClick={onRecenter}
-            style={{
-              marginTop: 8,
-              width: '100%',
-              padding: '5px 0',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 6,
-              color: '#94A3B8',
-              fontSize: 11,
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Recenter Map
-          </button>
-        )}
       </div>
 
-      {/* ── Bottom cancel button — slides up from behind nav ── */}
+      {/* ── Bottom cancel button — slides up from behind nav */}
       <div
         style={{
           position: 'fixed',
           bottom: 'calc(env(safe-area-inset-bottom) + 72px)',
-          right: 8,
+          right: 18,
           zIndex: 25,
           transform: bottomVisible ? 'translateY(0)' : 'translateY(80px)',
           opacity: bottomVisible ? 1 : 0,
@@ -208,7 +186,7 @@ export function DirectToPanel({ dest, currentPos, onClear, onRecenter }: DirectT
             letterSpacing: '0.05em',
           }}
         >
-          ✕ Cancel Navigation
+          ✕ Cancel Nav
         </button>
       </div>
     </>
