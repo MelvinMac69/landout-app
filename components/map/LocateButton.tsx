@@ -20,9 +20,11 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const followModeRef = useRef(false);
   const trackUpRef = useRef(false);
   const positionRef = useRef<{ lat: number; lon: number; heading?: number } | null>(null);
-  // Track when we are making programmatic map movements so we can skip
-  // the dead-zone exit check during those movements.
   const programmaticRef = useRef(false);
+  // True on the very first position update after locate is pressed
+  const initialLocateRef = useRef(false);
+  // Track the last map center we set (in screen pixels) so we can measure movement
+  const lastSetCenterRef = useRef<{ x: number; y: number } | null>(null);
 
   function getMap(): maplibregl.Map | null {
     // Try mapRef first (set during Map mount), then window fallback
@@ -94,6 +96,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     positionRef.current = { lat, lon, heading };
     updateMarker(lat, lon, heading);
     followModeRef.current = true;
+    initialLocateRef.current = true; // first update gets the full flyTo treatment
     setFollowMode(true);
     setState('active');
 
@@ -107,13 +110,45 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         updateMarker(la, lo, h);
         const map = getMap();
         if (followModeRef.current && map) {
-          programmaticRef.current = true;
-          try {
-            map.flyTo({ center: [lo, la], zoom: 13, duration: 500 });
+          if (initialLocateRef.current) {
+            // First position update after locate: fly to center and zoom in
+            initialLocateRef.current = false;
+            programmaticRef.current = true;
+            try {
+              map.flyTo({ center: [lo, la], zoom: 13, duration: 800 });
+            } catch {
+              map.setCenter([lo, la]);
+              map.zoomTo(13);
+            }
+            // Track where we set the center so we can measure movement from it
+            try {
+              lastSetCenterRef.current = map.project([lo, la]);
+            } catch { /* ignore */ }
             map.once('moveend', () => { programmaticRef.current = false; });
-          } catch {
-            map.panTo([lo, la], { duration: 500 });
-            map.once('moveend', () => { programmaticRef.current = false; });
+          } else {
+            // Subsequent updates: only recenter if user has moved significantly off-center
+            // Use a 200px dead zone — only pan when the user drifts beyond this radius
+            const DEAD_ZONE_PX = 200;
+            let currentMapCenter: maplibregl.LngLat | null = null;
+            try { currentMapCenter = map.getCenter(); } catch { /* ignore */ }
+            if (currentMapCenter) {
+              const lastCenter = lastSetCenterRef.current;
+              const projectedPos = (() => { try { return map.project([lo, la]); } catch { return null; } })();
+              if (lastCenter && projectedPos) {
+                const dx = projectedPos.x - lastCenter.x;
+                const dy = projectedPos.y - lastCenter.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > DEAD_ZONE_PX) {
+                  // User has moved significantly — recenter without animation
+                  programmaticRef.current = true;
+                  map.setCenter([lo, la]);
+                  lastSetCenterRef.current = projectedPos;
+                  // Clear programmatic flag after a tick
+                  requestAnimationFrame(() => { programmaticRef.current = false; });
+                }
+                // If within dead zone, do nothing — don't recenter
+              }
+            }
           }
           if (trackUpRef.current && h !== undefined) {
             map.setBearing(h);

@@ -164,7 +164,7 @@ export function DirectToPanel({ dest, currentPos, onClear, onRecenter }: DirectT
         style={{
           position: 'fixed',
           bottom: 'calc(env(safe-area-inset-bottom) + 67px)',
-          right: 18,
+          right: 78,
           zIndex: 25,
           transform: bottomVisible ? 'translateY(0)' : 'translateY(80px)',
           opacity: bottomVisible ? 1 : 0,
