@@ -130,12 +130,15 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
             } catch { /* ignore */ }
             map.once('moveend', () => { programmaticRef.current = false; });
           } else {
-            // Subsequent updates: only recenter if user has moved significantly off-center
-            // Use a 200px dead zone — only pan when the user drifts beyond this radius
-            const DEAD_ZONE_PX = 150;
-            let currentMapCenter: maplibregl.LngLat | null = null;
-            try { currentMapCenter = map.getCenter(); } catch { /* ignore */ }
-            if (currentMapCenter) {
+            // Track-up mode: always keep device centered on screen (map rotates around device)
+            // No dead zone — recenter every GPS update to keep device at center
+            if (trackUpRef.current) {
+              programmaticRef.current = true;
+              try { map.setCenter([lo, la]); } catch {}
+              requestAnimationFrame(() => { programmaticRef.current = false; });
+            } else {
+              // North-up mode: only recenter if user has moved significantly off-center
+              const DEAD_ZONE_PX = 150;
               const lastCenter = lastSetCenterRef.current;
               const projectedPos = (() => { try { return map.project([lo, la]); } catch { return null; } })();
               if (lastCenter && projectedPos) {
@@ -147,7 +150,6 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
                   programmaticRef.current = true;
                   map.setCenter([lo, la]);
                   lastSetCenterRef.current = projectedPos;
-                  // Clear programmatic flag after a tick
                   requestAnimationFrame(() => { programmaticRef.current = false; });
                 }
                 // If within dead zone, do nothing — don't recenter
