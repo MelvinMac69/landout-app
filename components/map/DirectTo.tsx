@@ -1,56 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-
-interface DirectToDest {
-  lng: number;
-  lat: number;
-  name?: string;
-  type: 'airport' | 'pin' | 'map';
-}
-
-interface DroppedPin {
-  id: string;
-  lng: number;
-  lat: number;
-  name?: string;
-}
-
-interface CurrentPos {
-  lat: number;
-  lon: number;
-  heading?: number;
-}
-
-function calcBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const toDeg = (d: number) => (d * 180) / Math.PI;
-  const dLon = toRad(lon2 - lon1);
-  const lat1R = toRad(lat1);
-  const lat2R = toRad(lat2);
-  const x = Math.sin(dLon) * Math.cos(lat2R);
-  const y = Math.cos(lat1R) * Math.sin(lat2R) - Math.sin(lat1R) * Math.cos(lat2R) * Math.cos(dLon);
-  const brng = toDeg(Math.atan2(x, y));
-  return (brng + 360) % 360;
-}
-
-function calcDistanceNm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 3440.065; // Earth radius in NM
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function formatBearing(b: number): string {
-  const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-  const idx = Math.round(b / 22.5) % 16;
-  return `${dirs[idx]} ${Math.round(b).toString().padStart(3, '0')}°`;
-}
+import { haversineDistance } from '@/lib/utils/geo';
 
 function formatCoord(lat: number, lon: number): string {
   const latDir = lat >= 0 ? 'N' : 'S';
@@ -58,128 +9,211 @@ function formatCoord(lat: number, lon: number): string {
   return `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lon).toFixed(4)}°${lonDir}`;
 }
 
+function calcDistanceNm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const miles = haversineDistance(lat1, lon1, lat2, lon2);
+  return miles * 0.868976; // miles to NM
+}
+
+interface DirectToDest {
+  lng: number;
+  lat: number;
+  name?: string;
+  type: 'map' | 'airport' | 'pin';
+}
+
+interface DirectToPanelProps {
+  dest: DirectToDest;
+  currentPos: { lat: number; lon: number; heading?: number } | null;
+  onClear: () => void;
+  onRecenter?: () => void;
+}
+
+function formatETE(distanceNm: number, groundSpeedKts: number): string {
+  if (!groundSpeedKts || groundSpeedKts <= 0) return '—';
+  const hours = distanceNm / groundSpeedKts;
+  if (hours < 0.1) {
+    const mins = Math.round(hours * 60);
+    return `${mins}m`;
+  }
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  if (m === 60) return `${h + 1}h`;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 function formatDist(nm: number): string {
-  if (nm < 0.1) return `${Math.round(nm * 6080)} ft`;
+  if (nm < 0.1) return `${Math.round(nm * 5280)} ft`;
   if (nm < 10) return `${nm.toFixed(1)} NM`;
   return `${Math.round(nm)} NM`;
 }
 
-export function DirectToPanel({
-  dest,
-  currentPos,
-  onClear,
-  onRecenter,
-}: {
-  dest: DirectToDest;
-  currentPos: CurrentPos | null;
-  onClear: () => void;
-  onRecenter?: () => void;
-}) {
-  const [pos, setPos] = useState<CurrentPos | null>(currentPos);
-  const [bearing, setBearing] = useState<number | null>(null);
-  const [distance, setDistance] = useState<number | null>(null);
-
-  useEffect(() => { setPos(currentPos); }, [currentPos]);
+export function DirectToPanel({ dest, currentPos, onClear, onRecenter }: DirectToPanelProps) {
+  const [visible, setVisible] = useState(false);
+  const [bottomVisible, setBottomVisible] = useState(false);
+  const prevDestRef = useRef<DirectToDest | null>(null);
 
   useEffect(() => {
-    if (!pos) return;
-    const b = calcBearing(pos.lat, pos.lon, dest.lat, dest.lng);
-    const d = calcDistanceNm(pos.lat, pos.lon, dest.lat, dest.lng);
-    setBearing(b);
-    setDistance(d);
-  }, [pos, dest.lat, dest.lng]);
+    // Animate in
+    const isNew = !prevDestRef.current;
+    prevDestRef.current = dest;
 
+    if (isNew) {
+      // Small delay to trigger CSS transition
+      requestAnimationFrame(() => {
+        setVisible(true);
+        setBottomVisible(true);
+      });
+    }
+  }, [dest]);
+
+  function handleClear() {
+    setVisible(false);
+    setBottomVisible(false);
+    setTimeout(onClear, 300);
+  }
+
+  // Calculate values
   const destLabel = dest.name || formatCoord(dest.lat, dest.lng);
-  const destSubLabel = dest.name ? formatCoord(dest.lat, dest.lng) : undefined;
+  const distanceNm = currentPos
+    ? calcDistanceNm(currentPos.lat, currentPos.lon, dest.lat, dest.lng)
+    : null;
+  // Ground speed in knots from heading-bearing approximation using position deltas
+  const gsKts = currentPos?.heading ?? null; // heading ≈ track when moving
+  const ete = distanceNm != null && gsKts ? formatETE(distanceNm, gsKts) : '—';
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: 60,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 40,
-        width: '90%',
-        maxWidth: 320,
-        background: 'white',
-        borderRadius: 12,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-        padding: '10px 14px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-      }}
-    >
-      {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 14, color: '#BE185D', fontWeight: 700 }}>✈ Direct To</span>
-        </div>
-        <button
-          onClick={onClear}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: '#94A3B8',
-            fontSize: 18,
-            lineHeight: 1,
-            padding: '0 2px',
-          }}
-          title="Clear Direct To"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Destination */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 2 }}>
-        {destLabel}
-      </div>
-      {destSubLabel && (
-        <div style={{ fontSize: 11, color: '#64748B', marginBottom: 6 }}>{destSubLabel}</div>
-      )}
-
-      {/* Bearing + distance row */}
-      <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
-        {pos ? (
-          <>
-            <div>
-              <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bearing</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#BE185D', fontVariantNumeric: 'tabular-nums' }}>
-                {bearing != null ? formatBearing(bearing) : '—'}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distance</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#1E293B', fontVariantNumeric: 'tabular-nums' }}>
-                {distance != null ? formatDist(distance) : '—'}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div style={{ fontSize: 12, color: '#F59E0B', fontStyle: 'italic' }}>
-            Waiting for GPS position…
+    <>
+      {/* ── Top data panel — slides down from top ── */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 70,
+          transform: visible ? 'translateY(0)' : 'translateY(-100%)',
+          transition: 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          background: 'rgba(26,32,44,0.97)',
+          borderBottom: '1.5px solid #D4621A',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          padding: 'calc(16px + env(safe-area-inset-top)) 16px 12px',
+          paddingBottom: 12,
+        }}
+      >
+        {/* Destination name */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16, color: '#D4621A' }}>✈</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'white', fontFamily: 'system-ui' }}>
+              {destLabel}
+            </span>
           </div>
+          <button
+            onClick={handleClear}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 6,
+              color: '#94A3B8',
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '3px 10px',
+              cursor: 'pointer',
+              letterSpacing: '0.05em',
+            }}
+          >
+            END
+          </button>
+        </div>
+
+        {/* Data row */}
+        <div style={{ display: 'flex', gap: 0, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+          {/* Distance */}
+          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>Distance</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'white', fontFamily: 'monospace' }}>
+              {distanceNm != null ? formatDist(distanceNm) : '—'}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+
+          {/* ETE */}
+          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>ETE</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'white', fontFamily: 'monospace' }}>
+              {ete}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+
+          {/* Ground Speed */}
+          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>GS</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'white', fontFamily: 'monospace' }}>
+              {gsKts != null ? `${Math.round(gsKts)} kts` : '—'}
+            </div>
+          </div>
+        </div>
+
+        {/* Recentering hint */}
+        {onRecenter && (
+          <button
+            onClick={onRecenter}
+            style={{
+              marginTop: 8,
+              width: '100%',
+              padding: '5px 0',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 6,
+              color: '#94A3B8',
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            Recenter Map
+          </button>
         )}
       </div>
 
-      {/* GPS status + recenter */}
-      {pos && (
-        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 10, color: '#10B981' }}>● GPS locked</div>
-          {onRecenter && (
-            <button
-              onClick={onRecenter}
-              style={{ fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', textDecoration: 'underline', padding: 0 }}
-            >Recenter</button>
-          )}
-        </div>
-      )}
-    </div>
+      {/* ── Bottom cancel button — slides up from behind nav ── */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 'calc(env(safe-area-inset-bottom) + 72px)',
+          right: 8,
+          zIndex: 25,
+          transform: bottomVisible ? 'translateY(0)' : 'translateY(80px)',
+          opacity: bottomVisible ? 1 : 0,
+          transition: 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease',
+        }}
+      >
+        <button
+          onClick={handleClear}
+          style={{
+            padding: '8px 16px',
+            background: 'rgba(26,32,44,0.95)',
+            border: '1.5px solid #EF4444',
+            borderRadius: 8,
+            color: '#EF4444',
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+            letterSpacing: '0.05em',
+          }}
+        >
+          ✕ Cancel Navigation
+        </button>
+      </div>
+    </>
   );
 }
-
-// Compact bottom-sheet action menu for long-press
 export function ActionMenu({
   x,
   y,
