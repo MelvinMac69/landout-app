@@ -114,6 +114,7 @@ export default function MapPage() {
   const [showBuildInfo, setShowBuildInfo] = useState(false);
   const [compassBearing, setCompassBearing] = useState(0);
   const [directToShift, setDirectToShift] = useState(0);
+  const [dataDashboardShift, setDataDashboardShift] = useState(0);
   const [directToData, setDirectToData] = useState<{
     dest: { lng: number; lat: number; name?: string; type: 'map' | 'airport' | 'pin' };
     currentPos: { lat: number; lon: number; heading?: number; speed?: number } | null;
@@ -194,11 +195,18 @@ export default function MapPage() {
       document.documentElement.style.setProperty('--direct-to-offset', `${h}px`);
       setDirectToShift(h);
     }
+    function onDataDashboardHeight(e: Event) {
+      const h = (e as CustomEvent<number>).detail;
+      document.documentElement.style.setProperty('--data-dashboard-offset', `${h}px`);
+      setDataDashboardShift(h);
+    }
     window.addEventListener('landoutDirectToChange', onDirectToChange);
     window.addEventListener('landoutDirectToHeight', onDirectToHeight);
+    window.addEventListener('landoutDataDashboardHeight', onDataDashboardHeight);
     return () => {
       window.removeEventListener('landoutDirectToChange', onDirectToChange);
       window.removeEventListener('landoutDirectToHeight', onDirectToHeight);
+      window.removeEventListener('landoutDataDashboardHeight', onDataDashboardHeight);
     };
   }, []);
 
@@ -208,6 +216,9 @@ export default function MapPage() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       onClick={() => window.dispatchEvent(new Event('buildinfo-click'))}
     >
+      {/* Persistent flight data dashboard — slides down from top when position available */}
+      <DataDashboard />
+
       <BackcountryMap onMapLoad={handleMapLoad} />
 
       {/* Direct To navigation panel — rendered at page level so it stays fixed */}
@@ -223,7 +234,7 @@ export default function MapPage() {
       )}
 
       {/* Layers button — top-right, dark charcoal, aviation orange accent */}
-      <div className="absolute right-1 z-50" style={{ top: `calc(19px + var(--direct-to-offset, 0px))`, pointerEvents: 'auto' }}>
+      <div className="absolute right-1 z-50" style={{ top: `calc(var(--data-dashboard-offset, 0px) + var(--direct-to-offset, 0px) + 19px)`, pointerEvents: 'auto' }}>
         <MapLayerToggle layers={layers} onToggle={handleToggle} />
       </div>
 
@@ -232,8 +243,7 @@ export default function MapPage() {
           It references --direct-to-offset CSS variable internally */}
       <MapLegend />
 
-      {/* Persistent flight data dashboard — always visible, bottom-left */}
-      <DataDashboard />
+
 
       {/* Nearest airports panel — bottom-left, above legend */}
 
