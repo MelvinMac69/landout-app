@@ -192,9 +192,11 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         // Use positionRef (always fresh) over state position (may be stale)
         const pos = positionRef.current ?? position;
         if (map && pos) {
+          // Mark as programmatic so movestart handler doesn't exit follow mode
+          programmaticRef.current = true;
           try { map.setCenter([pos.lon, pos.lat]); } catch {}
-          // Re-initialize lastSetCenterRef so dead zone tracking resumes from new center
           try { lastSetCenterRef.current = map.project([pos.lon, pos.lat]); } catch {}
+          map.once('moveend', () => { programmaticRef.current = false; });
         }
       }
       return;
