@@ -163,7 +163,7 @@ export function DirectToPanel({ dest, currentPos, onClear, onRecenter }: DirectT
       <div
         style={{
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom) + 72px)',
+          bottom: 'calc(env(safe-area-inset-bottom) + 67px)',
           right: 18,
           zIndex: 25,
           transform: bottomVisible ? 'translateY(0)' : 'translateY(80px)',
