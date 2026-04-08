@@ -84,12 +84,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   function applyTrackUp(on: boolean) {
     trackUpRef.current = on;
     setTrackUpState(on);
-    if (on) {
-      // Mark as programmatic so the next bearing change from setBearing
-      // (triggered by watchPosition) doesn't trigger dead-zone exit.
-      programmaticRef.current = true;
-      setTimeout(() => { programmaticRef.current = false; }, 600);
-    }
+    // Don't set programmaticRef here — setBearing doesn't trigger movestart
+    // in a way that needs suppression. The dead zone handles it correctly.
   }
 
   function startWatching(lat: number, lon: number, heading?: number) {
@@ -112,11 +108,16 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const map = getMap();
         if (followModeRef.current && map) {
           programmaticRef.current = true;
-          try { map.flyTo({ center: [lo, la], zoom: 13, duration: 500 }); } catch { map.panTo([lo, la], { duration: 500 }); }
+          try {
+            map.flyTo({ center: [lo, la], zoom: 13, duration: 500 });
+            map.once('moveend', () => { programmaticRef.current = false; });
+          } catch {
+            map.panTo([lo, la], { duration: 500 });
+            map.once('moveend', () => { programmaticRef.current = false; });
+          }
           if (trackUpRef.current && h !== undefined) {
             map.setBearing(h);
           }
-          setTimeout(() => { programmaticRef.current = false; }, 600);
         }
       },
       (err) => {
@@ -261,13 +262,9 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   // Exit follow mode when user manually pans the map
   useEffect(() => {
     function onMapMoveStart(e: maplibregl.MapMouseEvent) {
-      // Ignore if this movement is from our own programmatic calls
-      if (programmaticRef.current && followModeRef.current) {
-        return;
-      }
-
-      // Ignore programmatic movements (flyTo/panTo from position updates)
-      if (e.originalEvent === undefined && followModeRef.current) {
+      // Skip dead-zone check for our own programmatic flyTo movements.
+      // Clear programmaticRef on moveend so user pans work immediately after.
+      if (e.originalEvent === undefined && programmaticRef.current && followModeRef.current) {
         return;
       }
 
