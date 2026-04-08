@@ -187,20 +187,16 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         setFollowMode(false);
         setState('active');
       } else {
-        // Restore following mode (user panned, then tapped to re-center)
+        // Restore following mode (user panned, then tapped to re-center).
+        // Don't call setCenter — the watch callback handles recentering on the
+        // next GPS tick. Just enable follow and re-initialize dead zone tracking.
         followModeRef.current = true;
         setFollowMode(true);
         setState('following');
         const map = getMap();
-        // Use positionRef (always fresh) over state position (may be stale)
         const pos = positionRef.current ?? position;
         if (map && pos) {
-          // setCenter() fires movestart SYNCHRONOUSLY — must set flag BEFORE calling it
-          // so the movestart handler sees it and doesn't exit follow mode.
-          programmaticRef.current = true;
-          try { map.setCenter([pos.lon, pos.lat]); } catch {}
           try { lastSetCenterRef.current = map.project([pos.lon, pos.lat]); } catch {}
-          map.once('moveend', () => { programmaticRef.current = false; });
         }
       }
       return;
