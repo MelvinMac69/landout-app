@@ -146,12 +146,12 @@ export function DataDashboard() {
   const speed = position?.speed ?? null;
   const altitude = position?.altitude ?? null;
 
-  // Tinted backgrounds per land status — dark versions of each color for readability
+  // Full bright backgrounds per land status
   const statusBg = landStatus?.name === 'wilderness' || landStatus?.name === 'fs-wilderness' || landStatus?.name === 'wsa'
-    ? '#2A0A0A'  // dark red for no-go
+    ? '#DC2626'  // bright red for no-go
     : landStatus?.name === 'blm' || landStatus?.name === 'usfs' || landStatus?.name === 'nps' || landStatus?.name === 'fws'
-    ? '#0A2A0A'  // dark green for open
-    : '#2A1A05'; // dark orange for private
+    ? '#16A34A'  // bright green for open
+    : '#D97706'; // bright orange for private
 
   return (
     <div
@@ -162,7 +162,6 @@ export function DataDashboard() {
         left: 0,
         right: 0,
         zIndex: 40,
-        // Slide down from top: start hidden (translateY(-100%)), slide in when visible
         transform: isVisible ? 'translateY(0)' : 'translateY(-100%)',
         transition: 'transform 0.3s ease',
         paddingTop: 'calc(8px + env(safe-area-inset-top))',
@@ -170,11 +169,10 @@ export function DataDashboard() {
         paddingLeft: 12,
         paddingRight: 12,
         background: statusBg,
-        borderBottom: `2px solid ${landStatus?.color ?? '#16A34A'}`,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+        borderBottom: `3px solid #000000`,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
       }}
     >
-      {/* Horizontal row: speed | altitude | land status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {/* Speed */}
         <div
@@ -182,7 +180,7 @@ export function DataDashboard() {
           style={{
             fontSize: 13,
             fontWeight: 700,
-            color: '#F97316',
+            color: '#000000',
             cursor: 'pointer',
             userSelect: 'none',
             minWidth: 64,
@@ -193,44 +191,26 @@ export function DataDashboard() {
         </div>
 
         {/* Divider */}
-        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.15)' }} />
+        <div style={{ width: 1, height: 20, background: 'rgba(0,0,0,0.25)' }} />
 
         {/* Altitude */}
-        <div style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: '#94A3B8',
-        }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#000000' }}>
           {formatAltitude(altitude)}
         </div>
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Land status indicator — colored dot + label */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
+        {/* Land status label */}
+        <span style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: '#000000',
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
         }}>
-          <div style={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            background: landStatus?.color ?? '#16A34A',
-            boxShadow: `0 0 6px ${landStatus?.color ?? '#16A34A'}80`,
-            flexShrink: 0,
-          }} />
-          <span style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: landStatus?.color ?? '#16A34A',
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase',
-          }}>
-            {landStatus?.label ?? 'Private'}
-          </span>
-        </div>
+          {landStatus?.label ?? 'Private'}
+        </span>
       </div>
     </div>
   );
