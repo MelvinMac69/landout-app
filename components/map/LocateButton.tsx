@@ -194,7 +194,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         // Use positionRef (always fresh) over state position (may be stale)
         const pos = positionRef.current ?? position;
         if (map && pos) {
-          // Mark as programmatic so movestart handler doesn't exit follow mode
+          // setCenter() fires movestart SYNCHRONOUSLY — must set flag BEFORE calling it
+          // so the movestart handler sees it and doesn't exit follow mode.
           programmaticRef.current = true;
           try { map.setCenter([pos.lon, pos.lat]); } catch {}
           try { lastSetCenterRef.current = map.project([pos.lon, pos.lat]); } catch {}
