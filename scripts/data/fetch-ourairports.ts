@@ -2,21 +2,17 @@ import * as fs from 'fs';
 
 /**
  * Downloads and converts OurAirports public CSV to GeoJSON for the Landout app.
+ * Joins runway data (longest runway per airport) from OurAirports runways.csv.
  *
  * OurAirports License: CC-BY (Creative Commons Attribution)
- * Data is community-sourced from FAA NOTAMs, charts, and pilot reports.
- * This is the development/fallback source. The primary source target is
- * FAA NASR 28-Day Subscription (https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/dafd/)
- * which requires manual download and is marked as 'official reference' once available.
- *
  * OurAirports is used here as: 'community/FAA-derived - development convenience'
  * Per project constraint: do not use OurAirports as primary source of truth.
  */
 
-const CSV_URL = 'https://ourairports.com/data/airports.csv';
+const AIRPORTS_CSV_URL = 'https://ourairports.com/data/airports.csv';
+const RUNWAYS_CSV_URL = 'https://ourairports.com/data/runways.csv';
 const OUTPUT_PATH = 'public/data/airports-ourairports.geojson';
 
-// Airport types to include (exclude heliports, balloonports for fixed-wing focus)
 const PERTINENT_TYPES = new Set([
   'small_airport',
   'medium_airport',
@@ -25,7 +21,6 @@ const PERTINENT_TYPES = new Set([
   'closed',
 ]);
 
-// US state abbreviations for filtering
 const US_STATES = new Set([
   'US-AL','US-AK','US-AZ','US-AR','US-CA','US-CO','US-CT','US-DE','US-FL',
   'US-GA','US-HI','US-ID','US-IL','US-IN','US-IA','US-KS','US-KY','US-LA',
@@ -49,28 +44,47 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-async function main() {
-  console.log('Fetching OurAirports CSV...');
+async function fetchCSV(url: string, label: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  const text = await res.text();
+  console.log(`Downloaded ${label}: ${(text.length / 1024 / 1024).toFixed(1)} MB`);
+  return text;
+}
 
-  // Try to fetch from network
-  let csvText: string;
-  try {
-    const res = await fetch(CSV_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    csvText = await res.text();
-    console.log(`Downloaded ${(csvText.length / 1024 / 1024).toFixed(1)} MB`);
-  } catch {
-    console.log('Network fetch failed, checking for cached file...');
-    const cached = '/tmp/our_airports_sample.csv';
-    if (fs.existsSync(cached)) {
-      csvText = fs.readFileSync(cached, 'utf8');
-      console.log(`Using cached file: ${(csvText.length / 1024 / 1024).toFixed(1)} MB`);
-    } else {
-      throw new Error('No cached file found. Please ensure /tmp/our_airports_sample.csv exists or fetch manually.');
-    }
+/** Parse runways.csv → map of airport_ident → longest runway length (ft) */
+function parseRunways(text: string): Map<string, number> {
+  const lines = text.trim().split('\n');
+  const header = parseCSVLine(lines[0]).map(h => h.replace(/^["']|["']$/g, ''));
+  const identIdx = header.findIndex(h => h.includes('airport_ident'));
+  const lengthIdx = header.findIndex(h => h.includes('length_ft'));
+  const closedIdx = header.findIndex(h => h.includes('closed'));
+
+  const map = new Map<string, number>();
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseCSVLine(lines[i]);
+    const ident = (vals[identIdx] || '').replace(/^["']|["']$/g, '').trim();
+    const closed = (vals[closedIdx] || '').replace(/^["']|["']$/g, '').trim();
+    const lenStr = (vals[lengthIdx] || '').replace(/^["']|["']$/g, '').trim();
+    const len = parseInt(lenStr, 10);
+    if (!ident || closed === '1' || isNaN(len) || len <= 0) continue;
+    const existing = map.get(ident) ?? 0;
+    if (len > existing) map.set(ident, len);
   }
+  console.log(`Parsed ${map.size} airports with runway data`);
+  return map;
+}
 
-  const lines = csvText.trim().split('\n');
+async function main() {
+  console.log('Fetching OurAirports data...\n');
+  const [airportsText, runwaysText] = await Promise.all([
+    fetchCSV(AIRPORTS_CSV_URL, 'airports.csv'),
+    fetchCSV(RUNWAYS_CSV_URL, 'runways.csv'),
+  ]);
+
+  const runwayByIdent = parseRunways(runwaysText);
+
+  const lines = airportsText.trim().split('\n');
   const header = parseCSVLine(lines[0]).map(h => h.replace(/^["']|["']$/g, ''));
 
   const idx = (name: string) => header.findIndex(h =>
@@ -94,6 +108,7 @@ async function main() {
   let skippedNoRegion = 0;
   let skippedBadType = 0;
   let skippedNoCoords = 0;
+  let withRunway = 0;
 
   for (let i = 1; i < lines.length; i++) {
     const vals = parseCSVLine(lines[i]);
@@ -106,18 +121,25 @@ async function main() {
 
     const region = get(Region);
     if (!US_STATES.has(region)) { skippedNoRegion++; continue; }
-
     const aptType = get(Type);
     if (!PERTINENT_TYPES.has(aptType)) { skippedBadType++; continue; }
-
     const lat = getNum(Lat);
     const lon = getNum(Lon);
     if (lat === null || lon === null) { skippedNoCoords++; continue; }
 
-    // Use ICAO if available, otherwise GPS code
     const icao = get(Icao).toUpperCase();
     const gps = get(Gps).toUpperCase();
     const iata = get(Iata);
+    const faa_ident = icao || gps;
+
+    // Look up runway — try ICAO first, then GPS code
+    let runwayLength: number | null = null;
+    if (icao) {
+      runwayLength = runwayByIdent.get(icao) ?? runwayByIdent.get(gps) ?? null;
+    } else if (gps) {
+      runwayLength = runwayByIdent.get(gps) ?? null;
+    }
+    if (runwayLength !== null) withRunway++;
 
     features.push({
       type: 'Feature',
@@ -126,18 +148,19 @@ async function main() {
         icao: icao || null,
         gps_code: gps || null,
         iata: iata || null,
-        faa_ident: icao || gps,
+        faa_ident: faa_ident || null,
         name: get(Name) || 'Unknown Airport',
         type: aptType,
         elevation_ft: getNum(Elev),
-        state: region.slice(3), // Strip 'US-' prefix
-        region: region,
+        state: region.slice(3),
+        region,
         municipality: get(Muni) || null,
         home_link: get(HomeLink) || null,
         wikipedia_link: get(WikiLink) || null,
+        runway_length_ft: runwayLength,
         source: 'ourairports',
         source_url: 'https://ourairports.com',
-        source_license: 'CC-BY (Creative Commons Attribution)',
+        source_license: 'CC-BY',
         source_classification: 'community/FAA-derived - development convenience',
       }
     });
@@ -152,8 +175,9 @@ async function main() {
       source: 'https://ourairports.com/data/airports.csv',
       sourceClassification: 'community/FAA-derived - development convenience',
       importDate: new Date().toISOString().split('T')[0],
-      notes: 'FAA NASR (28-Day Subscription) is the primary source target. OurAirports used as interim development convenience. CC-BY license requires attribution.',
+      notes: 'Runway data from ourairports.com/data/runways.csv joined by airport_ident (longest runway per airport).',
       featureCount: features.length,
+      airportsWithRunway: withRunway,
       typeBreakdown: features.reduce((acc, f) => {
         const t = (f.properties as any).type;
         acc[t] = (acc[t] || 0) + 1;
@@ -164,7 +188,8 @@ async function main() {
 
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(fc));
   const sizeMB = fs.statSync(OUTPUT_PATH).size / 1024 / 1024;
-  console.log(`\nWrote ${features.length} airports to ${OUTPUT_PATH} (${sizeMB.toFixed(1)} MB)`);
+  console.log(`\nWrote ${features.length} airports (${sizeMB.toFixed(1)} MB)`);
+  console.log(`Airports with runway: ${withRunway} (${((withRunway / features.length) * 100).toFixed(1)}%)`);
   console.log(`Skipped: ${skippedNoRegion} wrong region, ${skippedBadType} bad type, ${skippedNoCoords} no coords`);
   console.log('\nType breakdown:');
   for (const [t, c] of Object.entries(fc._metadata.typeBreakdown as Record<string, number>).sort((a,b) => b[1] - a[1])) {
