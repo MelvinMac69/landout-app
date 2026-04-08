@@ -192,9 +192,10 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         setFollowMode(true);
         setState('following');
         const map = getMap();
-        if (map && position) {
-          // Re-center without zooming — preserves current zoom level
-          try { map.setCenter([position.lon, position.lat]); } catch {}
+        // Use positionRef (always fresh) over state position (may be stale)
+        const pos = positionRef.current ?? position;
+        if (map && pos) {
+          try { map.setCenter([pos.lon, pos.lat]); } catch {}
         }
       }
       return;
