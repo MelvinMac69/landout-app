@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Layers, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { BASEMAP_STYLES, type BasemapId } from './BackcountryMap';
@@ -72,6 +72,25 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [basemapsOpen, setBasemapsOpen] = useState(true);
   const [overlaysOpen, setOverlaysOpen] = useState(true);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close panel when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    // Delay to avoid immediately closing from the same click that opened it
+    const t = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 50);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const visibleCount = layers.filter((l) => l.visible).length;
 
@@ -87,7 +106,7 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
   }
 
   return (
-    <div>
+    <div ref={panelRef}>
       {isOpen ? (
         /* Open panel — dark charcoal */
         <div
