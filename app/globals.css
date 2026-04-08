@@ -10,7 +10,14 @@
   border-radius: 8px !important;
   overflow: hidden;
   /* Shift down when Direct To panel is active */
-  transform: translateY(var(--direct-to-offset, 0px));
+  transform: translateY(var(--direct-to-offset, 0px)) !important;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* MapLibre control containers — shift with Direct To panel */
+.maplibregl-ctrl-top-left,
+.maplibregl-ctrl-top-right {
+  transform: translateY(var(--direct-to-offset, 0px)) !important;
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 .maplibregl-ctrl-group button {
@@ -119,7 +126,7 @@ body {
   border: 1px solid #4A5568 !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
   /* Shift down when Direct To panel is active */
-  transform: translateY(var(--direct-to-offset, 0px));
+  transform: translateY(var(--direct-to-offset, 0px)) !important;
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
