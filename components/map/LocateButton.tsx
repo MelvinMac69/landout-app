@@ -20,6 +20,9 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const followModeRef = useRef(false);
   const trackUpRef = useRef(false);
   const positionRef = useRef<{ lat: number; lon: number; heading?: number } | null>(null);
+  // Track when we are making programmatic map movements so we can skip
+  // the dead-zone exit check during those movements.
+  const programmaticRef = useRef(false);
 
   function getMap(): maplibregl.Map | null {
     // Try mapRef first (set during Map mount), then window fallback
@@ -81,9 +84,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   function applyTrackUp(on: boolean) {
     trackUpRef.current = on;
     setTrackUpState(on);
-    // Don't force a bearing here — the next watchPosition update will set it
-    // based on the latest GPS heading. Forcing 0 can override good heading
-    // data if position.heading was undefined at the moment of toggle.
+    if (on) {
+      // Mark as programmatic so the next bearing change from setBearing
+      // (triggered by watchPosition) doesn't trigger dead-zone exit.
+      programmaticRef.current = true;
+      setTimeout(() => { programmaticRef.current = false; }, 600);
+    }
   }
 
   function startWatching(lat: number, lon: number, heading?: number) {
@@ -105,10 +111,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         updateMarker(la, lo, h);
         const map = getMap();
         if (followModeRef.current && map) {
+          programmaticRef.current = true;
           try { map.flyTo({ center: [lo, la], zoom: 13, duration: 500 }); } catch { map.panTo([lo, la], { duration: 500 }); }
           if (trackUpRef.current && h !== undefined) {
             map.setBearing(h);
           }
+          setTimeout(() => { programmaticRef.current = false; }, 600);
         }
       },
       (err) => {
@@ -253,6 +261,11 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   // Exit follow mode when user manually pans the map
   useEffect(() => {
     function onMapMoveStart(e: maplibregl.MapMouseEvent) {
+      // Ignore if this movement is from our own programmatic calls
+      if (programmaticRef.current && followModeRef.current) {
+        return;
+      }
+
       // Ignore programmatic movements (flyTo/panTo from position updates)
       if (e.originalEvent === undefined && followModeRef.current) {
         return;
