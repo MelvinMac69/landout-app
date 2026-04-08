@@ -233,7 +233,7 @@ export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: Measu
         <div
           style={{
             ...(typeof window !== 'undefined' && window.innerWidth < 640
-              ? { position: 'fixed', bottom: 120, left: '50%', transform: 'translateX(-50%)' }
+              ? { position: 'fixed', bottom: `calc(120px + var(--direct-to-offset, 0px))`, left: '50%', transform: 'translateX(-50%)' }
               : { position: 'absolute', top: ctxMenu.y, left: ctxMenu.x }),
             zIndex: 300, background: 'rgba(20,20,20,0.97)',
             border: '1.5px solid #D4621A', borderRadius: 12,
