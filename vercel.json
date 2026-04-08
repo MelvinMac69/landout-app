@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "NEXT_PUBLIC_GIT_SHA=c2b24e4 NEXT_PUBLIC_GIT_BRANCH=main npm run build",
+  "buildCommand": "NEXT_PUBLIC_GIT_SHA=d4a8a6a NEXT_PUBLIC_GIT_BRANCH=main npm run build",
   "outputDirectory": ".next",
   "installCommand": "npm install"
 }
