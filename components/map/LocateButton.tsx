@@ -387,7 +387,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         title={buttonTitle}
         style={{
           width: 42, height: 42, borderRadius: 8,
-          background: followMode ? '#1A202C' : state === 'active' ? '#2D3748' : state === 'denied' ? '#2D3748' : '#1A202C',
+          background: followMode ? '#141414' : state === 'active' ? '#1A1A1A' : state === 'denied' ? '#1A1A1A' : '#141414',
           border: `1.5px solid ${followMode ? '#D4621A' : state === 'active' ? '#D4621A' : state === 'denied' ? '#EF4444' : '#4A5568'}`,
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -396,7 +396,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           transition: 'all 0.2s',
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill={followMode ? '#1A202C' : 'none'} stroke={followMode ? 'white' : stateColors[state]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill={followMode ? '#141414' : 'none'} stroke={followMode ? 'white' : stateColors[state]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {state === 'acquiring' ? (
             <><circle cx="12" cy="12" r="10" strokeDasharray="5 3"/><circle cx="12" cy="12" r="3" fill="#F59E0B" stroke="none"/></>
           ) : state === 'denied' ? (

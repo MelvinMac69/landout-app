@@ -92,7 +92,7 @@ function BuildTag() {
   return (
     <div style={{
       position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 72px)', right: 8, zIndex: 30,
-      background: 'rgba(26,32,44,0.85)', border: '1px solid rgba(255,255,255,0.08)',
+      background: 'rgba(20,20,20,0.85)', border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 6, padding: '3px 8px', fontSize: 10,
       color: '#718096', fontFamily: 'monospace', pointerEvents: 'none',
       letterSpacing: '0.02em',
@@ -204,7 +204,7 @@ export default function MapPage() {
             width: 52,
             height: 52,
             borderRadius: '50%',
-            background: 'rgba(26,32,44,0.95)',
+            background: 'rgba(20,20,20,0.95)',
             border: '1.5px solid #4A5568',
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
             position: 'relative',
@@ -267,7 +267,7 @@ export default function MapPage() {
             width: 42,
             height: 42,
             borderRadius: 8,
-            background: '#1A202C',
+            background: '#141414',
             border: `1.5px solid ${trackUp ? '#3B82F6' : '#4A5568'}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
             display: 'flex',

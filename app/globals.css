@@ -27,14 +27,14 @@
   filter: invert(1) !important;
 }
 .maplibregl-ctrl-scale {
-  background: rgba(26,32,44,0.85) !important;
+  background: rgba(20,20,20,0.85) !important;
   color: #c9b99a !important;
   border-color: rgba(255,255,255,0.2) !important;
   font-size: 10px !important;
   padding: 0 4px !important;
 }
 .maplibregl-ctrl-attrib {
-  background: rgba(26,32,44,0.75) !important;
+  background: rgba(20,20,20,0.75) !important;
   color: #4a5568 !important;
   font-size: 9px !important;
 }
@@ -51,8 +51,8 @@
 
 :root {
   /* Landout dark theme palette */
-  --landout-charcoal: #1A202C;
-  --landout-charcoal-light: #2D3748;
+  --landout-charcoal: #141414;
+  --landout-charcoal-light: #1A1A1A;
   --landout-sand: #C9B99A;
   --landout-sand-light: #E8DCC8;
   --landout-aviation: #D4621A;

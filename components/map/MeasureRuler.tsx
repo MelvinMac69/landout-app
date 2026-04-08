@@ -235,7 +235,7 @@ export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: Measu
             ...(typeof window !== 'undefined' && window.innerWidth < 640
               ? { position: 'fixed', bottom: 120, left: '50%', transform: 'translateX(-50%)' }
               : { position: 'absolute', top: ctxMenu.y, left: ctxMenu.x }),
-            zIndex: 300, background: 'rgba(26,32,44,0.97)',
+            zIndex: 300, background: 'rgba(20,20,20,0.97)',
             border: '1.5px solid #D4621A', borderRadius: 12,
             padding: '10px 14px', minWidth: 210,
             boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
@@ -317,7 +317,7 @@ export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: Measu
       {/* Tap-to-place second point instruction */}
       {phase === 'placingB' && (
         <div style={{ position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 50, pointerEvents: 'none' }}>
-          <div style={{ background: 'rgba(26,32,44,0.92)', border: '1.5px solid #FF6B00', borderRadius: 10, padding: '8px 16px', color: '#FF6B00', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
+          <div style={{ background: 'rgba(20,20,20,0.92)', border: '1.5px solid #FF6B00', borderRadius: 10, padding: '8px 16px', color: '#FF6B00', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
             📏 Tap second point to measure
           </div>
         </div>
@@ -326,7 +326,7 @@ export function MeasureRuler({ map, onMeasurePhaseChange, onCtxMenuOpen }: Measu
       {/* Clear Measurement — always visible when line is placed */}
       {phase === 'placed' && (
         <div style={{ position: 'absolute', bottom: 72, left: '50%', transform: 'translateX(-50%)', zIndex: 50, pointerEvents: 'auto' }}>
-          <div style={{ background: 'rgba(26,32,44,0.95)', border: '1.5px solid #FF6B00', borderRadius: 12, padding: '10px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.5)' }}>
+          <div style={{ background: 'rgba(20,20,20,0.95)', border: '1.5px solid #FF6B00', borderRadius: 12, padding: '10px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.5)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#FF6B00' }}>
               📏 {formatDist(distanceNm)}
             </div>

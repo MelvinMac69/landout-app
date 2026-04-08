@@ -98,7 +98,7 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
           zIndex: 70,
           transform: visible ? 'translateY(0)' : 'translateY(-100%)',
           transition: 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          background: 'rgba(26,32,44,0.97)',
+          background: 'rgba(20,20,20,0.97)',
           borderBottom: '1.5px solid #D4621A',
           boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
           padding: 'calc(10px + env(safe-area-inset-top)) 14px 8px',
@@ -180,7 +180,7 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
           onClick={handleClear}
           style={{
             padding: '8px 16px',
-            background: 'rgba(26,32,44,0.95)',
+            background: 'rgba(20,20,20,0.95)',
             border: '1.5px solid #EF4444',
             borderRadius: 8,
             color: '#EF4444',

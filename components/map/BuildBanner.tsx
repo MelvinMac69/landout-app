@@ -28,7 +28,7 @@ export function BuildBanner({ sha = '?', branch = '?', changes, buildTime }: Bui
     <div
       style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999,
-        background: 'rgba(26,32,44,0.97)',
+        background: 'rgba(20,20,20,0.97)',
         borderBottom: '1.5px solid rgba(0,200,255,0.5)',
         padding: '7px 16px',
         display: 'flex', alignItems: 'center', gap: 12,
