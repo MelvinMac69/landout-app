@@ -21,6 +21,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const trackUpRef = useRef(false);
   const positionRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null } | null>(null);
   const programmaticRef = useRef(false);
+  // Timeout handle for clearing programmaticRef without relying on moveend
+  const programmaticTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // True on the very first position update after locate is pressed
   const initialLocateRef = useRef(false);
   // True after the FIRST-EVER locate zoom completes — prevents zooming on subsequent re-center taps
@@ -75,6 +77,10 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     if (watchId.current !== null) {
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
+    }
+    if (programmaticTimerRef.current) {
+      clearTimeout(programmaticTimerRef.current);
+      programmaticTimerRef.current = null;
     }
   }
 
@@ -136,7 +142,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
             try {
               lastSetCenterRef.current = map.project([lo, la]);
             } catch { /* ignore */ }
-            map.once('moveend', () => { programmaticRef.current = false; });
+            if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
+            programmaticTimerRef.current = setTimeout(() => { programmaticRef.current = false; }, 1000);
           } else {
             // Track-up mode: always keep device centered on screen (map rotates around device)
             // No dead zone — recenter every GPS update to keep device at center
@@ -199,15 +206,16 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         setFollowMode(true);
         setState('following');
         const map = getMap();
-        // Use positionRef (always fresh) over state position (may be stale)
         const pos = positionRef.current ?? position;
         if (map && pos) {
-          // setCenter() fires movestart SYNCHRONOUSLY — must set flag BEFORE calling it
+          // setCenter() fires movestart synchronously — must set flag BEFORE
           // so the movestart handler sees it and doesn't exit follow mode.
           programmaticRef.current = true;
+          if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
           try { map.setCenter([pos.lon, pos.lat]); } catch {}
           try { lastSetCenterRef.current = map.project([pos.lon, pos.lat]); } catch {}
-          map.once('moveend', () => { programmaticRef.current = false; });
+          // Safety: clear flag after 1s in case moveend never fires (stationary case)
+          programmaticTimerRef.current = setTimeout(() => { programmaticRef.current = false; }, 1000);
         }
       }
       return;
