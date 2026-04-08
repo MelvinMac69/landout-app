@@ -146,6 +146,13 @@ export function DataDashboard() {
   const speed = position?.speed ?? null;
   const altitude = position?.altitude ?? null;
 
+  // Tinted backgrounds per land status — dark versions of each color for readability
+  const statusBg = landStatus?.name === 'wilderness' || landStatus?.name === 'fs-wilderness' || landStatus?.name === 'wsa'
+    ? '#2A0A0A'  // dark red for no-go
+    : landStatus?.name === 'blm' || landStatus?.name === 'usfs' || landStatus?.name === 'nps' || landStatus?.name === 'fws'
+    ? '#0A2A0A'  // dark green for open
+    : '#2A1A05'; // dark orange for private
+
   return (
     <div
       ref={containerRef}
@@ -162,7 +169,7 @@ export function DataDashboard() {
         paddingBottom: 8,
         paddingLeft: 12,
         paddingRight: 12,
-        background: '#141414',
+        background: statusBg,
         borderBottom: `2px solid ${landStatus?.color ?? '#16A34A'}`,
         boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
       }}
