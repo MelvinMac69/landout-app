@@ -101,7 +101,7 @@ function formatAltitude(altMeters: number | null | undefined): string {
 export function DataDashboard() {
   const [position, setPosition] = useState<Position | null>(null);
   const [landStatus, setLandStatus] = useState<LandStatus>({ name: 'private', color: '#D97706', label: 'Private' });
-  const [speedUnit, setSpeedUnit] = useState<'kts' | 'mph'>('kts');
+  const [speedUnit, setSpeedUnit] = useState<'kts' | 'mph'>('mph');
   const [isVisible, setIsVisible] = useState(false);
   const landDataRef = useRef<Awaited<ReturnType<typeof loadLandData>> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
