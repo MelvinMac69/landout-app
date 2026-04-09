@@ -1,7 +1,63 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { point, polygon, booleanPointInPolygon } from '@turf/turf';
 import { haversineDistance } from '@/lib/utils/geo';
+
+// ─── Land overlay types & loading ───────────────────────────────────────────
+
+type LandOverlay = { name: string; color: string; label: string };
+type LandStatus = LandOverlay | null;
+
+async function loadLandData() {
+  try {
+    const [blm, usfs, nps, fws, wilderness, fsWilderness, wsa] = await Promise.all([
+      fetch('/data/sma-blm.geojson').then(r => r.json()),
+      fetch('/data/sma-usfs.geojson').then(r => r.json()),
+      fetch('/data/sma-nps.geojson').then(r => r.json()),
+      fetch('/data/sma-fws.geojson').then(r => r.json()),
+      fetch('/data/wilderness.geojson').then(r => r.json()),
+      fetch('/data/fs-wilderness.geojson').then(r => r.json()),
+      fetch('/data/wsa.geojson').then(r => r.json()),
+    ]);
+    return { blm, usfs, nps, fws, wilderness, fsWilderness, wsa };
+  } catch {
+    return { blm: null, usfs: null, nps: null, fws: null, wilderness: null, fsWilderness: null, wsa: null };
+  }
+}
+
+function pointInAny(pt: ReturnType<typeof point>, data: GeoJSON.FeatureCollection | null): GeoJSON.Feature | null {
+  if (!data) return null;
+  for (const feature of data.features) {
+    try {
+      const geom = feature.geometry;
+      if (geom.type === 'Polygon') {
+        if (booleanPointInPolygon(pt, polygon(geom.coordinates))) return feature;
+      } else if (geom.type === 'MultiPolygon') {
+        for (const poly of geom.coordinates) {
+          if (booleanPointInPolygon(pt, polygon(poly))) return feature;
+        }
+      }
+    } catch { /* skip */ }
+  }
+  return null;
+}
+
+function checkLandStatus(lat: number, lon: number, landData: Awaited<ReturnType<typeof loadLandData>>): LandStatus {
+  try {
+    const pt = point([lon, lat]);
+    if (pointInAny(pt, landData.wilderness)) return { name: 'wilderness', color: '#DC2626', label: 'Wilderness' };
+    if (pointInAny(pt, landData.fsWilderness)) return { name: 'fs-wilderness', color: '#DC2626', label: 'Wilderness' };
+    if (pointInAny(pt, landData.wsa)) return { name: 'wsa', color: '#DC2626', label: 'WSA' };
+    if (pointInAny(pt, landData.blm)) return { name: 'blm', color: '#16A34A', label: 'BLM' };
+    if (pointInAny(pt, landData.usfs)) return { name: 'usfs', color: '#16A34A', label: 'USFS' };
+    if (pointInAny(pt, landData.nps)) return { name: 'nps', color: '#16A34A', label: 'NPS' };
+    if (pointInAny(pt, landData.fws)) return { name: 'fws', color: '#16A34A', label: 'FWS' };
+    return { name: 'private', color: '#D97706', label: 'Private' };
+  } catch {
+    return { name: 'private', color: '#D97706', label: 'Private' };
+  }
+}
 
 function formatCoord(lat: number, lon: number): string {
   const latDir = lat >= 0 ? 'N' : 'S';
@@ -48,6 +104,14 @@ function formatDist(nm: number): string {
 
 export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps) {
   const [visible, setVisible] = useState(false);
+  const [speedUnit, setSpeedUnit] = useState<'kts' | 'mph'>('mph');
+  const [landStatus, setLandStatus] = useState<LandStatus>(null);
+  const landDataRef = useRef<Awaited<ReturnType<typeof loadLandData>> | null>(null);
+
+  // Load land overlay data once
+  useEffect(() => {
+    loadLandData().then(data => { landDataRef.current = data; });
+  }, []);
   const [bottomVisible, setBottomVisible] = useState(false);
   const prevDestRef = useRef<DirectToDest | null>(null);
 
@@ -70,6 +134,24 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
     setBottomVisible(false);
     setTimeout(onClear, 300);
   }
+
+  // Listen for position updates and update land status
+  useEffect(() => {
+    function onPositionUpdate(e: Event) {
+      const pos = (e as CustomEvent<{ lat: number; lon: number }>).detail;
+      if (pos && pos.lat != null && pos.lon != null && landDataRef.current) {
+        const status = checkLandStatus(pos.lat, pos.lon, landDataRef.current);
+        setLandStatus(status);
+      }
+    }
+    window.addEventListener('landoutPositionUpdate', onPositionUpdate);
+    // Also check immediately if we have a position
+    if (currentPos?.lat != null && currentPos?.lon != null && landDataRef.current) {
+      const status = checkLandStatus(currentPos.lat, currentPos.lon, landDataRef.current);
+      setLandStatus(status);
+    }
+    return () => window.removeEventListener('landoutPositionUpdate', onPositionUpdate);
+  }, [currentPos]);
 
   // Calculate values
   const destLabel = dest.name || formatCoord(dest.lat, dest.lng);
@@ -125,6 +207,20 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
               {destLabel}
             </span>
           </div>
+          {/* Land status dot */}
+          {landStatus && (
+            <div
+              title={landStatus.label}
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: landStatus.color,
+                boxShadow: `0 0 6px ${landStatus.color}80`,
+                flexShrink: 0,
+              }}
+            />
+          )}
           <button
             onClick={handleClear}
             style={{
@@ -167,11 +263,21 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
           {/* Divider */}
           <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
 
-          {/* Ground Speed */}
-          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 12px', textAlign: 'center' }}>
-            <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>GS</div>
+          {/* Ground Speed (toggle kts/mph) */}
+          <div
+            onClick={() => setSpeedUnit(u => u === 'kts' ? 'mph' : 'kts')}
+            style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 12px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+          >
+            <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+              GS
+              <span style={{ fontSize: 8, color: '#64748b', fontWeight: 400 }}>TAP</span>
+            </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'white', fontFamily: 'monospace' }}>
-              {gsKts != null ? `${Math.round(gsKts)} kts` : '—'}
+              {gsKts != null
+                ? speedUnit === 'kts'
+                  ? `${Math.round(gsKts)} kts`
+                  : `${Math.round(gsKts * 1.15078)} mph`
+                : '—'}
             </div>
           </div>
         </div>
