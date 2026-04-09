@@ -209,19 +209,42 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
               {destLabel}
             </span>
           </div>
-          {/* Land status dot */}
+          {/* Land status label */}
           {landStatus && (
             <div
-              title={landStatus.label}
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: landStatus.color,
-                boxShadow: `0 0 6px ${landStatus.color}80`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 8px',
+                background: `${landStatus.color}20`,
+                border: `1px solid ${landStatus.color}60`,
+                borderRadius: 20,
                 flexShrink: 0,
               }}
-            />
+            >
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: landStatus.color,
+                  boxShadow: `0 0 4px ${landStatus.color}`,
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: landStatus.color,
+                  fontFamily: 'system-ui',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {landStatus.label} Land Below
+              </span>
+            </div>
           )}
           <button
             onClick={handleClear}
