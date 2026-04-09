@@ -135,23 +135,25 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
     setTimeout(onClear, 300);
   }
 
-  // Listen for position updates and update land status
+  // Update land status whenever position updates (via event from LocateButton)
   useEffect(() => {
     function onPositionUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number }>).detail;
-      if (pos && pos.lat != null && pos.lon != null && landDataRef.current) {
-        const status = checkLandStatus(pos.lat, pos.lon, landDataRef.current);
-        setLandStatus(status);
+      if (pos && pos.lat != null && pos.lon != null) {
+        if (landDataRef.current) {
+          setLandStatus(checkLandStatus(pos.lat, pos.lon, landDataRef.current));
+        } else {
+          // Land data not loaded yet — load it now and check
+          loadLandData().then(data => {
+            landDataRef.current = data;
+            setLandStatus(checkLandStatus(pos.lat, pos.lon, data));
+          });
+        }
       }
     }
     window.addEventListener('landoutPositionUpdate', onPositionUpdate);
-    // Also check immediately if we have a position
-    if (currentPos?.lat != null && currentPos?.lon != null && landDataRef.current) {
-      const status = checkLandStatus(currentPos.lat, currentPos.lon, landDataRef.current);
-      setLandStatus(status);
-    }
     return () => window.removeEventListener('landoutPositionUpdate', onPositionUpdate);
-  }, [currentPos]);
+  }, []);
 
   // Calculate values
   const destLabel = dest.name || formatCoord(dest.lat, dest.lng);
