@@ -320,6 +320,14 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     return () => window.removeEventListener('landoutSetTrackUp', handler);
   }, []);
 
+
+  // Start tracking when DirectTo is set from anywhere in the app
+  useEffect(() => {
+    function onStartTracking() { handleLocate(); }
+    window.addEventListener('landoutStartTracking', onStartTracking);
+    return () => window.removeEventListener('landoutStartTracking', onStartTracking);
+  });
+
   // Expose location state to window
   const stateRef = useRef({ state, followMode, position, trackUp });
   useEffect(() => {

@@ -709,6 +709,8 @@ export function BackcountryMap({
       setDirectToDest(dest);
       setInfoCard(null);
       setActionMenu(null);
+      // Auto-start location tracking when DirectTo is set
+      window.dispatchEvent(new CustomEvent('landoutStartTracking'));
     };
     // MeasureRuler calls this to drop a pin from right-click "Save Pin"
     win.landoutDropPin = (lng: number, lat: number, name?: string) => {
