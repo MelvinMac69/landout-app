@@ -471,6 +471,19 @@ export function BackcountryMap({
         },
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       });
+      // Circle layer for the endpoint dots (current position and destination)
+      map.current.addLayer({
+        id: 'directto-dots',
+        type: 'circle',
+        source: 'directto-source',
+        filter: ['==', '$type', 'Point'],
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#FF00FF',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
     }
 
     // Dropped pins source
@@ -792,24 +805,40 @@ export function BackcountryMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // EMPTY DEPS — map only mounts once
 
-  // Update Direct To magenta line whenever destination or current position changes
+  // Update Direct To magenta line whenever destination or current position changes.
+  // Also depends on currentPosState so this re-runs when GPS delivers a fresh position.
   useEffect(() => {
     if (!map.current) return;
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
     if (directToDest && currentPosRef.current) {
+      // Draw line from device to destination AND draw dots at each endpoint
       src.setData({
         type: 'FeatureCollection',
-        features: [{
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDest.lng, directToDest.lat]] },
-          properties: {},
-        }],
+        features: [
+          {
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDest.lng, directToDest.lat]] },
+            properties: {},
+          },
+          // Dot at current device position
+          {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
+            properties: {},
+          },
+          // Dot at destination
+          {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
+            properties: {},
+          },
+        ],
       });
-    } else {
-      src.setData({ type: 'FeatureCollection', features: [] });
     }
-  }, [directToDest]);
+    // NOTE: do NOT clear the source when position is missing — that would erase
+    // the destination dot. The source stays as-is until a new valid position arrives.
+  }, [directToDest, currentPosState]);
 
   // Sync dropped pins to the pins source
   useEffect(() => {

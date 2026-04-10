@@ -185,6 +185,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
                 // If within dead zone, do nothing — don't recenter
               }
             }
+            // Clear the suppress flag — we've now handled the GPS fix without flying
+            suppressNextInitialFlyToRef.current = false;
           }
           if (trackUpRef.current && h !== undefined) {
             map.setBearing(h);
