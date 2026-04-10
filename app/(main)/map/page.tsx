@@ -84,9 +84,12 @@ function DirectToPrompt({ onClose }: { onClose: () => void }) {
   );
 }
 
-// Build version indicator — injected at deploy time via NEXT_PUBLIC_GIT_SHA / NEXT_PUBLIC_GIT_BRANCH
-const BUILD_SHA = process.env.NEXT_PUBLIC_GIT_SHA ?? '';
-const BUILD_BRANCH = process.env.NEXT_PUBLIC_GIT_BRANCH ?? '';
+// Build version indicator — injected at deploy time by Vercel's auto-injected env vars:
+// NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA and NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF
+// These are set automatically by Vercel at build time; no manual config needed.
+// Locally (no Vercel) they are undefined and this shows nothing.
+const BUILD_SHA = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? '';
+const BUILD_BRANCH = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF ?? '';
 const BUILD_VERSION = BUILD_SHA
   ? `${BUILD_BRANCH || '?'} @ ${BUILD_SHA.slice(0, 7)}`
   : '';
