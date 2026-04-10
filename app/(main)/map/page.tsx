@@ -173,19 +173,17 @@ export default function MapPage() {
         // Clear URL params so they don't persist
         window.history.replaceState(null, '', '/map');
       } else {
-        const detail = {
-          lng: parseFloat(lon),
-          lat: parseFloat(lat),
-          name: decodedName,
-          faa_ident: decodedIcao || undefined,
-          airportType: decodedAirportType || undefined,
-          municipality: decodedMunicipality || undefined,
-          state: decodedState || undefined,
-          runway_length_ft: runway_length_ft ? parseInt(runway_length_ft) : null,
-          elevation_ft: elev ? parseInt(elev) : null,
-          directTo,
-        };
-        window.dispatchEvent(new CustomEvent('landoutSearchSelect', { detail }));
+        // directTo=1 — draw line from device to site, no InfoCard
+        setDisclaimerDismissed(true);
+        // Use landoutSetDirectTo to draw line without opening InfoCard
+        if ((window as any).landoutSetDirectTo) {
+          (window as any).landoutSetDirectTo({
+            lng: parseFloat(lon),
+            lat: parseFloat(lat),
+            name: decodedName,
+            type: 'map',
+          });
+        }
       }
     }
   }, []);
