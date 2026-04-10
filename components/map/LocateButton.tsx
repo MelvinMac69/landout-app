@@ -217,8 +217,14 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           // so the movestart handler sees it and doesn't exit follow mode.
           programmaticRef.current = true;
           if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
-          // Restore the zoom established by the first LocateButton tap, then center
-          try { map.flyTo({ center: [pos.lon, pos.lat], zoom: establishedZoomRef.current, duration: 800 }); } catch {}
+          try {
+            // Save current zoom then restore established zoom — no animation (unlike flyTo
+            // which can interfere with GPS callbacks on iOS via UIWebView timing issues)
+            const prevZoom = map.getZoom();
+            map.setCenter([pos.lon, pos.lat]);
+            map.setZoom(establishedZoomRef.current);
+            establishedZoomRef.current = prevZoom;
+          } catch {}
           try { lastSetCenterRef.current = map.project([pos.lon, pos.lat]); } catch {}
           // Safety: clear flag after 1s in case moveend never fires (stationary case)
           programmaticTimerRef.current = setTimeout(() => { programmaticRef.current = false; }, 1000);
