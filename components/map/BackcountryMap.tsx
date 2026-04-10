@@ -104,6 +104,9 @@ export function BackcountryMap({
 
   // Direct To state
   const [directToDest, setDirectToDest] = useState<DirectToDest | null>(null);
+  // Ref wrapper for directToDest to avoid stale closure in event listeners
+  const directToDestRef = useRef(directToDest);
+  useEffect(() => { directToDestRef.current = directToDest; });
   // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
   const currentPosRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
   const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
@@ -748,6 +751,34 @@ export function BackcountryMap({
     });
 
     // ── GPS sync from LocateButton ────────────────────────────────────────────────
+    // Immediate update via event (for DirectTo line rendering)
+    function onGpsUpdate(e: Event) {
+      const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
+      if (pos) {
+        currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
+        setCurrentPosState(currentPosRef.current);
+        // If DirectTo destination is set and map source exists, draw line immediately
+        if (directToDestRef.current && map.current) {
+          const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+          if (src) {
+            src.setData({
+              type: 'FeatureCollection',
+              features: [{
+                type: 'Feature',
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDestRef.current!.lng, directToDestRef.current!.lat]],
+                },
+                properties: {},
+              }],
+            });
+          }
+        }
+      }
+    }
+    window.addEventListener('landoutPositionUpdate', onGpsUpdate);
+
+    // Polling fallback (kept for non-event-based position sources)
     const gpsInterval = setInterval(() => {
       try {
         const loc = (window as any).landoutLocationState;
