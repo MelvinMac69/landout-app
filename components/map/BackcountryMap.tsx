@@ -166,6 +166,15 @@ export function BackcountryMap({
       processDirectTo({ lng: pending.lng, lat: pending.lat, name: pending.name });
     }
 
+    // Also check for calls to window.landoutSetDirectTo (used by SiteInfoBox) that
+    // may have been made before this listener was set up. Those calls are silently
+    // ignored by the optional chaining if win.landoutSetDirectTo wasn't assigned yet.
+    const pendingSet = (window as any).__landoutPendingSetDirectTo;
+    if (pendingSet) {
+      delete (window as any).__landoutPendingSetDirectTo;
+      processDirectTo(pendingSet);
+    }
+
     return () => window.removeEventListener('landoutDirectTo', onDirectTo);
   }, []);
 
@@ -835,9 +844,12 @@ export function BackcountryMap({
           },
         ],
       });
+    } else if (!directToDest) {
+      // No destination — clear the line and dots
+      src.setData({ type: 'FeatureCollection', features: [] });
     }
-    // NOTE: do NOT clear the source when position is missing — that would erase
-    // the destination dot. The source stays as-is until a new valid position arrives.
+    // NOTE: do NOT clear the source when position is missing but destination IS set —
+    // that would erase the destination dot. It stays visible until navigation ends.
   }, [directToDest, currentPosState]);
 
   // Sync dropped pins to the pins source

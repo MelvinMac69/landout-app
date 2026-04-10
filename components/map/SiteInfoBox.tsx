@@ -66,13 +66,24 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
 
   function handleDirectTo() {
     // Use landoutSetDirectTo directly — does NOT open the orange InfoCard,
-    // only sets the DirectTo destination and starts GPS tracking
-    (window as any).landoutSetDirectTo?.({
-      lng: site.lon,
-      lat: site.lat,
-      name: site.name,
-      type: 'map',
-    });
+    // only sets the DirectTo destination and starts GPS tracking.
+    // If BackcountryMap hasn't set window.landoutSetDirectTo yet, use the pending
+    // flag so it gets picked up when BackcountryMap registers.
+    if ((window as any).landoutSetDirectTo) {
+      (window as any).landoutSetDirectTo({
+        lng: site.lon,
+        lat: site.lat,
+        name: site.name,
+        type: 'map',
+      });
+    } else {
+      // BackcountryMap not ready yet — store as pending
+      (window as any).__landoutPendingSetDirectTo = {
+        lng: site.lon,
+        lat: site.lat,
+        name: site.name,
+      };
+    }
     onClose();
   }
 
