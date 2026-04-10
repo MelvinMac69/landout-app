@@ -30,3 +30,4 @@ yarn-error.log*
 trigger
 test-output/
 .vercel
+test-view-on-map.js
