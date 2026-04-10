@@ -87,9 +87,13 @@ function DirectToPrompt({ onClose }: { onClose: () => void }) {
 // Build version indicator — injected at deploy time via NEXT_PUBLIC_GIT_SHA / NEXT_PUBLIC_GIT_BRANCH
 const BUILD_SHA = process.env.NEXT_PUBLIC_GIT_SHA ?? '';
 const BUILD_BRANCH = process.env.NEXT_PUBLIC_GIT_BRANCH ?? '';
+const BUILD_VERSION = BUILD_SHA
+  ? `${BUILD_BRANCH || '?'} @ ${BUILD_SHA.slice(0, 7)}`
+  : '';
 
 function BuildTag() {
-  if (!BUILD_SHA) return null;
+  // Show a subtle version tag in bottom-right corner always (even in dev)
+  if (!BUILD_VERSION) return null;
   return (
     <div style={{
       position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom) + 72px)', right: 8, zIndex: 30,
@@ -98,7 +102,7 @@ function BuildTag() {
       color: '#718096', fontFamily: 'monospace', pointerEvents: 'none',
       letterSpacing: '0.02em',
     }}>
-      {BUILD_BRANCH} @ {BUILD_SHA}
+      {BUILD_VERSION}
     </div>
   );
 }
@@ -469,7 +473,7 @@ export default function MapPage() {
               Build Info
             </div>
             <div style={{ fontSize: 12, color: '#C9B99A', fontFamily: 'monospace', marginBottom: 4 }}>
-              {BUILD_BRANCH} @ {BUILD_SHA?.slice(0, 7)}
+              {BUILD_VERSION || 'dev build (local)'}
             </div>
             {/* Grid toggle hidden in easter egg */}
             <button
