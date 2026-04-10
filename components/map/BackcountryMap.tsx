@@ -132,16 +132,7 @@ export function BackcountryMap({
     return () => { delete (window as any).__landoutSetDirectToDest; };
   }, []);
 
-  // Handle pending dropPin from URL param — runs after mount to pick up any pending pin
-  useEffect(() => {
-    const pending = (window as any).__landoutPendingPin;
-    if (pending && pending.ts > Date.now() - 10000) {
-      handleDropPin(pending.lng, pending.lat, pending.name);
-      // Clear URL params after processing so we don't re-fire on remount
-      window.history.replaceState(null, '', '/map');
-    }
-    delete (window as any).__landoutPendingPin;
-  }, []);
+
 
   // Listen for landoutSearchSelect from search page navigation
   useEffect(() => {
@@ -514,8 +505,8 @@ export function BackcountryMap({
       // Process any pending pin that was set before map loaded
       const pending = (window as any).__landoutPendingPin;
       if (pending && pending.ts > Date.now() - 10000) {
-        // Use internal addPin directly — map is ready so it will work
-        setDroppedPins((prev) => [...prev, { id: `pin-${pending.ts}`, lng: pending.lng, lat: pending.lat, name: pending.name }]);
+        // Map is ready — use handleDropPin to add pin and clear any existing InfoCard/ActionMenu
+        handleDropPin(pending.lng, pending.lat, pending.name);
       }
       delete (window as any).__landoutPendingPin;
 
@@ -828,6 +819,11 @@ export function BackcountryMap({
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
+    // Fly to the pin location
+    const map = mapInstanceRef.current;
+    if (map) {
+      map.flyTo({ center: [lng, lat], zoom: 13, duration: 1200 });
+    }
     const id = `pin-${Date.now()}`;
     setDroppedPins((prev) => [...prev, { id, lng, lat, name }]);
     setActionMenu(null);

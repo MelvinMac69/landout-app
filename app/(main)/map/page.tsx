@@ -136,13 +136,15 @@ export default function MapPage() {
       const decodedMunicipality = municipality ? decodeURIComponent(municipality) : undefined;
       const decodedState = state ? decodeURIComponent(state) : undefined;
       if (dropPin) {
-        // Store pending pin — map will pick it up when it loads and clear the URL
+        // Store pending pin — map will pick it up when it loads
         (window as any).__landoutPendingPin = {
           lng: parseFloat(lon),
           lat: parseFloat(lat),
           name: decodedName,
           ts: Date.now(),
         };
+        // Clear URL params so they don't persist
+        window.history.replaceState(null, '', '/map');
       } else {
         const detail = {
           lng: parseFloat(lon),
