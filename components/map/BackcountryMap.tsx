@@ -135,20 +135,34 @@ export function BackcountryMap({
   // Handle landoutDirectTo event from site detail page Direct To button.
   // Sets destination AND starts lightweight GPS tracking so the line appears.
   useEffect(() => {
-    function onDirectTo(e: Event) {
-      const { lng, lat, name } = (e as CustomEvent<{ lng: number; lat: number; name: string }>).detail;
-      const dest = { lng, lat, name, type: 'map' as const };
-      setDirectToDest(dest);
+    function processDirectTo(dest: { lng: number; lat: number; name: string }) {
+      const fullDest = { ...dest, type: 'map' as const };
+      setDirectToDest(fullDest);
       setInfoCard(null);
       setActionMenu(null);
       // Start lightweight GPS tracking so the line gets drawn from current position
       window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
       // Notify page.tsx to fit bounds between device and destination
       window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
-        detail: { dest, currentPos: currentPosRef.current || null },
+        detail: { dest: fullDest, currentPos: currentPosRef.current || null },
       }));
     }
+
+    function onDirectTo(e: Event) {
+      const { lng, lat, name } = (e as CustomEvent<{ lng: number; lat: number; name: string }>).detail;
+      processDirectTo({ lng, lat, name });
+    }
+
     window.addEventListener('landoutDirectTo', onDirectTo);
+
+    // Check for pending DirectTo from page.tsx effect that may have fired before this
+    // listener was registered (React effects run parent-before-child).
+    const pending = (window as any).__landoutPendingDirectTo;
+    if (pending) {
+      delete (window as any).__landoutPendingDirectTo;
+      processDirectTo({ lng: pending.lng, lat: pending.lat, name: pending.name });
+    }
+
     return () => window.removeEventListener('landoutDirectTo', onDirectTo);
   }, []);
 

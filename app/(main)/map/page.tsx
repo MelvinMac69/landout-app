@@ -175,15 +175,12 @@ export default function MapPage() {
       } else {
         // directTo=1 — draw line from device to site, no InfoCard
         setDisclaimerDismissed(true);
-        // Dispatch landoutDirectTo event — BackcountryMap listens and handles
-        // setting the destination + starting GPS tracking for the line.
-        window.dispatchEvent(new CustomEvent('landoutDirectTo', {
-          detail: {
-            lng: parseFloat(lon),
-            lat: parseFloat(lat),
-            name: decodedName,
-          },
-        }));
+        // Set pending flag BEFORE dispatching — BackcountryMap's useEffect runs after
+        // page.tsx's useEffect, so the event listener won't be registered yet.
+        // BackcountryMap checks __landoutPendingDirectTo when it mounts.
+        const directToData = { lng: parseFloat(lon), lat: parseFloat(lat), name: decodedName };
+        (window as any).__landoutPendingDirectTo = directToData;
+        window.dispatchEvent(new CustomEvent('landoutDirectTo', { detail: directToData }));
       }
     }
   }, []);
