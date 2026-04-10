@@ -269,6 +269,19 @@ export default function MapPage() {
         document.documentElement.style.setProperty('--direct-to-offset', '95px');
         setDirectToShift(95);
         setDirectToData(detail);
+        // Fit map to show both current position (device) and destination
+        const map = (window as any).__landoutMap;
+        const pos = detail.currentPos;
+        if (map && pos?.lat && pos?.lon) {
+          const bounds: [[number, number], [number, number]] = [
+            [Math.min(pos.lon, detail.dest.lng), Math.min(pos.lat, detail.dest.lat)],
+            [Math.max(pos.lon, detail.dest.lng), Math.max(pos.lat, detail.dest.lat)],
+          ];
+          map.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 1500 });
+        } else if (map) {
+          // No GPS position yet — just fly to destination
+          map.flyTo({ center: [detail.dest.lng, detail.dest.lat], zoom: 12, duration: 1500 });
+        }
       } else {
         document.documentElement.style.setProperty('--direct-to-offset', '0px');
         setDirectToShift(0);

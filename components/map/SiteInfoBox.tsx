@@ -65,17 +65,14 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
     : null;
 
   function handleDirectTo() {
-    window.dispatchEvent(new CustomEvent('landoutSearchSelect', {
-      detail: {
-        lng: site.lon,
-        lat: site.lat,
-        name: site.name,
-        faa_ident: site.siteId || undefined,
-        municipality: site.municipality || undefined,
-        state: site.state || undefined,
-        directTo: true,
-      }
-    }));
+    // Use landoutSetDirectTo directly — does NOT open the orange InfoCard,
+    // only sets the DirectTo destination and starts GPS tracking
+    (window as any).landoutSetDirectTo?.({
+      lng: site.lon,
+      lat: site.lat,
+      name: site.name,
+      type: 'map',
+    });
     onClose();
   }
 

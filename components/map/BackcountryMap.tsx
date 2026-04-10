@@ -509,6 +509,8 @@ export function BackcountryMap({
         handleDropPin(pending.lng, pending.lat, pending.name);
       }
       delete (window as any).__landoutPendingPin;
+      // Auto-start GPS tracking so distance in SiteInfoBox is live immediately
+      window.dispatchEvent(new CustomEvent('landoutStartTracking'));
 
       // Debug: count native touch events on the map canvas to verify they reach MapLibre
       const canvas = mapInstance.getCanvas();
@@ -787,6 +789,13 @@ export function BackcountryMap({
       setActionMenu(null);
       // Auto-start location tracking when DirectTo is set
       window.dispatchEvent(new CustomEvent('landoutStartTracking'));
+      // Notify page.tsx to show DirectToPanel with current position for bounds fitting
+      window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+        detail: {
+          dest,
+          currentPos: currentPosRef.current || null,
+        },
+      }));
     };
     // MeasureRuler calls this to drop a pin from right-click "Save Pin"
     win.landoutDropPin = (lng: number, lat: number, name?: string) => {
