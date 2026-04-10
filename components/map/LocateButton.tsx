@@ -21,6 +21,9 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const trackUpRef = useRef(false);
   const positionRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null } | null>(null);
   const programmaticRef = useRef(false);
+  // Suppresses the next "initial locate" flyTo without affecting hasEverInitiallyLocatedRef.
+  // Used when GPS is started programmatically (e.g. dropPin) to avoid fighting the map's flyTo.
+  const suppressNextInitialFlyToRef = useRef(false);
   // Timeout handle for clearing programmaticRef without relying on moveend
   const programmaticTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks the zoom level established by the first LocateButton tap — restored on re-center taps
@@ -133,22 +136,29 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         const map = getMap();
         if (followModeRef.current && map) {
           if (initialLocateRef.current && !hasEverInitiallyLocatedRef.current) {
-            // FIRST-EVER locate: fly to center AND zoom in — only happens once ever
-            initialLocateRef.current = false;
-            hasEverInitiallyLocatedRef.current = true;
-            programmaticRef.current = true;
-            try {
-              map.flyTo({ center: [lo, la], zoom: 13, duration: 800 });
-            } catch {
-              map.setCenter([lo, la]);
-              map.zoomTo(13);
+            if (suppressNextInitialFlyToRef.current) {
+              // GPS was started by onStartGpsOnly (dropPin case) — skip flyTo, we already
+              // flew to the site. Clear flag so normal first-tap behavior is preserved later.
+              suppressNextInitialFlyToRef.current = false;
+              initialLocateRef.current = false;
+            } else {
+              // FIRST-EVER locate: fly to center AND zoom in — only happens once ever
+              initialLocateRef.current = false;
+              hasEverInitiallyLocatedRef.current = true;
+              programmaticRef.current = true;
+              try {
+                map.flyTo({ center: [lo, la], zoom: 13, duration: 800 });
+              } catch {
+                map.setCenter([lo, la]);
+                map.zoomTo(13);
+              }
+              // Track where we set the center so we can measure movement from it
+              try {
+                lastSetCenterRef.current = map.project([lo, la]);
+              } catch { /* ignore */ }
+              if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
+              programmaticTimerRef.current = setTimeout(() => { programmaticRef.current = false; }, 1000);
             }
-            // Track where we set the center so we can measure movement from it
-            try {
-              lastSetCenterRef.current = map.project([lo, la]);
-            } catch { /* ignore */ }
-            if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
-            programmaticTimerRef.current = setTimeout(() => { programmaticRef.current = false; }, 1000);
           } else {
             // Track-up mode: always keep device centered on screen (map rotates around device)
             // No dead zone — recenter every GPS update to keep device at center
@@ -342,9 +352,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     function onStartGpsOnly() {
       if (watchId.current !== null) return; // already tracking
       if (!('geolocation' in navigator)) return;
-      // Skip the "first-ever locate flyTo" since we already flew to the site.
-      // GPS tracking still starts (for SiteInfoBox distance), but won't fight the map.
-      hasEverInitiallyLocatedRef.current = true;
+      // Suppress the "initial flyTo" on the next GPS fix — we already flew to the site.
+      suppressNextInitialFlyToRef.current = true;
       // Get initial position then start watch
       navigator.geolocation.getCurrentPosition(
         (pos) => {
