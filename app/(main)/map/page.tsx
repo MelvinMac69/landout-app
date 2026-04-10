@@ -146,13 +146,16 @@ export default function MapPage() {
       const decodedState = state ? decodeURIComponent(state) : undefined;
       const decodedSiteId = siteId ? decodeURIComponent(siteId) : '';
       if (dropPin) {
-        // Store pending pin — map will pick it up when it loads
-        (window as any).__landoutPendingPin = {
+        const pinData = {
           lng: parseFloat(lon),
           lat: parseFloat(lat),
           name: decodedName,
           ts: Date.now(),
         };
+        // Store pending pin — map will pick it up when it loads
+        (window as any).__landoutPendingPin = pinData;
+        // Dispatch landoutDropPin so the map reacts even if it loaded before this effect ran
+        window.dispatchEvent(new CustomEvent('landoutDropPin', { detail: pinData }));
         // Auto-dismiss disclaimer so it doesn't cover the new site info box
         setDisclaimerDismissed(true);
         // Populate site info box

@@ -503,8 +503,10 @@ export function BackcountryMap({
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
 
       // Process any pending pin that was set before map loaded
+      // Only process if it hasn't already been handled by the landoutDropPin event
       const pending = (window as any).__landoutPendingPin;
-      if (pending && pending.ts > Date.now() - 10000) {
+      if (pending && pending.ts > Date.now() - 10000 && !(window as any).__landoutDropPinHandled) {
+        (window as any).__landoutDropPinHandled = true;
         // Map is ready — use handleDropPin to add pin and clear any existing InfoCard/ActionMenu
         handleDropPin(pending.lng, pending.lat, pending.name);
       }
