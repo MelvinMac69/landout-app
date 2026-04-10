@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, BackcountryMap, DataDashboard, OVERLAY_LAYERS } from '@/components/map';
 import { DirectToPanel } from '@/components/map/DirectTo';
+import { SiteInfoBox } from '@/components/map/SiteInfoBox';
 
 /** Simple prompt to enter lat/lon and trigger Direct To */
 function DirectToPrompt({ onClose }: { onClose: () => void }) {
@@ -131,8 +132,9 @@ export default function MapPage() {
     const airportType = params.get('airportType');
     const municipality = params.get('municipality');
     const state = params.get('state');
-    const runway_length_ft = params.get('runway_length_ft');
+    const runway_length_ft = params.get('runway');
     const elev = params.get('elev');
+    const siteId = params.get('siteId');
     const directTo = params.get('directTo') === '1';
     const dropPin = params.get('dropPin') === '1';
     if (lat && lon && name) {
@@ -142,6 +144,7 @@ export default function MapPage() {
       const decodedAirportType = airportType ? decodeURIComponent(airportType) : undefined;
       const decodedMunicipality = municipality ? decodeURIComponent(municipality) : undefined;
       const decodedState = state ? decodeURIComponent(state) : undefined;
+      const decodedSiteId = siteId ? decodeURIComponent(siteId) : '';
       if (dropPin) {
         // Store pending pin — map will pick it up when it loads
         (window as any).__landoutPendingPin = {
@@ -150,6 +153,20 @@ export default function MapPage() {
           name: decodedName,
           ts: Date.now(),
         };
+        // Auto-dismiss disclaimer so it doesn't cover the new site info box
+        setDisclaimerDismissed(true);
+        // Populate site info box
+        setSiteInfo({
+          name: decodedName,
+          siteId: decodedSiteId,
+          lat: parseFloat(lat),
+          lon: parseFloat(lon),
+          elev: elev || '',
+          runway: runway_length_ft || '',
+          municipality: decodedMunicipality || '',
+          state: decodedState || '',
+          type: decodedAirportType || '',
+        });
         // Clear URL params so they don't persist
         window.history.replaceState(null, '', '/map');
       } else {
@@ -170,6 +187,17 @@ export default function MapPage() {
     }
   }, []);
   const [compassBearing, setCompassBearing] = useState(0);
+  const [siteInfo, setSiteInfo] = useState<{
+    name: string;
+    siteId: string;
+    lat: number;
+    lon: number;
+    elev: string;
+    runway: string;
+    municipality: string;
+    state: string;
+    type: string;
+  } | null>(null);
   const [directToShift, setDirectToShift] = useState(0);
   const [dataDashboardShift, setDataDashboardShift] = useState(0);
   const [directToData, setDirectToData] = useState<{
@@ -411,6 +439,14 @@ export default function MapPage() {
 
       {/* Build banner — top, shows on first visit */}
 
+
+      {/* Site Info box — shown when navigating from site detail via "View on Map" */}
+      {siteInfo && (
+        <SiteInfoBox
+          site={siteInfo}
+          onClose={() => setSiteInfo(null)}
+        />
+      )}
 
       {/* Build version tag — bottom-right */}
 
