@@ -175,15 +175,15 @@ export default function MapPage() {
       } else {
         // directTo=1 — draw line from device to site, no InfoCard
         setDisclaimerDismissed(true);
-        // Use landoutSetDirectTo to draw line without opening InfoCard
-        if ((window as any).landoutSetDirectTo) {
-          (window as any).landoutSetDirectTo({
+        // Dispatch landoutDirectTo event — BackcountryMap listens and handles
+        // setting the destination + starting GPS tracking for the line.
+        window.dispatchEvent(new CustomEvent('landoutDirectTo', {
+          detail: {
             lng: parseFloat(lon),
             lat: parseFloat(lat),
             name: decodedName,
-            type: 'map',
-          });
-        }
+          },
+        }));
       }
     }
   }, []);

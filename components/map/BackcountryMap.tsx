@@ -132,6 +132,26 @@ export function BackcountryMap({
     return () => { delete (window as any).__landoutSetDirectToDest; };
   }, []);
 
+  // Handle landoutDirectTo event from site detail page Direct To button.
+  // Sets destination AND starts lightweight GPS tracking so the line appears.
+  useEffect(() => {
+    function onDirectTo(e: Event) {
+      const { lng, lat, name } = (e as CustomEvent<{ lng: number; lat: number; name: string }>).detail;
+      const dest = { lng, lat, name, type: 'map' as const };
+      setDirectToDest(dest);
+      setInfoCard(null);
+      setActionMenu(null);
+      // Start lightweight GPS tracking so the line gets drawn from current position
+      window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
+      // Notify page.tsx to fit bounds between device and destination
+      window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+        detail: { dest, currentPos: currentPosRef.current || null },
+      }));
+    }
+    window.addEventListener('landoutDirectTo', onDirectTo);
+    return () => window.removeEventListener('landoutDirectTo', onDirectTo);
+  }, []);
+
 
 
   // Listen for landoutSearchSelect from search page navigation
