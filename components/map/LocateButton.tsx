@@ -359,14 +359,17 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       if (!('geolocation' in navigator)) return;
       // Suppress the "initial flyTo" on the next GPS fix — we already flew to the site.
       suppressNextInitialFlyToRef.current = true;
-      // Get initial position then start watch
+      // Get initial position then start watch.
+      // No timeout — on iOS the permission prompt can take time on first use.
+      // maximumAge: 60000 reuses a position from the last 60s if available (instant),
+      // otherwise waits for a fresh fix. This handles both cold-start and warm-cache cases.
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude: lat, longitude: lon } = pos.coords;
           startWatching(lat, lon);
         },
-        () => { /* ignore permission denied */ },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        () => { /* ignore permission denied / unavailable */ },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 0 }
       );
     }
     window.addEventListener('landoutStartGpsTracking', onStartGpsOnly);
