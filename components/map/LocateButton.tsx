@@ -138,9 +138,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           if (initialLocateRef.current && !hasEverInitiallyLocatedRef.current) {
             if (suppressNextInitialFlyToRef.current) {
               // GPS was started by onStartGpsOnly (dropPin case) — skip flyTo, we already
-              // flew to the site. Clear flag so normal first-tap behavior is preserved later.
+              // flew to the site. GPS continues as-is.
+              // Clear both flags so subsequent GPS fixes go straight to normal tracking
+              // (no flyTo, no re-entry into this block).
               suppressNextInitialFlyToRef.current = false;
               initialLocateRef.current = false;
+              hasEverInitiallyLocatedRef.current = true;
             } else {
               // FIRST-EVER locate: fly to center AND zoom in — only happens once ever
               initialLocateRef.current = false;
