@@ -342,6 +342,9 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     function onStartGpsOnly() {
       if (watchId.current !== null) return; // already tracking
       if (!('geolocation' in navigator)) return;
+      // Skip the "first-ever locate flyTo" since we already flew to the site.
+      // GPS tracking still starts (for SiteInfoBox distance), but won't fight the map.
+      hasEverInitiallyLocatedRef.current = true;
       // Get initial position then start watch
       navigator.geolocation.getCurrentPosition(
         (pos) => {
