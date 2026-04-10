@@ -109,7 +109,9 @@ export default function SiteDetailPage() {
 
   function handleDirectTo() {
     if (!site) return;
-    router.push(`/map?lat=${site.lat}&lon=${site.lon}&name=${encodeURIComponent(site.name)}&icao=${site.icao || ''}&directTo=1`);
+    // Use dropPin=1 (same as "View on Map") — shows SiteInfoBox, GPS tracking,
+    // and the "Direct To" button inside SiteInfoBox shows the line and fits bounds
+    router.push(`/map?lat=${site.lat}&lon=${site.lon}&name=${encodeURIComponent(site.name)}&siteId=${encodeURIComponent(site.icao || site.faa_ident || '')}&elev=${site.elevation_ft || ''}&runway=${site.runway_length_ft || ''}&municipality=${encodeURIComponent(site.municipality || '')}&state=${encodeURIComponent(site.state || '')}&type=${encodeURIComponent(site.type_label || '')}&dropPin=1`);
   }
 
   if (notFound) {

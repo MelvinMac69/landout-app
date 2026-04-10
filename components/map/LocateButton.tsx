@@ -23,6 +23,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const programmaticRef = useRef(false);
   // Timeout handle for clearing programmaticRef without relying on moveend
   const programmaticTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks the zoom level established by the first LocateButton tap — restored on re-center taps
+  const establishedZoomRef = useRef<number>(13);
   // True on the very first position update after locate is pressed
   const initialLocateRef = useRef(false);
   // True after the FIRST-EVER locate zoom completes — prevents zooming on subsequent re-center taps
@@ -215,7 +217,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
           // so the movestart handler sees it and doesn't exit follow mode.
           programmaticRef.current = true;
           if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
-          try { map.setCenter([pos.lon, pos.lat]); } catch {}
+          // Restore the zoom established by the first LocateButton tap, then center
+          try { map.flyTo({ center: [pos.lon, pos.lat], zoom: establishedZoomRef.current, duration: 800 }); } catch {}
           try { lastSetCenterRef.current = map.project([pos.lon, pos.lat]); } catch {}
           // Safety: clear flag after 1s in case moveend never fires (stationary case)
           programmaticTimerRef.current = setTimeout(() => { programmaticRef.current = false; }, 1000);
@@ -235,6 +238,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         if (map) {
           try {
             map.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+            // Save zoom — subsequent re-center taps will restore to this level
+            establishedZoomRef.current = 13;
             // After flyTo animation ends, enforce zoom level
             map.once('moveend', () => { try { if (map.getZoom() < 12) map.zoomTo(13, { duration: 400 }); } catch {} });
           } catch { /* queued */ }
@@ -248,6 +253,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
               clearInterval(poll);
               try {
                 m.flyTo({ center: [lon, lat], zoom: 13, duration: 1200 });
+                establishedZoomRef.current = 13;
                 m.once('moveend', () => { try { if (m.getZoom() < 12) m.zoomTo(13, { duration: 400 }); } catch {} });
               } catch {}
             }
