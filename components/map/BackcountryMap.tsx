@@ -132,6 +132,83 @@ export function BackcountryMap({
     return () => { delete (window as any).__landoutSetDirectToDest; };
   }, []);
 
+  // Handle pending dropPin from URL param — runs after mount to pick up any pending pin
+  useEffect(() => {
+    const pending = (window as any).__landoutPendingPin;
+    if (pending && pending.ts > Date.now() - 10000) {
+      handleDropPin(pending.lng, pending.lat, pending.name);
+      // Clear URL params after processing so we don't re-fire on remount
+      window.history.replaceState(null, '', '/map');
+    }
+    delete (window as any).__landoutPendingPin;
+  }, []);
+
+  // Listen for landoutSearchSelect from search page navigation
+  useEffect(() => {
+    function onSearchSelect(e: Event) {
+      const detail = (e as CustomEvent<{
+        lng: number; lat: number; name: string;
+        faa_ident?: string; airportType?: string; elevation_ft?: number;
+        municipality?: string; state?: string; runway_length_ft?: number | null;
+        directTo?: boolean;
+      }>).detail;
+      if (!detail) return;
+      setInfoCard({
+        screenX: window.innerWidth / 2,
+        screenY: window.innerHeight / 2,
+        data: {
+          type: 'airport',
+          lng: detail.lng,
+          lat: detail.lat,
+          name: detail.name,
+          faa_ident: detail.faa_ident,
+          airportType: detail.airportType,
+          elevation_ft: detail.elevation_ft,
+          municipality: detail.municipality,
+          state: detail.state,
+          runway_length_ft: detail.runway_length_ft ?? null,
+        },
+      });
+      setActionMenu(null);
+      if (detail.directTo) {
+        setDirectToDest({ lng: detail.lng, lat: detail.lat, name: detail.name, type: 'map' });
+      }
+    }
+    window.addEventListener('landoutSearchSelect', onSearchSelect);
+    return () => window.removeEventListener('landoutSearchSelect', onSearchSelect);
+  }, []);
+
+  // Handle dropPin from search — show a dropped pin marker on the map
+  useEffect(() => {
+    function onDropPin(e: Event) {
+      const { lng, lat, name } = (e as CustomEvent<{ lng: number; lat: number; name: string }>).detail;
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      // Fly to location
+      map.flyTo({ center: [lng, lat], zoom: 13, duration: 1200 });
+      // Add a temporary red pin marker
+      const el = document.createElement('div');
+      el.style.cssText = `
+        width: 20px; height: 20px;
+        background: #EF4444;
+        border: 3px solid white;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        cursor: pointer;
+      `;
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .setPopup(new maplibregl.Popup({ offset: 15, closeButton: false, closeOnClick: false })
+          .setText(name))
+        .addTo(map);
+      // Auto-remove after 30 seconds
+      setTimeout(() => { marker.remove(); }, 30000);
+    }
+    window.addEventListener('landoutDropPin', onDropPin);
+    return () => window.removeEventListener('landoutDropPin', onDropPin);
+  }, []);
+
   // Debug: count touch events reaching the map
   const touchCountRef = useRef(0);
   const [touchCount, setTouchCount] = useState(0);
@@ -433,6 +510,14 @@ export function BackcountryMap({
       setLoaded(true);
       await loadAllOverlays();
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
+
+      // Process any pending pin that was set before map loaded
+      const pending = (window as any).__landoutPendingPin;
+      if (pending && pending.ts > Date.now() - 10000) {
+        // Use internal addPin directly — map is ready so it will work
+        setDroppedPins((prev) => [...prev, { id: `pin-${pending.ts}`, lng: pending.lng, lat: pending.lat, name: pending.name }]);
+      }
+      delete (window as any).__landoutPendingPin;
 
       // Debug: count native touch events on the map canvas to verify they reach MapLibre
       const canvas = mapInstance.getCanvas();

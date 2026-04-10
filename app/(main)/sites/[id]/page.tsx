@@ -211,7 +211,7 @@ export default function SiteDetailPage() {
 
       {/* Location + Direct To */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <Link href={`/map?lat=${site.lat}&lon=${site.lon}&name=${encodeURIComponent(site.name)}`}>
+        <Link href={`/map?lat=${site.lat}&lon=${site.lon}&name=${encodeURIComponent(site.name)}&dropPin=1`}>
           <Card className="h-full hover:border-orange-300 transition-colors cursor-pointer">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-orange-500" />

@@ -112,6 +112,54 @@ export default function MapPage() {
   const [trackUp, setTrackUp] = useState(false);
   const [directToPrompt, setDirectToPrompt] = useState(false);
   const [showBuildInfo, setShowBuildInfo] = useState(false);
+
+  // Handle URL params from search page navigation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lat = params.get('lat');
+    const lon = params.get('lon');
+    const name = params.get('name');
+    const icao = params.get('icao');
+    const faa_ident = params.get('faa_ident');
+    const airportType = params.get('airportType');
+    const municipality = params.get('municipality');
+    const state = params.get('state');
+    const runway_length_ft = params.get('runway_length_ft');
+    const elev = params.get('elev');
+    const directTo = params.get('directTo') === '1';
+    const dropPin = params.get('dropPin') === '1';
+    if (lat && lon && name) {
+      // Decode values before clearing URL
+      const decodedName = decodeURIComponent(name);
+      const decodedIcao = icao ? decodeURIComponent(icao) : undefined;
+      const decodedAirportType = airportType ? decodeURIComponent(airportType) : undefined;
+      const decodedMunicipality = municipality ? decodeURIComponent(municipality) : undefined;
+      const decodedState = state ? decodeURIComponent(state) : undefined;
+      if (dropPin) {
+        // Store pending pin — map will pick it up when it loads and clear the URL
+        (window as any).__landoutPendingPin = {
+          lng: parseFloat(lon),
+          lat: parseFloat(lat),
+          name: decodedName,
+          ts: Date.now(),
+        };
+      } else {
+        const detail = {
+          lng: parseFloat(lon),
+          lat: parseFloat(lat),
+          name: decodedName,
+          faa_ident: decodedIcao || undefined,
+          airportType: decodedAirportType || undefined,
+          municipality: decodedMunicipality || undefined,
+          state: decodedState || undefined,
+          runway_length_ft: runway_length_ft ? parseInt(runway_length_ft) : null,
+          elevation_ft: elev ? parseInt(elev) : null,
+          directTo,
+        };
+        window.dispatchEvent(new CustomEvent('landoutSearchSelect', { detail }));
+      }
+    }
+  }, []);
   const [compassBearing, setCompassBearing] = useState(0);
   const [directToShift, setDirectToShift] = useState(0);
   const [dataDashboardShift, setDataDashboardShift] = useState(0);
