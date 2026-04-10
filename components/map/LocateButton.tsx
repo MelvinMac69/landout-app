@@ -325,7 +325,26 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   useEffect(() => {
     function onStartTracking() { handleLocate(); }
     window.addEventListener('landoutStartTracking', onStartTracking);
-    return () => window.removeEventListener('landoutStartTracking', onStartTracking);
+    // Lightweight GPS start — just starts watch, no marker, no map manipulation
+    // Used by BackcountryMap when it needs to show distance to a dropped pin
+    function onStartGpsOnly() {
+      if (watchId.current !== null) return; // already tracking
+      if (!('geolocation' in navigator)) return;
+      // Get initial position then start watch
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude: lat, longitude: lon } = pos.coords;
+          startWatching(lat, lon);
+        },
+        () => { /* ignore permission denied */ },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      );
+    }
+    window.addEventListener('landoutStartGpsTracking', onStartGpsOnly);
+    return () => {
+      window.removeEventListener('landoutStartTracking', onStartTracking);
+      window.removeEventListener('landoutStartGpsTracking', onStartGpsOnly);
+    };
   });
 
   // Expose location state to window

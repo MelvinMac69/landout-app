@@ -511,9 +511,9 @@ export function BackcountryMap({
         handleDropPin(pending.lng, pending.lat, pending.name);
       }
       delete (window as any).__landoutPendingPin;
-      // Note: landoutStartTracking was already dispatched by page.tsx before navigation.
-      // GPS tracking is running — SiteInfoBox will receive updates via LocateButton's
-      // landoutPositionUpdate events which fire regardless of landoutStartTracking.
+      // Start GPS tracking for SiteInfoBox distance — does NOT manipulate the map
+      // (no marker, no setCenter). Only fires landoutPositionUpdate events.
+      window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
 
       // Debug: count native touch events on the map canvas to verify they reach MapLibre
       const canvas = mapInstance.getCanvas();
