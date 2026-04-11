@@ -182,10 +182,14 @@ export function BackcountryMap({
     function onDropPin(e: Event) {
       const { lng, lat, name } = (e as CustomEvent<{ lng: number; lat: number; name: string }>).detail;
       const map = mapInstanceRef.current;
-      console.log('[DropPin] onDropPin called — map:', !!map, 'flyToInProgress:', flyToInProgressRef.current, 'lng:', lng, 'lat:', lat);
-      if (!map) { console.log('[DropPin] onDropPin: map not ready'); return; }
+      console.log('[DropPin] onDropPin called — map:', !!map, 'lng:', lng, 'lat:', lat);
+      if (!map) {
+        console.log('[DropPin] map not ready, storing pending pin');
+        (window as any).__landoutPendingPin = { lng, lat, name, ts: Date.now() };
+        return;
+      }
       // Guard against overlapping flyTo animations
-      if (flyToInProgressRef.current) { console.log('[DropPin] onDropPin: flyTo already in progress, skipping'); return; }
+      if (flyToInProgressRef.current) { console.log('[DropPin] flyTo already in progress, skipping'); return; }
       flyToInProgressRef.current = true;
       console.log('[DropPin] calling map.flyTo to', lng, lat);
       try {
@@ -200,7 +204,7 @@ export function BackcountryMap({
         flyToInProgressRef.current = false;
         return;
       }
-      setTimeout(() => { flyToInProgressRef.current = false; console.log('[DropPin] flyTo complete, flyToInProgress=false'); }, 900);
+      setTimeout(() => { flyToInProgressRef.current = false; console.log('[DropPin] flyTo complete'); }, 900);
       // Add a temporary red pin marker
       const el = document.createElement('div');
       el.style.cssText = `
