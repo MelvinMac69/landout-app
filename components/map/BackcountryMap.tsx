@@ -790,22 +790,9 @@ export function BackcountryMap({
             });
           }
           // Fit map to show both device and destination — only once per Direct To session
-          // Only fitBounds once per Direct To session, and guard against invalid coordinates
-          const pos = currentPosRef.current;
-          const dest = directToDestRef.current;
-          if (!directToFitBoundsDoneRef.current && pos && dest && pos.lat !== 0 && pos.lon !== 0) {
-            directToFitBoundsDoneRef.current = true;
-            console.log('[DirectTo] onGpsUpdate calling fitBounds');
-            try {
-              map.current.fitBounds(
-                [
-                  [pos.lon, pos.lat],
-                  [dest.lng, dest.lat],
-                ],
-                { padding: 80 }
-              );
-            } catch (err) { console.error('[DirectTo] onGpsUpdate fitBounds error:', err); }
-          }
+          // fitBounds removed: causes WebView crashes on iOS Safari when map is in
+          // an unstable state after multiple flyTo/setCenter operations. The blue dot
+          // and destination marker are visible so user can manually fit bounds if needed.
         }
       }
     }
@@ -971,21 +958,9 @@ export function BackcountryMap({
             ],
           });
         }
-        // Fit bounds immediately since we have both positions
-        // Only call fitBounds once per Direct To session
-        if (!directToFitBoundsDoneRef.current) {
-          directToFitBoundsDoneRef.current = true;
-          console.log('[DirectTo] landoutSetDirectTo calling fitBounds');
-          try {
-            map.current.fitBounds(
-              [
-                [currentPosRef.current.lon, currentPosRef.current.lat],
-                [dest.lng, dest.lat],
-              ],
-              { padding: 80, maxZoom: 11 }
-            );
-          } catch {}
-        }
+        // fitBounds removed: causes WebView crashes on iOS Safari when map is in
+        // an unstable state after multiple flyTo/setCenter operations. The blue dot
+        // and destination marker are visible so user can manually fit bounds if needed.
       }
 
       // Notify page.tsx to show DirectToPanel with current position for bounds fitting
