@@ -34,6 +34,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   const hasEverInitiallyLocatedRef = useRef(false);
   // Track the last map center we set (in screen pixels) so we can measure movement
   const lastSetCenterRef = useRef<{ x: number; y: number } | null>(null);
+  // Prevents duplicate GPS starts from concurrent onDirectToGps calls
+  const directToGpsStartRef = useRef(false);
 
   function getMap(): maplibregl.Map | null {
     // Try mapRef first (set during Map mount), then window fallback
@@ -379,23 +381,30 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     function onDirectToGps() {
       const wasTracking = watchId.current !== null;
       const followWasOn = followModeRef.current;
-      console.log(`[DirectTo] onDirectToGps fired — wasTracking: ${wasTracking}, followMode was: ${followWasOn}`);
+      console.log(`[DirectTo] onDirectToGps — wasTracking: ${wasTracking}, followMode was: ${followWasOn}, startInProgress: ${directToGpsStartRef.current}`);
       if (watchId.current !== null) {
-        // Already tracking — don't call handleLocate (which would toggle follow mode).
-        // GPS continues and position updates fire via watchPosition.
-        console.log('[DirectTo] GPS already running, preserving followMode:', followModeRef.current);
+        console.log('[DirectTo] GPS already running, preserving followMode');
         return;
       }
-      console.log('[DirectTo] GPS not running, starting watch...');
+      if (directToGpsStartRef.current) {
+        console.log('[DirectTo] GPS start already in progress, skipping duplicate');
+        return;
+      }
+      console.log('[DirectTo] starting GPS...');
       if (!('geolocation' in navigator)) return;
       suppressNextInitialFlyToRef.current = true;
+      directToGpsStartRef.current = true;
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          directToGpsStartRef.current = false;
           const { latitude: lat, longitude: lon } = pos.coords;
           console.log('[DirectTo] got initial position, calling startWatching');
           startWatching(lat, lon);
         },
-        () => { /* ignore permission denied / unavailable */ },
+        (err) => {
+          directToGpsStartRef.current = false;
+          console.log('[DirectTo] getCurrentPosition error:', err.message, 'code:', err.code);
+        },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 0 }
       );
     }
@@ -404,7 +413,8 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     // Check for pending DirectTo GPS request from page.tsx effect that may have
     // fired before this listener was registered (React useEffect ordering: parent
     // effects run before child effects, so the URL-param effect fires before we
-    // register this listener). Also check when followMode changes.
+    // register this listener). pendingDirectToGps is captured at effect creation
+    // time (effect has no deps) — but since the effect runs once, this is fine.
     const pendingDirectToGps = (window as any).__landoutPendingDirectToGps;
     if (pendingDirectToGps) {
       delete (window as any).__landoutPendingDirectToGps;
