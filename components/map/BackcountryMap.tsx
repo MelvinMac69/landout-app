@@ -768,6 +768,7 @@ export function BackcountryMap({
             });
           }
           // Fit map to show both device and destination — only once per Direct To session
+          console.log('[DirectTo] fitBounds condition met, alreadyDone:', directToFitBoundsDoneRef.current);
           if (!directToFitBoundsDoneRef.current) {
             directToFitBoundsDoneRef.current = true;
             const dest = directToDestRef.current;
@@ -779,6 +780,7 @@ export function BackcountryMap({
                 ],
                 { padding: 80, maxZoom: 11 }
               );
+              console.log('[DirectTo] fitBounds CALLED');
             } catch {}
           }
         }
@@ -894,6 +896,7 @@ export function BackcountryMap({
     win.landoutSetDirectTo = (dest) => {
       if (!dest) return;
 
+      console.log('[DirectTo] landoutSetDirectTo called, resetting fitBoundsGuard');
       setDirectToDest(dest);
       directToFitBoundsDoneRef.current = false;
       setInfoCard(null);
