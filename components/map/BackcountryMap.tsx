@@ -763,16 +763,17 @@ export function BackcountryMap({
     // Immediate update via event (for DirectTo line rendering)
     function onGpsUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
-      if (pos) {
-        currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
-        // Skip state update during flyTo animation — prevents expensive re-renders while map is animating
-        if (!flyToInProgressRef.current) {
-          setCurrentPosState(currentPosRef.current);
-        }
-        // Draw line + dots if destination is set
-        if (directToDestRef.current && map.current && !flyToInProgressRef.current) {
-          const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-          if (src) {
+      if (!pos) return;
+      currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
+      // Skip state update during flyTo animation — prevents expensive re-renders while map is animating
+      if (!flyToInProgressRef.current) {
+        setCurrentPosState(currentPosRef.current);
+      }
+      // Draw line + dots if destination is set
+      if (directToDestRef.current && map.current && !flyToInProgressRef.current) {
+        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          try {
             src.setData({
               type: 'FeatureCollection',
               features: [
@@ -796,11 +797,9 @@ export function BackcountryMap({
                 },
               ],
             });
+          } catch (err) {
+            console.warn('[DirectTo] src.setData error:', err);
           }
-          // Fit map to show both device and destination — only once per Direct To session
-          // fitBounds removed: causes WebView crashes on iOS Safari when map is in
-          // an unstable state after multiple flyTo/setCenter operations. The blue dot
-          // and destination marker are visible so user can manually fit bounds if needed.
         }
       }
     }

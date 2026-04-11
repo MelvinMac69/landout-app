@@ -163,11 +163,9 @@ export default function MapPage() {
           name: decodedName,
           ts: Date.now(),
         };
-        // Store pending airport — map will pick it up when it loads
+        // Store pending airport — map will pick it up when it loads (via useEffect in BackcountryMap)
         (window as any).__landoutPendingAirport = airportData;
-        // Dispatch landoutFlyToAirport so the map reacts even if it loaded before this effect ran
-        window.dispatchEvent(new CustomEvent('landoutFlyToAirport', { detail: airportData }));
-        // Auto-dismiss disclaimer so it doesn't cover the highlighted airport marker
+        // Auto-dismiss disclaimer so it doesn't cover the InfoCard
         setDisclaimerDismissed(true);
         // DO NOT show SiteInfoBox — we use the normal InfoCard flow instead.
         // User taps the highlighted orange marker → InfoCard appears → Direct To works.

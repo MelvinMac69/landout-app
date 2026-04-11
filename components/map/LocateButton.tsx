@@ -379,27 +379,30 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     // Preserves follow/locate state: if locate was ON it stays ON, if OFF it stays OFF.
     // GPS is needed for the magenta line to render, but follow mode is unaffected.
     function onDirectToGps() {
-      if (watchId.current !== null) return;
       if (directToGpsStartRef.current) return;
       if (!('geolocation' in navigator)) return;
+
+      // If GPS is already active via watchPosition, don't restart — just ensure
+      // the magenta line gets drawn. The existing watchPosition will fire position
+      // updates that drive the line drawing in onGpsUpdate.
+      if (watchId.current !== null) {
+        // GPS already running — dispatch a position update to redraw the line
+        if (positionRef.current) {
+          window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
+            detail: { ...positionRef.current }
+          }));
+        }
+        return;
+      }
+
       suppressNextInitialFlyToRef.current = true;
       directToGpsStartRef.current = true;
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          directToGpsStartRef.current = false;
-          const { latitude: lat, longitude: lon } = pos.coords;
-          startWatching(lat, lon);
-        },
-        (err) => {
-          directToGpsStartRef.current = false;
-          // getCurrentPosition failed — try startWatching anyway.
-          // watchPosition will fire when/if GPS becomes available, and the magenta
-          // line will render when that first position arrives. This handles iOS cases
-          // where getCurrentPosition times out but watchPosition can still get a fix.
-          startWatching(positionRef.current?.lat ?? 0, positionRef.current?.lon ?? 0);
-        },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 0 }
-      );
+
+      // Start watchPosition — avoids getCurrentPosition which can trigger
+      // permission dialogs on iOS Safari that crash the WebView.
+      // The first watchPosition callback will set the initial position.
+      startWatching(positionRef.current?.lat ?? 0, positionRef.current?.lon ?? 0);
+      directToGpsStartRef.current = false;
     }
     window.addEventListener('landoutDirectToGps', onDirectToGps);
 
