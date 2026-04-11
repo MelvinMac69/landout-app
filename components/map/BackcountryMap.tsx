@@ -193,18 +193,15 @@ export function BackcountryMap({
       flyToInProgressRef.current = true;
       console.log('[DropPin] calling map.flyTo to', lng, lat);
       try {
-        map.flyTo({
-          center: [lng, lat],
-          zoom: 13,
-          duration: 800,
-          essential: true,
-        });
+        // Use instant setCenter instead of flyTo to avoid animation on mobile Safari
+        map.setCenter([lng, lat]);
+        map.setZoom(13);
       } catch (err) {
-        console.error('[DropPin] flyTo failed:', err);
+        console.error('[DropPin] setCenter/setZoom failed:', err);
         flyToInProgressRef.current = false;
         return;
       }
-      setTimeout(() => { flyToInProgressRef.current = false; console.log('[DropPin] flyTo complete'); }, 900);
+      setTimeout(() => { flyToInProgressRef.current = false; console.log('[DropPin] setCenter complete'); }, 100);
       // Add a temporary red pin marker
       const el = document.createElement('div');
       el.style.cssText = `
@@ -1030,10 +1027,11 @@ export function BackcountryMap({
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
-    // Fly to the pin location
+    // Use instant setCenter instead of flyTo to avoid animation on mobile Safari
     const map = mapInstanceRef.current;
     if (map) {
-      map.flyTo({ center: [lng, lat], zoom: 13, duration: 1200 });
+      map.setCenter([lng, lat]);
+      map.setZoom(13);
     }
     const id = `pin-${Date.now()}`;
     setDroppedPins((prev) => [...prev, { id, lng, lat, name }]);
