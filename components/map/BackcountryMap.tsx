@@ -960,20 +960,16 @@ export function BackcountryMap({
 
   // Actions called from ActionMenu / InfoCard
   function handleDirectTo(lng: number, lat: number, name?: string) {
+    setDirectToDest({ lng, lat, name, type: 'map' });
+    setActionMenu(null);
+    setInfoCard(null);
+    // Start GPS tracking so the magenta line can be drawn.
+    // Note: landoutSetDirectTo is NOT called here — external callers use that directly.
+    // This is called by InfoCard's Direct To button.
     try {
-      // Minimum action: set destination and start GPS. Everything else can wait.
-      setDirectToDest({ lng, lat, name, type: 'map' });
-      // Don't set infoCard(null) yet — let the re-render settle first.
-      // Dispatch GPS start in a micro-task to avoid race conditions
-      queueMicrotask(() => {
-        try {
-          window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-        } catch (e) {
-          console.warn('[DirectTo] GPS dispatch error:', e);
-        }
-      });
+      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
     } catch (e) {
-      console.error('[DirectTo] handleDirectTo error:', e);
+      console.warn('[DirectTo] GPS start failed:', e);
     }
   }
 
