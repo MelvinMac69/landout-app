@@ -927,9 +927,20 @@ export function BackcountryMap({
     } else if (!directToDest) {
       // No destination — clear the line and dots
       src.setData({ type: 'FeatureCollection', features: [] });
+    } else {
+      // Destination set but no GPS position yet — draw destination dot only so
+      // the user sees something. Full line + device dot drawn when GPS fires.
+      src.setData({
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
+            properties: {},
+          },
+        ],
+      });
     }
-    // NOTE: do NOT clear the source when position is missing but destination IS set —
-    // that would erase the destination dot. It stays visible until navigation ends.
   }, [directToDest, currentPosState]);
 
   // Sync dropped pins to the pins source
