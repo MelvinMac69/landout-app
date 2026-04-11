@@ -963,8 +963,14 @@ export function BackcountryMap({
     setDirectToDest({ lng, lat, name, type: 'map' });
     setActionMenu(null);
     setInfoCard(null);
-    // GPS is started via the useEffect in landoutSetDirectTo when directToDest changes.
-    // Don't dispatch landoutDirectToGps here — the useEffect handles it.
+    // Start GPS tracking so the magenta line can be drawn.
+    // Note: landoutSetDirectTo is NOT called here — external callers use that directly.
+    // This is called by InfoCard's Direct To button.
+    try {
+      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+    } catch (e) {
+      console.warn('[DirectTo] GPS start failed:', e);
+    }
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
