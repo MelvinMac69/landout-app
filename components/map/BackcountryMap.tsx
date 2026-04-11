@@ -986,10 +986,10 @@ export function BackcountryMap({
     setDirectToDest({ lng, lat, name, type: 'map' });
     setDebugStep('2/5: dest set, start GPS');
     queueMicrotask(() => {
-      setDebugStep('3/5: dispatching GPS event');
+      setDebugStep('GPSa: event processed');
       try {
         window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-        setDebugStep('4/5: GPS event ok');
+        setDebugStep('GPSb: onDirectToGps entered ok');
       } catch (e) {
         setDebugStep('FAIL: GPS event threw');
       }
