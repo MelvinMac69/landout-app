@@ -584,17 +584,20 @@ export function BackcountryMap({
       await loadAllOverlays();
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
 
-      // Draw any pending DirectTo destination immediately when map loads
-      // (processDirectTo sets directToDest before map finishes loading)
-      console.log('[DirectTo] map load handler — directToDest:', !!directToDest, directToDest);
-      if (directToDest) {
+      // Draw any pending DirectTo destination immediately when map loads.
+      // Use directToDestRef (not directToDest) — the state variable is captured in
+      // this closure at mount time and is always null. The ref is updated by a
+      // useEffect that runs synchronously before the browser paints.
+      const dest = directToDestRef.current;
+      console.log('[DirectTo] map load handler — dest from ref:', !!dest, dest);
+      if (dest) {
         const src = mapInstance.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
         console.log('[DirectTo] map load handler drawing destination dot, src:', !!src);
         if (src) {
           src.setData({
             type: 'FeatureCollection',
             features: [
-              { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] }, properties: {} },
+              { type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] }, properties: {} },
             ],
           });
         }
