@@ -404,6 +404,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         (err) => {
           directToGpsStartRef.current = false;
           console.log('[DirectTo] getCurrentPosition error:', err.message, 'code:', err.code);
+          // getCurrentPosition failed — try startWatching anyway.
+          // watchPosition will fire when/if GPS becomes available, and the magenta
+          // line will render when that first position arrives. This handles iOS cases
+          // where getCurrentPosition times out but watchPosition can still get a fix.
+          console.log('[DirectTo] attempting watchPosition directly as fallback...');
+          startWatching(positionRef.current?.lat ?? 0, positionRef.current?.lon ?? 0);
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 0 }
       );
