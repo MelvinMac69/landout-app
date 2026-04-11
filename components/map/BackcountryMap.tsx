@@ -136,15 +136,19 @@ export function BackcountryMap({
   }, []);
 
   // Handle landoutDirectTo event from site detail page Direct To button.
-  // Sets destination AND starts lightweight GPS tracking so the line appears.
+  // Entry point: sites/[id] page → router.push(/map?directTo=1&...)
+  // Preserves locate/follow state — does NOT call handleLocate.
   useEffect(() => {
     function processDirectTo(dest: { lng: number; lat: number; name: string }) {
+      const followModeOn = (window as any).landoutLocationState?.followMode;
+      console.log(`[DirectTo] processDirectTo (site detail page) — locate was ${followModeOn ? 'ON' : 'OFF'}`);
       const fullDest = { ...dest, type: 'map' as const };
       setDirectToDest(fullDest);
       setInfoCard(null);
       setActionMenu(null);
-      // Start lightweight GPS tracking so the line gets drawn from current position
-      window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
+      // Start GPS tracking WITHOUT changing follow/locate state.
+      // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
+      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
 
       // Draw line + dots immediately if we already have a GPS position.
       // If not, onGpsUpdate will draw them when GPS fires.
@@ -957,13 +961,19 @@ export function BackcountryMap({
     };
     win.landoutGetBasemap = () => basemap;
     (window as any).landoutToggleGrid = () => setShowGrid((v) => !v);
+    // landoutSetDirectTo — entry point for SiteInfoBox, MeasureRuler, NearestPanel.
+    // Entry points: SiteInfoBox "Direct To" button, MeasureRuler context menu, NearestPanel.
+    // Preserves locate/follow state — does NOT call handleLocate (unlike landoutStartTracking).
     win.landoutSetDirectTo = (dest) => {
       if (!dest) return;
+      const followModeOn = (window as any).landoutLocationState?.followMode;
+      console.log(`[DirectTo] landoutSetDirectTo (SiteInfoBox/MeasureRuler) — locate was ${followModeOn ? 'ON' : 'OFF'}`);
       setDirectToDest(dest);
       setInfoCard(null);
       setActionMenu(null);
-      // Start lightweight GPS tracking so the line gets drawn from current position
-      window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
+      // Start GPS tracking WITHOUT changing follow/locate state.
+      // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
+      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
 
       // Draw line + dots immediately if we already have a GPS position.
       // If not, onGpsUpdate will draw them when GPS fires.

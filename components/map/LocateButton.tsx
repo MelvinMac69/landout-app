@@ -373,9 +373,31 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       );
     }
     window.addEventListener('landoutStartGpsTracking', onStartGpsOnly);
+    // Direct To GPS — starts GPS without calling handleLocate.
+    // Preserves follow/locate state: if locate was ON it stays ON, if OFF it stays OFF.
+    // GPS is needed for the magenta line to render, but follow mode is unaffected.
+    function onDirectToGps() {
+      if (watchId.current !== null) {
+        // Already tracking — don't call handleLocate (which would toggle follow mode).
+        // GPS continues and position updates fire via watchPosition.
+        return;
+      }
+      if (!('geolocation' in navigator)) return;
+      suppressNextInitialFlyToRef.current = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude: lat, longitude: lon } = pos.coords;
+          startWatching(lat, lon);
+        },
+        () => { /* ignore permission denied / unavailable */ },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 0 }
+      );
+    }
+    window.addEventListener('landoutDirectToGps', onDirectToGps);
     return () => {
       window.removeEventListener('landoutStartTracking', onStartTracking);
       window.removeEventListener('landoutStartGpsTracking', onStartGpsOnly);
+      window.removeEventListener('landoutDirectToGps', onDirectToGps);
     };
   });
 
