@@ -748,9 +748,12 @@ export function BackcountryMap({
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
       if (pos) {
         currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
-        setCurrentPosState(currentPosRef.current);
+        // Skip state update during flyTo animation — prevents expensive re-renders while map is animating
+        if (!flyToInProgressRef.current) {
+          setCurrentPosState(currentPosRef.current);
+        }
         // Draw line + dots if destination is set
-        if (directToDestRef.current && map.current) {
+        if (directToDestRef.current && map.current && !flyToInProgressRef.current) {
           const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
           if (src) {
             src.setData({
@@ -782,11 +785,10 @@ export function BackcountryMap({
           if (!directToFitBoundsDoneRef.current && currentPosRef.current && directToDestRef.current) {
             directToFitBoundsDoneRef.current = true;
             const dest = directToDestRef.current;
-            const pos = currentPosRef.current;
             try {
               map.current.fitBounds(
                 [
-                  [pos.lon, pos.lat],
+                  [currentPosRef.current.lon, currentPosRef.current.lat],
                   [dest.lng, dest.lat],
                 ],
                 { padding: 80, maxZoom: 11 }
