@@ -779,22 +779,48 @@ export function BackcountryMap({
       if (pos) {
         currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
         setCurrentPosState(currentPosRef.current);
-        // If DirectTo destination is set and map source exists, draw line immediately
+        // If DirectTo destination is set and map source exists, draw line + dots immediately
         if (directToDestRef.current && map.current) {
           const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
           if (src) {
             src.setData({
               type: 'FeatureCollection',
-              features: [{
-                type: 'Feature',
-                geometry: {
-                  type: 'LineString',
-                  coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDestRef.current!.lng, directToDestRef.current!.lat]],
+              features: [
+                {
+                  type: 'Feature',
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDestRef.current!.lng, directToDestRef.current!.lat]],
+                  },
+                  properties: {},
                 },
-                properties: {},
-              }],
+                {
+                  type: 'Feature',
+                  geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
+                  properties: {},
+                },
+                {
+                  type: 'Feature',
+                  geometry: { type: 'Point', coordinates: [directToDestRef.current!.lng, directToDestRef.current!.lat] },
+                  properties: {},
+                },
+              ],
             });
           }
+          // Fit map to show both device and destination — wait for moveend to avoid
+          // interrupting the flyTo animation
+          const dest = directToDestRef.current;
+          map.current.once('moveend', () => {
+            try {
+              map.current!.fitBounds(
+                [
+                  [currentPosRef.current!.lon, currentPosRef.current!.lat],
+                  [dest.lng, dest.lat],
+                ],
+                { padding: 80, maxZoom: 11 }
+              );
+            } catch {}
+          });
         }
       }
     }
