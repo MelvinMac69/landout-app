@@ -164,12 +164,11 @@ export default function MapPage() {
           ts: Date.now(),
         };
         // Store pending airport — map will pick it up when it loads (via useEffect in BackcountryMap)
-        (window as any).__landoutPendingAirport = airportData;
+        // Also store directTo flag so BackcountryMap knows to start DirectTo automatically
+        (window as any).__landoutPendingAirport = { ...airportData, autoDirectTo: directTo };
         // Auto-dismiss disclaimer so it doesn't cover the InfoCard
         setDisclaimerDismissed(true);
-        // DO NOT show SiteInfoBox — we use the normal InfoCard flow instead.
-        // User taps the highlighted orange marker → InfoCard appears → Direct To works.
-        console.log('[Page] dispatched landoutFlyToAirport with', { lng: parseFloat(lon), lat: parseFloat(lat), name: decodedName });
+        console.log('[Page] pending airport set, autoDirectTo:', directTo);
         // Note: URL params persist in the browser — they don't interfere with app operation
       } else {
         const detail = {

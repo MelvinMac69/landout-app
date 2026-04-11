@@ -557,6 +557,14 @@ export function BackcountryMap({
       if (pendingAirport && pendingAirport.ts > Date.now() - 10000) {
         delete (window as any).__landoutPendingAirport;
         handleFlyToAirport(pendingAirport.lng, pendingAirport.lat, pendingAirport.name);
+        // If autoDirectTo flag is set (from "View on Map" with directTo=1),
+        // start DirectTo immediately to bypass InfoCard → DirectTo button tap.
+        // This avoids potential iOS Safari click handler issues.
+        if ((pendingAirport as any).autoDirectTo) {
+          console.log('[Map] autoDirectTo: starting DirectTo');
+          setDirectToDest({ lng: pendingAirport.lng, lat: pendingAirport.lat, name: pendingAirport.name, type: 'map' });
+          window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+        }
       }
 
       // DO NOT start GPS automatically — let the user tap the locate button when they
