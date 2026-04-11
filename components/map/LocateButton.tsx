@@ -396,24 +396,28 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     // Preserves follow/locate state: if locate was ON it stays ON, if OFF it stays OFF.
     // GPS is needed for the magenta line to render, but follow mode is unaffected.
     function onDirectToGps() {
-      if (directToGpsStartRef.current) return;
-      if (!('geolocation' in navigator)) return;
+      if (directToGpsStartRef.current) { console.log('[GPS] onDirectToGps: blocked by ref'); return; }
+      if (!('geolocation' in navigator)) { console.log('[GPS] onDirectToGps: no geolocation'); return; }
+
+      console.log('[GPS] onDirectToGps: watchId=', watchId.current, 'pos=', positionRef.current);
 
       // Defensive: ensure GPS state is consistent. If watchId is set but
       // positionRef is null, the watch may have died — stop and restart.
       if (watchId.current !== null && positionRef.current) {
         // GPS running and has position — dispatch update to redraw the line
+        console.log('[GPS] onDirectToGps: reuse existing GPS, dispatch position');
         try {
           window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
             detail: { ...positionRef.current }
           }));
-        } catch {}
+        } catch (e) { console.log('[GPS] onDirectToGps: dispatch error', e); }
         return;
       }
 
       // GPS not running OR state is inconsistent (watchId set but no position).
       // Stop any existing watch to reset state, then start fresh.
       if (watchId.current !== null) {
+        console.log('[GPS] onDirectToGps: clear stale watchId');
         try { navigator.geolocation.clearWatch(watchId.current); } catch {}
         watchId.current = null;
       }
@@ -423,17 +427,20 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       // This handles the case where the user hasn't tapped Locate yet.
       suppressNextInitialFlyToRef.current = true;
       directToGpsStartRef.current = true;
+      console.log('[GPS] onDirectToGps: pos check:', positionRef.current);
       if (positionRef.current && (positionRef.current.lat !== 0 || positionRef.current.lon !== 0)) {
         // We have a last-known position — dispatch it and skip starting watchPosition
+        console.log('[GPS] onDirectToGps: dispatch last known position, skip startWatching');
         try {
           window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
             detail: { ...positionRef.current }
           }));
-        } catch {}
+        } catch (e) { console.log('[GPS] onDirectToGps: dispatch error', e); }
         directToGpsStartRef.current = false;
         return;
       }
       // No position available — start watchPosition
+      console.log('[GPS] onDirectToGps: calling startWatching');
       startWatching(positionRef.current?.lat ?? 0, positionRef.current?.lon ?? 0);
       directToGpsStartRef.current = false;
     }
