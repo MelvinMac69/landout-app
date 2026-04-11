@@ -109,6 +109,8 @@ export function BackcountryMap({
   useEffect(() => { directToDestRef.current = directToDest; });
   // Track whether fitBounds has been called for the current Direct To session — prevents zoom loop
   const directToFitBoundsDoneRef = useRef(false);
+  // Guard to prevent map operations (flyTo/setCenter) during an active flyTo animation
+  const flyToInProgressRef = useRef(false);
   // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
   const currentPosRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
   const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
@@ -181,8 +183,16 @@ export function BackcountryMap({
       const { lng, lat, name } = (e as CustomEvent<{ lng: number; lat: number; name: string }>).detail;
       const map = mapInstanceRef.current;
       if (!map) return;
-      // Fly to location
-      map.flyTo({ center: [lng, lat], zoom: 13, duration: 1200 });
+      // Guard against overlapping flyTo animations
+      if (flyToInProgressRef.current) return;
+      flyToInProgressRef.current = true;
+      map.flyTo({
+        center: [lng, lat],
+        zoom: 13,
+        duration: 800,
+        essential: true,
+      });
+      setTimeout(() => { flyToInProgressRef.current = false; }, 900);
       // Add a temporary red pin marker
       const el = document.createElement('div');
       el.style.cssText = `
@@ -768,14 +778,15 @@ export function BackcountryMap({
             });
           }
           // Fit map to show both device and destination — only once per Direct To session
-          console.log('[DirectTo] fitBounds condition met, alreadyDone:', directToFitBoundsDoneRef.current);
-          if (!directToFitBoundsDoneRef.current) {
+          // Only fitBounds once per Direct To session, and guard against null values
+          if (!directToFitBoundsDoneRef.current && currentPosRef.current && directToDestRef.current) {
             directToFitBoundsDoneRef.current = true;
             const dest = directToDestRef.current;
+            const pos = currentPosRef.current;
             try {
               map.current.fitBounds(
                 [
-                  [currentPosRef.current!.lon, currentPosRef.current!.lat],
+                  [pos.lon, pos.lat],
                   [dest.lng, dest.lat],
                 ],
                 { padding: 80, maxZoom: 11 }
