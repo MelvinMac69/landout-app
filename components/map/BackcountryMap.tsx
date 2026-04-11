@@ -143,7 +143,7 @@ export function BackcountryMap({
       const followModeOn = (window as any).landoutLocationState?.followMode;
       console.log(`[DirectTo] processDirectTo (site detail page) — locate was ${followModeOn ? 'ON' : 'OFF'}`);
       const fullDest = { ...dest, type: 'map' as const };
-      console.log('[DirectTo] processDirectTo calling setDirectToDest with:', fullDest);
+      console.log('[DirectTo] processDirectTo calling setDirectToDest with:', fullDest, 'currentPosRef:', !!currentPosRef.current, currentPosRef.current);
       setDirectToDest(fullDest);
       setInfoCard(null);
       setActionMenu(null);
@@ -818,10 +818,12 @@ export function BackcountryMap({
     // Immediate update via event (for DirectTo line rendering)
     function onGpsUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
+      console.log('[DirectTo] onGpsUpdate — pos:', !!pos, 'directToDestRef:', !!directToDestRef.current, 'map:', !!map.current);
       if (pos) {
         currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
         setCurrentPosState(currentPosRef.current);
         // If DirectTo destination is set and map source exists, draw line + dots immediately
+        console.log('[DirectTo] onGpsUpdate checking draw — directToDestRef.current:', !!directToDestRef.current, 'map.current:', !!map.current);
         if (directToDestRef.current && map.current) {
           const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
           if (src) {
