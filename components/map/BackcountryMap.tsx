@@ -146,6 +146,17 @@ export function BackcountryMap({
       setDirectToDest(fullDest);
       setInfoCard(null);
       setActionMenu(null);
+      // Set pending flag BEFORE dispatching — LocateButton's useEffect runs after
+      // page.tsx's useEffect (React parent-before-child ordering), so the
+      // landoutDirectToGps listener won't be registered yet. LocateButton checks
+      // the pending flag when it mounts.
+      (window as any).__landoutPendingDirectToGps = true;
+      // Start GPS tracking WITHOUT changing follow/locate state.
+      // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
+      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+      setDirectToDest(fullDest);
+      setInfoCard(null);
+      setActionMenu(null);
       // Start GPS tracking WITHOUT changing follow/locate state.
       // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
       window.dispatchEvent(new CustomEvent('landoutDirectToGps'));

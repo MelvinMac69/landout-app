@@ -377,16 +377,22 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     // Preserves follow/locate state: if locate was ON it stays ON, if OFF it stays OFF.
     // GPS is needed for the magenta line to render, but follow mode is unaffected.
     function onDirectToGps() {
+      const wasTracking = watchId.current !== null;
+      const followWasOn = followModeRef.current;
+      console.log(`[DirectTo] onDirectToGps fired — wasTracking: ${wasTracking}, followMode was: ${followWasOn}`);
       if (watchId.current !== null) {
         // Already tracking — don't call handleLocate (which would toggle follow mode).
         // GPS continues and position updates fire via watchPosition.
+        console.log('[DirectTo] GPS already running, preserving followMode:', followModeRef.current);
         return;
       }
+      console.log('[DirectTo] GPS not running, starting watch...');
       if (!('geolocation' in navigator)) return;
       suppressNextInitialFlyToRef.current = true;
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude: lat, longitude: lon } = pos.coords;
+          console.log('[DirectTo] got initial position, calling startWatching');
           startWatching(lat, lon);
         },
         () => { /* ignore permission denied / unavailable */ },
@@ -394,6 +400,18 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       );
     }
     window.addEventListener('landoutDirectToGps', onDirectToGps);
+
+    // Check for pending DirectTo GPS request from page.tsx effect that may have
+    // fired before this listener was registered (React useEffect ordering: parent
+    // effects run before child effects, so the URL-param effect fires before we
+    // register this listener). Also check when followMode changes.
+    const pendingDirectToGps = (window as any).__landoutPendingDirectToGps;
+    if (pendingDirectToGps) {
+      delete (window as any).__landoutPendingDirectToGps;
+      console.log('[DirectTo] processing pending DirectTo GPS request');
+      onDirectToGps();
+    }
+
     return () => {
       window.removeEventListener('landoutStartTracking', onStartTracking);
       window.removeEventListener('landoutStartGpsTracking', onStartGpsOnly);
@@ -424,6 +442,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       // The map is already centered on the device — no dead zone applies.
       // User needs to be able to explore away from their position.
       if (trackUpRef.current) {
+        console.log('[Locate] movestart — trackUp on, exiting follow mode');
         followModeRef.current = false;
         setFollowMode(false);
         setState('active');
@@ -443,6 +462,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         return; // Still inside dead zone — stay in follow mode
       }
       // Outside dead zone — exit follow mode
+      console.log('[Locate] movestart — outside dead zone, exiting follow mode');
       followModeRef.current = false;
       setFollowMode(false);
       setState('active');
