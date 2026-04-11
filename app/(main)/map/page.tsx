@@ -1,15 +1,9 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
-// map/page.tsx handles URL params from "View on Map" navigation.
-// The BackcountryMap is in the layout — this page just handles URL params
-// and dispatches events to the already-mounted map.
-
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function MapPage() {
+function MapPageInner() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -20,9 +14,6 @@ export default function MapPage() {
     const airportType = searchParams.get('airportType');
     const municipality = searchParams.get('municipality');
     const state = searchParams.get('state');
-    const runway = searchParams.get('runway');
-    const elev = searchParams.get('elev');
-    const siteId = searchParams.get('siteId');
     const dropPin = searchParams.get('dropPin') === '1';
 
     if (lat && lon && name && dropPin) {
@@ -58,5 +49,24 @@ export default function MapPage() {
       className="h-[calc(100vh-3.5rem)] relative"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     />
+  );
+}
+
+function MapPageLoading() {
+  return (
+    <div
+      className="h-[calc(100vh-3.5rem)] relative flex items-center justify-center"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+export default function MapPage() {
+  return (
+    <Suspense fallback={<MapPageLoading />}>
+      <MapPageInner />
+    </Suspense>
   );
 }
