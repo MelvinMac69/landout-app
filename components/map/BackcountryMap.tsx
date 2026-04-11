@@ -104,6 +104,8 @@ export function BackcountryMap({
 
   // Direct To state
   const [directToDest, setDirectToDest] = useState<DirectToDest | null>(null);
+  // Debug: visible step indicator for crash diagnosis
+  const [debugStep, setDebugStep] = useState<string>('');
   // Ref wrapper for directToDest to avoid stale closure in event listeners
   const directToDestRef = useRef(directToDest);
   useEffect(() => { directToDestRef.current = directToDest; });
@@ -764,7 +766,7 @@ export function BackcountryMap({
     function onGpsUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
       if (!pos) return;
-      console.log('[GPS] onGpsUpdate', { lat: pos.lat, lon: pos.lon, hasDest: !!directToDestRef.current });
+      setDebugStep('5/5: GPS update received');
       // Reject clearly invalid coordinates — prevents MapLibre from crashing on bad GPS data
       if (!Number.isFinite(pos.lat) || !Number.isFinite(pos.lon) ||
           Math.abs(pos.lat) > 90 || Math.abs(pos.lon) > 180) {
@@ -839,6 +841,7 @@ export function BackcountryMap({
     if (!src) return;
     console.log('[DirectTo effect] firing', { hasDest: !!directToDest, hasPos: !!currentPosRef.current, loaded });
     if (directToDest && currentPosRef.current) {
+      setDebugStep('6/6: drawing line');
       src.setData({
         type: 'FeatureCollection',
         features: [
@@ -973,23 +976,25 @@ export function BackcountryMap({
   function handleDirectTo(lng: number, lat: number, name?: string) {
     // Validate coordinates before any state change — reject NaN/Infinity
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
-      console.warn('[DirectTo] handleDirectTo rejected invalid coords:', { lng, lat });
+      setDebugStep('FAIL: invalid coords');
       return;
     }
-    console.log('[DirectTo] handleDirectTo called:', { lng, lat, name });
+    setDebugStep('1/5: handleDirectTo called');
     setDirectToDest({ lng, lat, name, type: 'map' });
     // Defer UI cleanup so React state churn settles before GPS starts
     queueMicrotask(() => {
+      setDebugStep('2/5: cleaning UI');
       setActionMenu(null);
       setInfoCard(null);
     });
     // Defer GPS start separately — further decouples from React renders
     queueMicrotask(() => {
+      setDebugStep('3/5: dispatching landoutDirectToGps');
       try {
-        console.log('[DirectTo] dispatching landoutDirectToGps');
         window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+        setDebugStep('4/5: GPS event dispatched ok');
       } catch (e) {
-        console.warn('[DirectTo] GPS start failed:', e);
+        setDebugStep('FAIL: GPS event threw');
       }
     });
   }
@@ -1059,6 +1064,17 @@ export function BackcountryMap({
     <div className="relative w-full h-full">
       {/* Full-screen map container */}
       <div ref={mapContainer} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+      {/* DirectTo debug step indicator — remove before production */}
+      {debugStep && (
+        <div style={{
+          position: 'fixed', top: 60, left: 0, right: 0,
+          background: debugStep.startsWith('FAIL') ? '#EF4444' : '#1D4ED8',
+          color: 'white', textAlign: 'center', fontSize: 11, fontFamily: 'monospace',
+          padding: '4px 8px', zIndex: 9999,
+        }}>
+          🔧 DIRECTTO: {debugStep}
+        </div>
+      )}
       {/* Debug grid overlay — press G to toggle */}
       <MapGrid visible={showGrid} cols={10} rows={8} />
       {!loaded && (
