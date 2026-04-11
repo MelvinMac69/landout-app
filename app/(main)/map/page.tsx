@@ -181,6 +181,7 @@ export default function MapPage() {
           state: decodedState || '',
           type: decodedAirportType || '',
         });
+        console.log('[Page] dispatched landoutDropPin with', { lng: parseFloat(lon), lat: parseFloat(lat), name: decodedName });
         // Note: URL params persist in the browser — they don't interfere with app operation
       } else {
         const detail = {

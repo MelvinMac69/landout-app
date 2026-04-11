@@ -188,13 +188,19 @@ export function BackcountryMap({
       if (flyToInProgressRef.current) { console.log('[DropPin] onDropPin: flyTo already in progress, skipping'); return; }
       flyToInProgressRef.current = true;
       console.log('[DropPin] calling map.flyTo to', lng, lat);
-      map.flyTo({
-        center: [lng, lat],
-        zoom: 13,
-        duration: 800,
-        essential: true,
-      });
-      setTimeout(() => { flyToInProgressRef.current = false; }, 900);
+      try {
+        map.flyTo({
+          center: [lng, lat],
+          zoom: 13,
+          duration: 800,
+          essential: true,
+        });
+      } catch (err) {
+        console.error('[DropPin] flyTo failed:', err);
+        flyToInProgressRef.current = false;
+        return;
+      }
+      setTimeout(() => { flyToInProgressRef.current = false; console.log('[DropPin] flyTo complete, flyToInProgress=false'); }, 900);
       // Add a temporary red pin marker
       const el = document.createElement('div');
       el.style.cssText = `
