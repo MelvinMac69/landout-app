@@ -764,28 +764,21 @@ export function BackcountryMap({
     // ── GPS sync from LocateButton ────────────────────────────────────────────────
     // Immediate update via event (for DirectTo line rendering)
     function onGpsUpdate(e: Event) {
-      const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
-      if (!pos) return;
-      setDebugStep('5/5: GPS update received');
-      // Reject clearly invalid coordinates — prevents MapLibre from crashing on bad GPS data
-      if (!Number.isFinite(pos.lat) || !Number.isFinite(pos.lon) ||
-          Math.abs(pos.lat) > 90 || Math.abs(pos.lon) > 180) {
-        return;
-      }
-      currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
-      // Skip state update during flyTo animation — prevents expensive re-renders while map is animating
-      if (!flyToInProgressRef.current) {
-        setCurrentPosState(currentPosRef.current);
-      }
-      // Draw line + dots if destination is set
-      if (directToDestRef.current && map.current && !flyToInProgressRef.current) {
-        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-        if (src) {
-          try {
-            console.log('[DirectTo] drawing line', {
-              from: [currentPosRef.current.lon, currentPosRef.current.lat],
-              to: [directToDestRef.current!.lng, directToDestRef.current!.lat]
-            });
+      try {
+        const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
+        if (!pos) return;
+        setDebugStep('5/5: GPS update received');
+        if (!Number.isFinite(pos.lat) || !Number.isFinite(pos.lon) ||
+            Math.abs(pos.lat) > 90 || Math.abs(pos.lon) > 180) {
+          return;
+        }
+        currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
+        if (!flyToInProgressRef.current) {
+          setCurrentPosState(currentPosRef.current);
+        }
+        if (directToDestRef.current && map.current && !flyToInProgressRef.current) {
+          const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+          if (src) {
             src.setData({
               type: 'FeatureCollection',
               features: [
@@ -809,10 +802,13 @@ export function BackcountryMap({
                 },
               ],
             });
-          } catch (err) {
-            console.warn('[DirectTo] src.setData error:', err);
+            setDebugStep('6/6: setData ok');
           }
         }
+      }
+      catch (err) {
+        console.error('[GPS] onGpsUpdate crashed:', err);
+        setDebugStep('FAIL: onGpsUpdate crashed');
       }
     }
     window.addEventListener('landoutPositionUpdate', onGpsUpdate);
@@ -839,10 +835,7 @@ export function BackcountryMap({
     if (!map.current) return;
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
-    console.log('[DirectTo effect] firing', { hasDest: !!directToDest, hasPos: !!currentPosRef.current, loaded });
     if (directToDest && currentPosRef.current) {
-      setDebugStep('6/6: drawing line');
-      console.log('[DirectTo] BEFORE setData', { from: [currentPosRef.current.lon, currentPosRef.current.lat], to: [directToDest.lng, directToDest.lat] });
       src.setData({
         type: 'FeatureCollection',
         features: [
@@ -865,8 +858,6 @@ export function BackcountryMap({
           },
         ],
       });
-      console.log('[DirectTo] AFTER setData ok');
-      setDebugStep('6/6: setData ok');
     } else if (!directToDest) {
       // No destination — clear the line and dots
       src.setData({ type: 'FeatureCollection', features: [] });
