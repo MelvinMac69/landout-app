@@ -110,13 +110,17 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
 
   function startWatching(lat: number, lon: number, heading?: number, speed?: number, altitude?: number | null) {
     stopWatching();
-    setPosition({ lat, lon, heading, speed, altitude });
-    positionRef.current = { lat, lon, heading, speed, altitude };
-    updateMarker(lat, lon, heading);
-    // Notify DataDashboard of position update
-    window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
-      detail: { lat, lon, heading, speed, altitude }
-    }));
+    // Only update marker/position if we have real coordinates.
+    // On fresh page load, lat/lon may be 0 — the first real GPS fix handles all of this.
+    const hasRealPosition = Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0);
+    if (hasRealPosition) {
+      setPosition({ lat, lon, heading, speed, altitude });
+      positionRef.current = { lat, lon, heading, speed, altitude };
+      updateMarker(lat, lon, heading);
+      window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
+        detail: { lat, lon, heading, speed, altitude }
+      }));
+    }
     followModeRef.current = true;
     initialLocateRef.current = true; // first update gets the full flyTo treatment
     setFollowMode(true);
@@ -124,6 +128,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
 
     watchId.current = navigator.geolocation.watchPosition(
       (p) => {
+        try {
         const la = p.coords.latitude;
         const lo = p.coords.longitude;
         const h = p.coords.heading ?? undefined;
@@ -197,6 +202,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
             map.setBearing(h);
           }
         }
+      } catch (e) { console.warn('[GPS callback error]', e); }
       },
       (err) => {
         console.warn('watchPosition error:', err.message);

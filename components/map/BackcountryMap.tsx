@@ -764,6 +764,11 @@ export function BackcountryMap({
     function onGpsUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
       if (!pos) return;
+      // Reject clearly invalid coordinates — prevents MapLibre from crashing on bad GPS data
+      if (!Number.isFinite(pos.lat) || !Number.isFinite(pos.lon) ||
+          Math.abs(pos.lat) > 90 || Math.abs(pos.lon) > 180) {
+        return;
+      }
       currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
       // Skip state update during flyTo animation — prevents expensive re-renders while map is animating
       if (!flyToInProgressRef.current) {
@@ -963,14 +968,16 @@ export function BackcountryMap({
     setDirectToDest({ lng, lat, name, type: 'map' });
     setActionMenu(null);
     setInfoCard(null);
-    // Start GPS tracking so the magenta line can be drawn.
-    // Note: landoutSetDirectTo is NOT called here — external callers use that directly.
-    // This is called by InfoCard's Direct To button.
-    try {
-      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-    } catch (e) {
-      console.warn('[DirectTo] GPS start failed:', e);
-    }
+    // Defer GPS start so React state updates can settle first.
+    // This prevents iOS Safari from crashing when state churn + GPS start
+    // happen in the same event loop tick on a freshly-loaded map.
+    queueMicrotask(() => {
+      try {
+        window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+      } catch (e) {
+        console.warn('[DirectTo] GPS start failed:', e);
+      }
+    });
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
