@@ -107,11 +107,6 @@ export default function SiteDetailPage() {
     });
   }, [id]);
 
-  function handleDirectTo() {
-    if (!site) return;
-    router.push(`/map?lat=${site.lat}&lon=${site.lon}&name=${encodeURIComponent(site.name)}&icao=${site.icao || ''}&directTo=1`);
-  }
-
   if (notFound) {
     return (
       <div className="max-w-2xl mx-auto p-4">
@@ -221,16 +216,7 @@ export default function SiteDetailPage() {
           </Card>
         </Link>
 
-        {isLandingSite && (
-          <button onClick={handleDirectTo} className="w-full">
-            <Card className="h-full bg-orange-50 border-orange-200 hover:border-orange-400 transition-colors cursor-pointer">
-              <div className="flex items-center gap-2">
-                <Navigation className="w-4 h-4 text-orange-500" />
-                <span className="text-sm font-medium text-orange-700">Direct To</span>
-              </div>
-            </Card>
-          </button>
-        )}
+
       </div>
 
       {/* Disclaimer */}
@@ -349,17 +335,6 @@ export default function SiteDetailPage() {
             <Share2 className="w-4 h-4" />
             Share
           </Button>
-          {isLandingSite && (
-            <Button
-              variant="primary"
-              className="flex-1 gap-2"
-              style={{ background: '#D4621A' }}
-              onClick={handleDirectTo}
-            >
-              <Navigation className="w-4 h-4" />
-              Direct To
-            </Button>
-          )}
         </div>
       </div>
     </div>

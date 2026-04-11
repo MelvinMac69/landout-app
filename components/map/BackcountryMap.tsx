@@ -136,71 +136,6 @@ export function BackcountryMap({
   }, []);
 
   // Handle landoutDirectTo event from site detail page Direct To button.
-  // Entry point: sites/[id] page → router.push(/map?directTo=1&...)
-  // Preserves locate/follow state — does NOT call handleLocate.
-  useEffect(() => {
-    function processDirectTo(dest: { lng: number; lat: number; name: string }) {
-      const followModeOn = (window as any).landoutLocationState?.followMode;
-      console.log(`[DirectTo] processDirectTo (site detail page) — locate was ${followModeOn ? 'ON' : 'OFF'}`);
-      const fullDest = { ...dest, type: 'map' as const };
-      console.log('[DirectTo] processDirectTo calling setDirectToDest with:', fullDest, 'currentPosRef:', !!currentPosRef.current, currentPosRef.current);
-      setDirectToDest(fullDest);
-      setInfoCard(null);
-      setActionMenu(null);
-      // Draw destination dot immediately if map is ready — gives user instant feedback
-      if (map.current) {
-        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-        if (src) {
-          src.setData({
-            type: 'FeatureCollection',
-            features: [
-              { type: 'Feature', geometry: { type: 'Point', coordinates: [fullDest.lng, fullDest.lat] }, properties: {} },
-            ],
-          });
-          console.log('[DirectTo] destination dot drawn in processDirectTo');
-        }
-      }
-      // Set pending flag BEFORE dispatching — LocateButton's useEffect runs after
-      // page.tsx's useEffect (React parent-before-child ordering), so the
-      // landoutDirectToGps listener won't be registered yet. LocateButton checks
-      // the pending flag when it mounts.
-      (window as any).__landoutPendingDirectToGps = true;
-      // Start GPS tracking WITHOUT changing follow/locate state.
-      // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
-      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-      // Notify page.tsx of the destination (for DirectToPanel)
-      window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
-        detail: { dest: fullDest, currentPos: currentPosRef.current || null },
-      }));
-    }
-
-    function onDirectTo(e: Event) {
-      const { lng, lat, name } = (e as CustomEvent<{ lng: number; lat: number; name: string }>).detail;
-      processDirectTo({ lng, lat, name });
-    }
-
-    window.addEventListener('landoutDirectTo', onDirectTo);
-
-    // Check for pending DirectTo from page.tsx effect that may have fired before this
-    // listener was registered (React effects run parent-before-child).
-    const pending = (window as any).__landoutPendingDirectTo;
-    if (pending) {
-      delete (window as any).__landoutPendingDirectTo;
-      processDirectTo({ lng: pending.lng, lat: pending.lat, name: pending.name });
-    }
-
-    // Also check for calls to window.landoutSetDirectTo (used by SiteInfoBox) that
-    // may have been made before this listener was set up. Those calls are silently
-    // ignored by the optional chaining if win.landoutSetDirectTo wasn't assigned yet.
-    const pendingSet = (window as any).__landoutPendingSetDirectTo;
-    if (pendingSet) {
-      delete (window as any).__landoutPendingSetDirectTo;
-      processDirectTo(pendingSet);
-    }
-
-    return () => window.removeEventListener('landoutDirectTo', onDirectTo);
-  }, []);
-
 
 
   // Listen for landoutSearchSelect from search page navigation
@@ -584,25 +519,6 @@ export function BackcountryMap({
       await loadAllOverlays();
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
 
-      // Draw any pending DirectTo destination immediately when map loads.
-      // Use directToDestRef (not directToDest) — the state variable is captured in
-      // this closure at mount time and is always null. The ref is updated by a
-      // useEffect that runs synchronously before the browser paints.
-      const dest = directToDestRef.current;
-      console.log('[DirectTo] map load handler — dest from ref:', !!dest, dest);
-      if (dest) {
-        const src = mapInstance.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-        console.log('[DirectTo] map load handler drawing destination dot, src:', !!src);
-        if (src) {
-          src.setData({
-            type: 'FeatureCollection',
-            features: [
-              { type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] }, properties: {} },
-            ],
-          });
-        }
-      }
-
       // Process any pending pin that was set before map loaded
       // Only process if it hasn't already been handled by the landoutDropPin event
       const pending = (window as any).__landoutPendingPin;
@@ -818,12 +734,10 @@ export function BackcountryMap({
     // Immediate update via event (for DirectTo line rendering)
     function onGpsUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
-      console.log('[DirectTo] onGpsUpdate — pos:', !!pos, 'directToDestRef:', !!directToDestRef.current, 'map:', !!map.current);
       if (pos) {
         currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
         setCurrentPosState(currentPosRef.current);
-        // If DirectTo destination is set and map source exists, draw line + dots immediately
-        console.log('[DirectTo] onGpsUpdate checking draw — directToDestRef.current:', !!directToDestRef.current, 'map.current:', !!map.current);
+        // Draw line + dots if destination is set
         if (directToDestRef.current && map.current) {
           const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
           if (src) {
@@ -887,11 +801,7 @@ export function BackcountryMap({
     if (!map.current) return;
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
-    console.log('[DirectTo] effect firing — directToDest:', !!directToDest, 'currentPosRef:', !!currentPosRef.current, 'loaded:', loaded);
-    console.log('[DirectTo] effect check — directToDest:', !!directToDest, 'directToDestRef.current:', !!directToDestRef.current, 'currentPosRef:', !!currentPosRef.current, 'map:', !!map.current);
     if (directToDest && currentPosRef.current) {
-      // Draw line from device to destination AND draw dots at each endpoint
-      console.log('[DirectTo] DRAWING LINE + DOTS NOW');
       src.setData({
         type: 'FeatureCollection',
         features: [
@@ -978,8 +888,7 @@ export function BackcountryMap({
     // Preserves locate/follow state — does NOT call handleLocate (unlike landoutStartTracking).
     win.landoutSetDirectTo = (dest) => {
       if (!dest) return;
-      const followModeOn = (window as any).landoutLocationState?.followMode;
-      console.log(`[DirectTo] landoutSetDirectTo (SiteInfoBox/MeasureRuler) — locate was ${followModeOn ? 'ON' : 'OFF'}`);
+
       setDirectToDest(dest);
       setInfoCard(null);
       setActionMenu(null);

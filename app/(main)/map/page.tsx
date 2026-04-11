@@ -173,14 +173,19 @@ export default function MapPage() {
         // Clear URL params so they don't persist
         window.history.replaceState(null, '', '/map');
       } else {
-        // directTo=1 — draw line from device to site, no InfoCard
-        setDisclaimerDismissed(true);
-        // Set pending flag BEFORE dispatching — BackcountryMap's useEffect runs after
-        // page.tsx's useEffect, so the event listener won't be registered yet.
-        // BackcountryMap checks __landoutPendingDirectTo when it mounts.
-        const directToData = { lng: parseFloat(lon), lat: parseFloat(lat), name: decodedName };
-        (window as any).__landoutPendingDirectTo = directToData;
-        window.dispatchEvent(new CustomEvent('landoutDirectTo', { detail: directToData }));
+        const detail = {
+          lng: parseFloat(lon),
+          lat: parseFloat(lat),
+          name: decodedName,
+          faa_ident: decodedIcao || undefined,
+          airportType: decodedAirportType || undefined,
+          municipality: decodedMunicipality || undefined,
+          state: decodedState || undefined,
+          runway_length_ft: runway_length_ft ? parseInt(runway_length_ft) : null,
+          elevation_ft: elev ? parseInt(elev) : null,
+          directTo,
+        };
+        window.dispatchEvent(new CustomEvent('landoutSearchSelect', { detail }));
       }
     }
   }, []);
