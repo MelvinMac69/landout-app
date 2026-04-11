@@ -793,20 +793,21 @@ export function BackcountryMap({
             });
           }
           // Fit map to show both device and destination — only once per Direct To session
-          // Only fitBounds once per Direct To session, and guard against null values
-          if (!directToFitBoundsDoneRef.current && currentPosRef.current && directToDestRef.current) {
+          // Only fitBounds once per Direct To session, and guard against invalid coordinates
+          const pos = currentPosRef.current;
+          const dest = directToDestRef.current;
+          if (!directToFitBoundsDoneRef.current && pos && dest && pos.lat !== 0 && pos.lon !== 0) {
             directToFitBoundsDoneRef.current = true;
-            const dest = directToDestRef.current;
+            console.log('[DirectTo] onGpsUpdate calling fitBounds');
             try {
               map.current.fitBounds(
                 [
-                  [currentPosRef.current.lon, currentPosRef.current.lat],
+                  [pos.lon, pos.lat],
                   [dest.lng, dest.lat],
                 ],
-                { padding: 80, maxZoom: 11 }
+                { padding: 80 }
               );
-              console.log('[DirectTo] fitBounds CALLED');
-            } catch {}
+            } catch (err) { console.error('[DirectTo] onGpsUpdate fitBounds error:', err); }
           }
         }
       }
@@ -977,6 +978,7 @@ export function BackcountryMap({
         // Only call fitBounds once per Direct To session
         if (!directToFitBoundsDoneRef.current) {
           directToFitBoundsDoneRef.current = true;
+          console.log('[DirectTo] landoutSetDirectTo calling fitBounds');
           try {
             map.current.fitBounds(
               [
