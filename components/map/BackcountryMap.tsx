@@ -910,70 +910,21 @@ export function BackcountryMap({
     };
     win.landoutGetBasemap = () => basemap;
     (window as any).landoutToggleGrid = () => setShowGrid((v) => !v);
-    // landoutSetDirectTo — entry point for SiteInfoBox, MeasureRuler, NearestPanel.
-    // Entry points: SiteInfoBox "Direct To" button, MeasureRuler context menu, NearestPanel.
-    // Preserves locate/follow state — does NOT call handleLocate (unlike landoutStartTracking).
+    // landoutSetDirectTo — called by SiteInfoBox, MeasureRuler, NearestPanel.
+    // Note: InfoCard calls handleDirectTo directly, not this function.
+    // This function is for EXTERNAL callers that need to set the destination
+    // without going through handleDirectTo.
     win.landoutSetDirectTo = (dest) => {
       if (!dest) return;
 
-      console.log('[DirectTo] landoutSetDirectTo called, resetting fitBoundsGuard');
-      setDirectToDest(dest);
+      console.log('[DirectTo] landoutSetDirectTo called');
       directToFitBoundsDoneRef.current = false;
-      setInfoCard(null);
-      setActionMenu(null);
 
-      // Draw destination dot immediately if map is ready — gives user instant feedback
-      if (map.current) {
-        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-        if (src) {
-          src.setData({
-            type: 'FeatureCollection',
-            features: [
-              { type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] }, properties: {} },
-            ],
-          });
-        }
-      }
-
-      // Start GPS tracking WITHOUT changing follow/locate state.
-      // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
+      // Start GPS tracking — this is the primary purpose for external callers.
+      // InfoCard's handleDirectTo already sets directToDest directly.
       window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
 
-      // Draw line + dots immediately if we already have a GPS position.
-      // If not, onGpsUpdate will draw them when GPS fires.
-      if (currentPosRef.current && map.current) {
-        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-        if (src) {
-          src.setData({
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                geometry: {
-                  type: 'LineString',
-                  coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [dest.lng, dest.lat]],
-                },
-                properties: {},
-              },
-              {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
-                properties: {},
-              },
-              {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] },
-                properties: {},
-              },
-            ],
-          });
-        }
-        // fitBounds removed: causes WebView crashes on iOS Safari when map is in
-        // an unstable state after multiple flyTo/setCenter operations. The blue dot
-        // and destination marker are visible so user can manually fit bounds if needed.
-      }
-
-      // Notify page.tsx to show DirectToPanel with current position for bounds fitting
+      // Notify page.tsx to show DirectToPanel
       window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
         detail: {
           dest,
@@ -1012,9 +963,8 @@ export function BackcountryMap({
     setDirectToDest({ lng, lat, name, type: 'map' });
     setActionMenu(null);
     setInfoCard(null);
-    // Start GPS tracking so the magenta line can be drawn.
-    // landoutDirectToGps starts GPS without changing follow/locate state.
-    window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+    // GPS is started via the useEffect in landoutSetDirectTo when directToDest changes.
+    // Don't dispatch landoutDirectToGps here — the useEffect handles it.
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
