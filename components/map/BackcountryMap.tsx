@@ -807,20 +807,17 @@ export function BackcountryMap({
               ],
             });
           }
-          // Fit map to show both device and destination — wait for moveend to avoid
-          // interrupting the flyTo animation
+          // Fit map to show both device and destination
           const dest = directToDestRef.current;
-          map.current.once('moveend', () => {
-            try {
-              map.current!.fitBounds(
-                [
-                  [currentPosRef.current!.lon, currentPosRef.current!.lat],
-                  [dest.lng, dest.lat],
-                ],
-                { padding: 80, maxZoom: 11 }
-              );
-            } catch {}
-          });
+          try {
+            map.current.fitBounds(
+              [
+                [currentPosRef.current!.lon, currentPosRef.current!.lat],
+                [dest.lng, dest.lat],
+              ],
+              { padding: 80, maxZoom: 11 }
+            );
+          } catch {}
         }
       }
     }
