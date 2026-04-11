@@ -401,12 +401,20 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
         return;
       }
 
+      // No GPS running yet. If we have a last-known position, use it immediately
+      // without starting watchPosition (which can crash on iOS).
+      // This handles the case where the user hasn't tapped Locate yet.
       suppressNextInitialFlyToRef.current = true;
       directToGpsStartRef.current = true;
-
-      // Start watchPosition — avoids getCurrentPosition which can trigger
-      // permission dialogs on iOS Safari that crash the WebView.
-      // The first watchPosition callback will set the initial position.
+      if (positionRef.current && (positionRef.current.lat !== 0 || positionRef.current.lon !== 0)) {
+        // We have a last-known position — dispatch it and skip starting watchPosition
+        window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
+          detail: { ...positionRef.current }
+        }));
+        directToGpsStartRef.current = false;
+        return;
+      }
+      // No position available — start watchPosition
       startWatching(positionRef.current?.lat ?? 0, positionRef.current?.lon ?? 0);
       directToGpsStartRef.current = false;
     }
