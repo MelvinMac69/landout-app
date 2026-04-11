@@ -549,6 +549,14 @@ export function BackcountryMap({
         handleDropPin(pending.lng, pending.lat, pending.name);
       }
       delete (window as any).__landoutPendingPin;
+
+      // Process any pending fly-to-airport that was set before map loaded
+      const pendingAirport = (window as any).__landoutPendingAirport;
+      if (pendingAirport && pendingAirport.ts > Date.now() - 10000) {
+        delete (window as any).__landoutPendingAirport;
+        handleFlyToAirport(pendingAirport.lng, pendingAirport.lat, pendingAirport.name);
+      }
+
       // Start GPS tracking for SiteInfoBox distance — does NOT manipulate the map
       // (no marker, no setCenter). Only fires landoutPositionUpdate events.
       window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
@@ -884,6 +892,7 @@ export function BackcountryMap({
       landoutToggleDiagnostics: () => void;
       landoutSetDirectTo: (dest: DirectToDest | null) => void;
       landoutDropPin: (lng: number, lat: number, name?: string) => void;
+      landoutFlyToAirport: (lng: number, lat: number, name?: string) => void;
     };
     const switchTo = (id: BasemapId) => {
       if (!map.current || id === basemap) return;
@@ -977,6 +986,9 @@ export function BackcountryMap({
     win.landoutDropPin = (lng: number, lat: number, name?: string) => {
       handleDropPin(lng, lat, name);
     };
+    win.landoutFlyToAirport = (lng: number, lat: number, name?: string) => {
+      handleFlyToAirport(lng, lat, name);
+    };
 
     // MeasureRuler listens for mobile long-press → show context menu at that location
     if (map.current) {
@@ -1014,6 +1026,38 @@ export function BackcountryMap({
     setDroppedPins((prev) => [...prev, { id, lng, lat, name }]);
     setActionMenu(null);
     setInfoCard(null);
+  }
+
+  // Fly to an airport and drop a highlighted marker with an auto-opening popup.
+  // Used by "View on Map" from site detail page — replaces SiteInfoBox.
+  // The user taps the highlighted marker → normal InfoCard appears → Direct To works.
+  function handleFlyToAirport(lng: number, lat: number, name?: string) {
+    const map = mapInstanceRef.current;
+    if (!map) {
+      // Store as pending — map will pick it up when ready
+      (window as any).__landoutPendingAirport = { lng, lat, name, ts: Date.now() };
+      return;
+    }
+    map.setCenter([lng, lat]);
+    map.setZoom(13);
+    // Drop a highlighted marker — orange circle to make it obvious
+    const el = document.createElement('div');
+    el.style.cssText = `
+      width: 28px; height: 28px;
+      background: #D4621A;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(212,98,26,0.6);
+      cursor: pointer;
+    `;
+    const popup = new maplibregl.Popup({ offset: 15, closeButton: false, closeOnClick: false })
+      .setText(name || 'Airport');
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat([lng, lat])
+      .setPopup(popup)
+      .addTo(map);
+    // Auto-remove after 20 seconds — user should have tapped it by then
+    setTimeout(() => { marker.remove(); }, 20000);
   }
 
   function handleClearDirectTo() {

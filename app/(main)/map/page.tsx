@@ -157,31 +157,21 @@ export default function MapPage() {
         decodedName = name; // fall back to raw value
       }
       if (dropPin) {
-        const pinData = {
+        const airportData = {
           lng: parseFloat(lon),
           lat: parseFloat(lat),
           name: decodedName,
           ts: Date.now(),
         };
-        // Store pending pin — map will pick it up when it loads
-        (window as any).__landoutPendingPin = pinData;
-        // Dispatch landoutDropPin so the map reacts even if it loaded before this effect ran
-        window.dispatchEvent(new CustomEvent('landoutDropPin', { detail: pinData }));
-        // Auto-dismiss disclaimer so it doesn't cover the new site info box
+        // Store pending airport — map will pick it up when it loads
+        (window as any).__landoutPendingAirport = airportData;
+        // Dispatch landoutFlyToAirport so the map reacts even if it loaded before this effect ran
+        window.dispatchEvent(new CustomEvent('landoutFlyToAirport', { detail: airportData }));
+        // Auto-dismiss disclaimer so it doesn't cover the highlighted airport marker
         setDisclaimerDismissed(true);
-        // Populate site info box
-        setSiteInfo({
-          name: decodedName,
-          siteId: decodedSiteId,
-          lat: parseFloat(lat),
-          lon: parseFloat(lon),
-          elev: elev || '',
-          runway: runway_length_ft || '',
-          municipality: decodedMunicipality || '',
-          state: decodedState || '',
-          type: decodedAirportType || '',
-        });
-        console.log('[Page] dispatched landoutDropPin with', { lng: parseFloat(lon), lat: parseFloat(lat), name: decodedName });
+        // DO NOT show SiteInfoBox — we use the normal InfoCard flow instead.
+        // User taps the highlighted orange marker → InfoCard appears → Direct To works.
+        console.log('[Page] dispatched landoutFlyToAirport with', { lng: parseFloat(lon), lat: parseFloat(lat), name: decodedName });
         // Note: URL params persist in the browser — they don't interfere with app operation
       } else {
         const detail = {
