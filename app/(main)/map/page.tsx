@@ -138,13 +138,24 @@ export default function MapPage() {
     const directTo = params.get('directTo') === '1';
     const dropPin = params.get('dropPin') === '1';
     if (lat && lon && name) {
-      // Decode values before clearing URL
-      const decodedName = decodeURIComponent(name);
-      const decodedIcao = icao ? decodeURIComponent(icao) : undefined;
-      const decodedAirportType = airportType ? decodeURIComponent(airportType) : undefined;
-      const decodedMunicipality = municipality ? decodeURIComponent(municipality) : undefined;
-      const decodedState = state ? decodeURIComponent(state) : undefined;
-      const decodedSiteId = siteId ? decodeURIComponent(siteId) : '';
+      // Decode values — wrap in try-catch to prevent crashes from malformed percent-encoding
+      let decodedName: string | undefined;
+      let decodedIcao: string | undefined;
+      let decodedAirportType: string | undefined;
+      let decodedMunicipality: string | undefined;
+      let decodedState: string | undefined;
+      let decodedSiteId = '';
+      try {
+        decodedName = decodeURIComponent(name);
+        decodedIcao = icao ? decodeURIComponent(icao) : undefined;
+        decodedAirportType = airportType ? decodeURIComponent(airportType) : undefined;
+        decodedMunicipality = municipality ? decodeURIComponent(municipality) : undefined;
+        decodedState = state ? decodeURIComponent(state) : undefined;
+        decodedSiteId = siteId ? decodeURIComponent(siteId) : '';
+      } catch (err) {
+        console.warn('[Page] URL param decode error:', err);
+        decodedName = name; // fall back to raw value
+      }
       if (dropPin) {
         const pinData = {
           lng: parseFloat(lon),
