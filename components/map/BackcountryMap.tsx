@@ -145,7 +145,49 @@ export function BackcountryMap({
       setActionMenu(null);
       // Start lightweight GPS tracking so the line gets drawn from current position
       window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
-      // Notify page.tsx to fit bounds between device and destination
+
+      // Draw line + dots immediately if we already have a GPS position.
+      // If not, onGpsUpdate will draw them when GPS fires.
+      if (currentPosRef.current && map.current) {
+        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          src.setData({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [fullDest.lng, fullDest.lat]],
+                },
+                properties: {},
+              },
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
+                properties: {},
+              },
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [fullDest.lng, fullDest.lat] },
+                properties: {},
+              },
+            ],
+          });
+        }
+        // Fit bounds immediately since we have both positions
+        try {
+          map.current.fitBounds(
+            [
+              [currentPosRef.current.lon, currentPosRef.current.lat],
+              [fullDest.lng, fullDest.lat],
+            ],
+            { padding: 80, maxZoom: 11 }
+          );
+        } catch {}
+      }
+
+      // Notify page.tsx of the destination (for DirectToPanel)
       window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
         detail: { dest: fullDest, currentPos: currentPosRef.current || null },
       }));
