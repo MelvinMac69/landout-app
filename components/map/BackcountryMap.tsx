@@ -1028,44 +1028,31 @@ export function BackcountryMap({
     setInfoCard(null);
   }
 
-  // Fly to an airport and drop a highlighted marker with an auto-opening popup.
+  // Fly to an airport and automatically show the InfoCard (same as tapping an airport dot).
   // Used by "View on Map" from site detail page — replaces SiteInfoBox.
-  // The user taps the highlighted marker → normal InfoCard appears → Direct To works.
-  // Guard: only one pending airport at a time — subsequent calls replace the pending one.
+  // No marker, no popup — just center the map and show the InfoCard directly.
   function handleFlyToAirport(lng: number, lat: number, name?: string) {
     const map = mapInstanceRef.current;
-    // Clear any pending airport that hasn't been processed yet
+    // Clear any pending airport
     delete (window as any).__landoutPendingAirport;
     if (!map) {
-      // Store as pending — map will pick it up when ready
       (window as any).__landoutPendingAirport = { lng, lat, name, ts: Date.now() };
       return;
     }
-    try {
-      map.flyTo({ center: [lng, lat], zoom: 13, duration: 0 });
-    } catch {
-      // Fallback to setCenter if flyTo fails
-      map.setCenter([lng, lat]);
-      map.setZoom(13);
-    }
-    // Drop a highlighted marker — orange circle to make it obvious
-    const el = document.createElement('div');
-    el.style.cssText = `
-      width: 28px; height: 28px;
-      background: #D4621A;
-      border: 3px solid white;
-      border-radius: 50%;
-      box-shadow: 0 2px 8px rgba(212,98,26,0.6);
-      cursor: pointer;
-    `;
-    const popup = new maplibregl.Popup({ offset: 15, closeButton: false, closeOnClick: false })
-      .setText(name || 'Airport');
-    const marker = new maplibregl.Marker({ element: el })
-      .setLngLat([lng, lat])
-      .setPopup(popup)
-      .addTo(map);
-    // Auto-remove after 20 seconds — user should have tapped it by then
-    setTimeout(() => { marker.remove(); }, 20000);
+    // Instant center — no animation to avoid mobile Safari issues
+    map.setCenter([lng, lat]);
+    map.setZoom(13);
+    // Show InfoCard directly — same card as when tapping an airport dot
+    setInfoCard({
+      screenX: window.innerWidth / 2,
+      screenY: window.innerHeight / 2,
+      data: {
+        type: 'airport',
+        lng,
+        lat,
+        name: name || 'Airport',
+      },
+    });
   }
 
   function handleClearDirectTo() {
