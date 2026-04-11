@@ -96,7 +96,7 @@ export function BackcountryMap({
   const map = useRef<maplibregl.Map | null>(null);
   const mapInstanceRef = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [basemap, setBasemap] = useState<BasemapId>('osm');
+  const [basemap, setBasemap] = useState<BasemapId>('satellite');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const diagTapCount = useRef(0);
