@@ -967,18 +967,20 @@ export function BackcountryMap({
       setDebugStep('FAIL: invalid coords');
       return;
     }
+    // DEBUG: log BEFORE state change to see if we even reach this point
+    console.log('[DirectTo] handleDirectTo ENTERED', { lng, lat, name });
     setDebugStep('1/5: set dest');
     setDirectToDest({ lng, lat, name, type: 'map' });
     setDebugStep('2/5: dest set, start GPS');
-    queueMicrotask(() => {
-      setDebugStep('GPSa: event processed');
-      try {
-        window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-        setDebugStep('GPSb: onDirectToGps entered ok');
-      } catch (e) {
-        setDebugStep('FAIL: GPS event threw');
-      }
-    });
+    // Dispatch GPS event synchronously — avoid queueMicrotask which may
+    // schedule the callback after React's render phase completes,
+    // causing timing issues on iOS Safari WebView.
+    try {
+      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+      setDebugStep('GPSb: GPS event dispatched ok');
+    } catch (e) {
+      setDebugStep('FAIL: GPS event threw');
+    }
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
