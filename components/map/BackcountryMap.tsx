@@ -888,8 +888,10 @@ export function BackcountryMap({
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
     console.log('[DirectTo] effect firing — directToDest:', !!directToDest, 'currentPosRef:', !!currentPosRef.current, 'loaded:', loaded);
+    console.log('[DirectTo] effect check — directToDest:', !!directToDest, 'directToDestRef.current:', !!directToDestRef.current, 'currentPosRef:', !!currentPosRef.current, 'map:', !!map.current);
     if (directToDest && currentPosRef.current) {
       // Draw line from device to destination AND draw dots at each endpoint
+      console.log('[DirectTo] DRAWING LINE + DOTS NOW');
       src.setData({
         type: 'FeatureCollection',
         features: [
