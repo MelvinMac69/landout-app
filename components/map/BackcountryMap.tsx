@@ -930,15 +930,9 @@ export function BackcountryMap({
 
       // Start GPS tracking — this is the primary purpose for external callers.
       // InfoCard's handleDirectTo already sets directToDest directly.
+      // Don't dispatch landoutDirectToChange here — SiteInfoBox already shows
+      // an InfoCard with site info, so the DirectToPanel is redundant.
       window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-
-      // Notify page.tsx to show DirectToPanel
-      window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
-        detail: {
-          dest,
-          currentPos: currentPosRef.current || null,
-        },
-      }));
     };
     // MeasureRuler calls this to drop a pin from right-click "Save Pin"
     win.landoutDropPin = (lng: number, lat: number, name?: string) => {
@@ -1029,6 +1023,9 @@ export function BackcountryMap({
 
   function handleClearDirectTo() {
     setDirectToDest(null);
+    // Reset GPS state so second DirectTo attempt starts clean
+    // (suppressNextInitialFlyToRef and directToGpsStartRef live in LocateButton)
+    window.dispatchEvent(new CustomEvent('landoutClearDirectToGps'));
     // Clear the line visually
     if (map.current) {
       const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;

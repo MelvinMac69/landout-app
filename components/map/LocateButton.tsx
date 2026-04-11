@@ -399,17 +399,23 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       if (directToGpsStartRef.current) return;
       if (!('geolocation' in navigator)) return;
 
-      // If GPS is already active via watchPosition, don't restart — just ensure
-      // the magenta line gets drawn. The existing watchPosition will fire position
-      // updates that drive the line drawing in onGpsUpdate.
-      if (watchId.current !== null) {
-        // GPS already running — dispatch a position update to redraw the line
-        if (positionRef.current) {
+      // Defensive: ensure GPS state is consistent. If watchId is set but
+      // positionRef is null, the watch may have died — stop and restart.
+      if (watchId.current !== null && positionRef.current) {
+        // GPS running and has position — dispatch update to redraw the line
+        try {
           window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
             detail: { ...positionRef.current }
           }));
-        }
+        } catch {}
         return;
+      }
+
+      // GPS not running OR state is inconsistent (watchId set but no position).
+      // Stop any existing watch to reset state, then start fresh.
+      if (watchId.current !== null) {
+        try { navigator.geolocation.clearWatch(watchId.current); } catch {}
+        watchId.current = null;
       }
 
       // No GPS running yet. If we have a last-known position, use it immediately
@@ -419,9 +425,11 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       directToGpsStartRef.current = true;
       if (positionRef.current && (positionRef.current.lat !== 0 || positionRef.current.lon !== 0)) {
         // We have a last-known position — dispatch it and skip starting watchPosition
-        window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
-          detail: { ...positionRef.current }
-        }));
+        try {
+          window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
+            detail: { ...positionRef.current }
+          }));
+        } catch {}
         directToGpsStartRef.current = false;
         return;
       }
@@ -430,6 +438,13 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       directToGpsStartRef.current = false;
     }
     window.addEventListener('landoutDirectToGps', onDirectToGps);
+
+    // Reset GPS state when DirectTo is cleared — ensures clean state for next attempt
+    function onClearDirectToGps() {
+      suppressNextInitialFlyToRef.current = false;
+      directToGpsStartRef.current = false;
+    }
+    window.addEventListener('landoutClearDirectToGps', onClearDirectToGps);
 
     // Check for pending DirectTo GPS request from page.tsx effect that may have
     // fired before this listener was registered (React useEffect ordering: parent
@@ -440,6 +455,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       window.removeEventListener('landoutStartTracking', onStartTracking);
       window.removeEventListener('landoutStartGpsTracking', onStartGpsOnly);
       window.removeEventListener('landoutDirectToGps', onDirectToGps);
+      window.removeEventListener('landoutClearDirectToGps', onClearDirectToGps);
     };
   });
 
