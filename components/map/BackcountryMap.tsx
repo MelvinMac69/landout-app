@@ -107,6 +107,8 @@ export function BackcountryMap({
   // Ref wrapper for directToDest to avoid stale closure in event listeners
   const directToDestRef = useRef(directToDest);
   useEffect(() => { directToDestRef.current = directToDest; });
+  // Track whether fitBounds has been called for the current Direct To session — prevents zoom loop
+  const directToFitBoundsDoneRef = useRef(false);
   // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
   const currentPosRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
   const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
@@ -765,17 +767,20 @@ export function BackcountryMap({
               ],
             });
           }
-          // Fit map to show both device and destination
-          const dest = directToDestRef.current;
-          try {
-            map.current.fitBounds(
-              [
-                [currentPosRef.current!.lon, currentPosRef.current!.lat],
-                [dest.lng, dest.lat],
-              ],
-              { padding: 80, maxZoom: 11 }
-            );
-          } catch {}
+          // Fit map to show both device and destination — only once per Direct To session
+          if (!directToFitBoundsDoneRef.current) {
+            directToFitBoundsDoneRef.current = true;
+            const dest = directToDestRef.current;
+            try {
+              map.current.fitBounds(
+                [
+                  [currentPosRef.current!.lon, currentPosRef.current!.lat],
+                  [dest.lng, dest.lat],
+                ],
+                { padding: 80, maxZoom: 11 }
+              );
+            } catch {}
+          }
         }
       }
     }
@@ -890,6 +895,7 @@ export function BackcountryMap({
       if (!dest) return;
 
       setDirectToDest(dest);
+      directToFitBoundsDoneRef.current = false;
       setInfoCard(null);
       setActionMenu(null);
 
@@ -940,15 +946,19 @@ export function BackcountryMap({
           });
         }
         // Fit bounds immediately since we have both positions
-        try {
-          map.current.fitBounds(
-            [
-              [currentPosRef.current.lon, currentPosRef.current.lat],
-              [dest.lng, dest.lat],
-            ],
-            { padding: 80, maxZoom: 11 }
-          );
-        } catch {}
+        // Only call fitBounds once per Direct To session
+        if (!directToFitBoundsDoneRef.current) {
+          directToFitBoundsDoneRef.current = true;
+          try {
+            map.current.fitBounds(
+              [
+                [currentPosRef.current.lon, currentPosRef.current.lat],
+                [dest.lng, dest.lat],
+              ],
+              { padding: 80, maxZoom: 11 }
+            );
+          } catch {}
+        }
       }
 
       // Notify page.tsx to show DirectToPanel with current position for bounds fitting
