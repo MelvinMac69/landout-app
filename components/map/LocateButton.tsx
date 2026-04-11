@@ -223,6 +223,17 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     if (isRequesting.current) return;
 
     if (watchId.current !== null) {
+      // GPS already running (possibly from DirectTo). If DirectTo started it,
+      // suppressNextInitialFlyToRef will be true — skip all map operations to
+      // avoid conflicting with DirectTo's state. Just dispatch current position.
+      if (suppressNextInitialFlyToRef.current) {
+        if (positionRef.current) {
+          window.dispatchEvent(new CustomEvent('landoutPositionUpdate', {
+            detail: { ...positionRef.current }
+          }));
+        }
+        return;
+      }
       if (followMode) {
         setFollowMode(false);
         setState('active');
