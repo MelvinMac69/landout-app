@@ -586,8 +586,10 @@ export function BackcountryMap({
 
       // Draw any pending DirectTo destination immediately when map loads
       // (processDirectTo sets directToDest before map finishes loading)
+      console.log('[DirectTo] map load handler — directToDest:', !!directToDest, directToDest);
       if (directToDest) {
         const src = mapInstance.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        console.log('[DirectTo] map load handler drawing destination dot, src:', !!src);
         if (src) {
           src.setData({
             type: 'FeatureCollection',
@@ -880,6 +882,7 @@ export function BackcountryMap({
     if (!map.current) return;
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
+    console.log('[DirectTo] effect firing — directToDest:', !!directToDest, 'currentPosRef:', !!currentPosRef.current, 'loaded:', loaded);
     if (directToDest && currentPosRef.current) {
       // Draw line from device to destination AND draw dots at each endpoint
       src.setData({
