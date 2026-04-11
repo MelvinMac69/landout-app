@@ -147,6 +147,19 @@ export function BackcountryMap({
       setDirectToDest(fullDest);
       setInfoCard(null);
       setActionMenu(null);
+      // Draw destination dot immediately if map is ready — gives user instant feedback
+      if (map.current) {
+        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          src.setData({
+            type: 'FeatureCollection',
+            features: [
+              { type: 'Feature', geometry: { type: 'Point', coordinates: [fullDest.lng, fullDest.lat] }, properties: {} },
+            ],
+          });
+          console.log('[DirectTo] destination dot drawn in processDirectTo');
+        }
+      }
       // Set pending flag BEFORE dispatching — LocateButton's useEffect runs after
       // page.tsx's useEffect (React parent-before-child ordering), so the
       // landoutDirectToGps listener won't be registered yet. LocateButton checks
@@ -155,54 +168,6 @@ export function BackcountryMap({
       // Start GPS tracking WITHOUT changing follow/locate state.
       // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
       window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-      setDirectToDest(fullDest);
-      setInfoCard(null);
-      setActionMenu(null);
-      // Start GPS tracking WITHOUT changing follow/locate state.
-      // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
-      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-
-      // Draw line + dots immediately if we already have a GPS position.
-      // If not, onGpsUpdate will draw them when GPS fires.
-      if (currentPosRef.current && map.current) {
-        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-        if (src) {
-          src.setData({
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                geometry: {
-                  type: 'LineString',
-                  coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [fullDest.lng, fullDest.lat]],
-                },
-                properties: {},
-              },
-              {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
-                properties: {},
-              },
-              {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [fullDest.lng, fullDest.lat] },
-                properties: {},
-              },
-            ],
-          });
-        }
-        // Fit bounds immediately since we have both positions
-        try {
-          map.current.fitBounds(
-            [
-              [currentPosRef.current.lon, currentPosRef.current.lat],
-              [fullDest.lng, fullDest.lat],
-            ],
-            { padding: 80, maxZoom: 11 }
-          );
-        } catch {}
-      }
-
       // Notify page.tsx of the destination (for DirectToPanel)
       window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
         detail: { dest: fullDest, currentPos: currentPosRef.current || null },
@@ -834,7 +799,6 @@ export function BackcountryMap({
     // Immediate update via event (for DirectTo line rendering)
     function onGpsUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
-      console.log('[DirectTo] onGpsUpdate received, pos:', pos?.lat, pos?.lon, 'directToDest:', !!directToDestRef.current);
       if (pos) {
         currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
         setCurrentPosState(currentPosRef.current);
@@ -899,10 +863,9 @@ export function BackcountryMap({
   // Update Direct To magenta line whenever destination or current position changes.
   // Also depends on currentPosState so this re-runs when GPS delivers a fresh position.
   useEffect(() => {
-    if (!map.current) { console.log('[DirectTo] effect: map not ready'); return; }
+    if (!map.current) return;
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-    if (!src) { console.log('[DirectTo] effect: source not ready'); return; }
-    console.log('[DirectTo] effect firing — directToDest:', !!directToDest, 'currentPosRef:', !!currentPosRef.current);
+    if (!src) return;
     if (directToDest && currentPosRef.current) {
       // Draw line from device to destination AND draw dots at each endpoint
       src.setData({
@@ -996,6 +959,20 @@ export function BackcountryMap({
       setDirectToDest(dest);
       setInfoCard(null);
       setActionMenu(null);
+
+      // Draw destination dot immediately if map is ready — gives user instant feedback
+      if (map.current) {
+        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          src.setData({
+            type: 'FeatureCollection',
+            features: [
+              { type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] }, properties: {} },
+            ],
+          });
+        }
+      }
+
       // Start GPS tracking WITHOUT changing follow/locate state.
       // landoutDirectToGps preserves locate mode (unlike landoutStartTracking which calls handleLocate).
       window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
