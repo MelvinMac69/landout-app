@@ -764,6 +764,7 @@ export function BackcountryMap({
     function onGpsUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
       if (!pos) return;
+      console.log('[GPS] onGpsUpdate', { lat: pos.lat, lon: pos.lon, hasDest: !!directToDestRef.current });
       // Reject clearly invalid coordinates — prevents MapLibre from crashing on bad GPS data
       if (!Number.isFinite(pos.lat) || !Number.isFinite(pos.lon) ||
           Math.abs(pos.lat) > 90 || Math.abs(pos.lon) > 180) {
@@ -779,6 +780,10 @@ export function BackcountryMap({
         const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
         if (src) {
           try {
+            console.log('[DirectTo] drawing line', {
+              from: [currentPosRef.current.lon, currentPosRef.current.lat],
+              to: [directToDestRef.current!.lng, directToDestRef.current!.lat]
+            });
             src.setData({
               type: 'FeatureCollection',
               features: [
@@ -965,14 +970,22 @@ export function BackcountryMap({
 
   // Actions called from ActionMenu / InfoCard
   function handleDirectTo(lng: number, lat: number, name?: string) {
+    // Validate coordinates before any state change — reject NaN/Infinity
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      console.warn('[DirectTo] handleDirectTo rejected invalid coords:', { lng, lat });
+      return;
+    }
+    console.log('[DirectTo] handleDirectTo called:', { lng, lat, name });
     setDirectToDest({ lng, lat, name, type: 'map' });
-    setActionMenu(null);
-    setInfoCard(null);
-    // Defer GPS start so React state updates can settle first.
-    // This prevents iOS Safari from crashing when state churn + GPS start
-    // happen in the same event loop tick on a freshly-loaded map.
+    // Defer UI cleanup so React state churn settles before GPS starts
+    queueMicrotask(() => {
+      setActionMenu(null);
+      setInfoCard(null);
+    });
+    // Defer GPS start separately — further decouples from React renders
     queueMicrotask(() => {
       try {
+        console.log('[DirectTo] dispatching landoutDirectToGps');
         window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
       } catch (e) {
         console.warn('[DirectTo] GPS start failed:', e);
