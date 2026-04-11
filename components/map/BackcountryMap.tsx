@@ -584,6 +584,20 @@ export function BackcountryMap({
       await loadAllOverlays();
       if (onMapLoadRef.current) onMapLoadRef.current(mapInstance);
 
+      // Draw any pending DirectTo destination immediately when map loads
+      // (processDirectTo sets directToDest before map finishes loading)
+      if (directToDest) {
+        const src = mapInstance.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          src.setData({
+            type: 'FeatureCollection',
+            features: [
+              { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] }, properties: {} },
+            ],
+          });
+        }
+      }
+
       // Process any pending pin that was set before map loaded
       // Only process if it hasn't already been handled by the landoutDropPin event
       const pending = (window as any).__landoutPendingPin;
@@ -907,7 +921,7 @@ export function BackcountryMap({
         ],
       });
     }
-  }, [directToDest, currentPosState]);
+  }, [directToDest, currentPosState, loaded]);
 
   // Sync dropped pins to the pins source
   useEffect(() => {
