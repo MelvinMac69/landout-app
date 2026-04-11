@@ -143,6 +143,7 @@ export function BackcountryMap({
       const followModeOn = (window as any).landoutLocationState?.followMode;
       console.log(`[DirectTo] processDirectTo (site detail page) — locate was ${followModeOn ? 'ON' : 'OFF'}`);
       const fullDest = { ...dest, type: 'map' as const };
+      console.log('[DirectTo] processDirectTo calling setDirectToDest with:', fullDest);
       setDirectToDest(fullDest);
       setInfoCard(null);
       setActionMenu(null);
@@ -833,6 +834,7 @@ export function BackcountryMap({
     // Immediate update via event (for DirectTo line rendering)
     function onGpsUpdate(e: Event) {
       const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
+      console.log('[DirectTo] onGpsUpdate received, pos:', pos?.lat, pos?.lon, 'directToDest:', !!directToDestRef.current);
       if (pos) {
         currentPosRef.current = { lat: pos.lat, lon: pos.lon, heading: pos.heading, speed: pos.speed };
         setCurrentPosState(currentPosRef.current);
@@ -897,9 +899,10 @@ export function BackcountryMap({
   // Update Direct To magenta line whenever destination or current position changes.
   // Also depends on currentPosState so this re-runs when GPS delivers a fresh position.
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current) { console.log('[DirectTo] effect: map not ready'); return; }
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-    if (!src) return;
+    if (!src) { console.log('[DirectTo] effect: source not ready'); return; }
+    console.log('[DirectTo] effect firing — directToDest:', !!directToDest, 'currentPosRef:', !!currentPosRef.current);
     if (directToDest && currentPosRef.current) {
       // Draw line from device to destination AND draw dots at each endpoint
       src.setData({
