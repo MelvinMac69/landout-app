@@ -842,6 +842,7 @@ export function BackcountryMap({
     console.log('[DirectTo effect] firing', { hasDest: !!directToDest, hasPos: !!currentPosRef.current, loaded });
     if (directToDest && currentPosRef.current) {
       setDebugStep('6/6: drawing line');
+      console.log('[DirectTo] BEFORE setData', { from: [currentPosRef.current.lon, currentPosRef.current.lat], to: [directToDest.lng, directToDest.lat] });
       src.setData({
         type: 'FeatureCollection',
         features: [
@@ -864,6 +865,8 @@ export function BackcountryMap({
           },
         ],
       });
+      console.log('[DirectTo] AFTER setData ok');
+      setDebugStep('6/6: setData ok');
     } else if (!directToDest) {
       // No destination — clear the line and dots
       src.setData({ type: 'FeatureCollection', features: [] });
@@ -979,20 +982,14 @@ export function BackcountryMap({
       setDebugStep('FAIL: invalid coords');
       return;
     }
-    setDebugStep('1/5: handleDirectTo called');
+    setDebugStep('1/5: set dest');
     setDirectToDest({ lng, lat, name, type: 'map' });
-    // Defer UI cleanup so React state churn settles before GPS starts
+    setDebugStep('2/5: dest set, start GPS');
     queueMicrotask(() => {
-      setDebugStep('2/5: cleaning UI');
-      setActionMenu(null);
-      setInfoCard(null);
-    });
-    // Defer GPS start separately — further decouples from React renders
-    queueMicrotask(() => {
-      setDebugStep('3/5: dispatching landoutDirectToGps');
+      setDebugStep('3/5: dispatching GPS event');
       try {
         window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-        setDebugStep('4/5: GPS event dispatched ok');
+        setDebugStep('4/5: GPS event ok');
       } catch (e) {
         setDebugStep('FAIL: GPS event threw');
       }
