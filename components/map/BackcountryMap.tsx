@@ -958,11 +958,54 @@ export function BackcountryMap({
     win.landoutGetBasemap = () => basemap;
     (window as any).landoutToggleGrid = () => setShowGrid((v) => !v);
     win.landoutSetDirectTo = (dest) => {
+      if (!dest) return;
       setDirectToDest(dest);
       setInfoCard(null);
       setActionMenu(null);
-      // Auto-start location tracking when DirectTo is set
-      window.dispatchEvent(new CustomEvent('landoutStartTracking'));
+      // Start lightweight GPS tracking so the line gets drawn from current position
+      window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
+
+      // Draw line + dots immediately if we already have a GPS position.
+      // If not, onGpsUpdate will draw them when GPS fires.
+      if (currentPosRef.current && map.current) {
+        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          src.setData({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [dest.lng, dest.lat]],
+                },
+                properties: {},
+              },
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
+                properties: {},
+              },
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] },
+                properties: {},
+              },
+            ],
+          });
+        }
+        // Fit bounds immediately since we have both positions
+        try {
+          map.current.fitBounds(
+            [
+              [currentPosRef.current.lon, currentPosRef.current.lat],
+              [dest.lng, dest.lat],
+            ],
+            { padding: 80, maxZoom: 11 }
+          );
+        } catch {}
+      }
+
       // Notify page.tsx to show DirectToPanel with current position for bounds fitting
       window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
         detail: {
