@@ -557,9 +557,9 @@ export function BackcountryMap({
         handleFlyToAirport(pendingAirport.lng, pendingAirport.lat, pendingAirport.name);
       }
 
-      // Start GPS tracking for SiteInfoBox distance — does NOT manipulate the map
-      // (no marker, no setCenter). Only fires landoutPositionUpdate events.
-      window.dispatchEvent(new CustomEvent('landoutStartGpsTracking'));
+      // DO NOT start GPS automatically — let the user tap the locate button when they
+      // want GPS. Auto-starting GPS causes permission dialogs to appear at unexpected
+      // times and can conflict with subsequent GPS-based features (DirectTo).
 
       // Debug: count native touch events on the map canvas to verify they reach MapLibre
       const canvas = mapInstance.getCanvas();
@@ -1031,15 +1031,23 @@ export function BackcountryMap({
   // Fly to an airport and drop a highlighted marker with an auto-opening popup.
   // Used by "View on Map" from site detail page — replaces SiteInfoBox.
   // The user taps the highlighted marker → normal InfoCard appears → Direct To works.
+  // Guard: only one pending airport at a time — subsequent calls replace the pending one.
   function handleFlyToAirport(lng: number, lat: number, name?: string) {
     const map = mapInstanceRef.current;
+    // Clear any pending airport that hasn't been processed yet
+    delete (window as any).__landoutPendingAirport;
     if (!map) {
       // Store as pending — map will pick it up when ready
       (window as any).__landoutPendingAirport = { lng, lat, name, ts: Date.now() };
       return;
     }
-    map.setCenter([lng, lat]);
-    map.setZoom(13);
+    try {
+      map.flyTo({ center: [lng, lat], zoom: 13, duration: 0 });
+    } catch {
+      // Fallback to setCenter if flyTo fails
+      map.setCenter([lng, lat]);
+      map.setZoom(13);
+    }
     // Drop a highlighted marker — orange circle to make it obvious
     const el = document.createElement('div');
     el.style.cssText = `
