@@ -837,6 +837,7 @@ export function BackcountryMap({
     if (!map.current) return;
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
+    console.log('[DirectTo effect] firing', { hasDest: !!directToDest, hasPos: !!currentPosRef.current, loaded });
     if (directToDest && currentPosRef.current) {
       src.setData({
         type: 'FeatureCollection',
