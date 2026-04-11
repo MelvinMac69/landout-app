@@ -812,8 +812,10 @@ export function BackcountryMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // EMPTY DEPS — map only mounts once
 
-  // Update Direct To magenta line whenever destination or current position changes.
-  // Also depends on currentPosState so this re-runs when GPS delivers a fresh position.
+  // Update Direct To magenta line whenever destination changes.
+  // Note: current position updates are handled exclusively in onGpsUpdate to avoid
+  // double-redrawing the GeoJSON source (which would happen if currentPosState were
+  // in the deps — it changes on every GPS tick, causing a redundant second setData call).
   useEffect(() => {
     if (!map.current) return;
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
