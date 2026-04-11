@@ -182,10 +182,12 @@ export function BackcountryMap({
     function onDropPin(e: Event) {
       const { lng, lat, name } = (e as CustomEvent<{ lng: number; lat: number; name: string }>).detail;
       const map = mapInstanceRef.current;
-      if (!map) return;
+      console.log('[DropPin] onDropPin called — map:', !!map, 'flyToInProgress:', flyToInProgressRef.current, 'lng:', lng, 'lat:', lat);
+      if (!map) { console.log('[DropPin] onDropPin: map not ready'); return; }
       // Guard against overlapping flyTo animations
-      if (flyToInProgressRef.current) return;
+      if (flyToInProgressRef.current) { console.log('[DropPin] onDropPin: flyTo already in progress, skipping'); return; }
       flyToInProgressRef.current = true;
+      console.log('[DropPin] calling map.flyTo to', lng, lat);
       map.flyTo({
         center: [lng, lat],
         zoom: 13,

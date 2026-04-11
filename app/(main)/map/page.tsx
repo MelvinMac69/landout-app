@@ -181,8 +181,7 @@ export default function MapPage() {
           state: decodedState || '',
           type: decodedAirportType || '',
         });
-        // Clear URL params so they don't persist
-        window.history.replaceState(null, '', '/map');
+        // Note: URL params persist in the browser — they don't interfere with app operation
       } else {
         const detail = {
           lng: parseFloat(lon),
