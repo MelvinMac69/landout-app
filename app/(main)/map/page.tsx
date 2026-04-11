@@ -1,9 +1,13 @@
 'use client';
 
+'use client';
+
 import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-function MapPageInner() {
+// Handles "View on Map" URL params — dispatches landoutFlyToAirport to the
+// persistent BackcountryMap living in the layout.
+function MapUrlHandler() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -40,33 +44,22 @@ function MapPageInner() {
       };
       (window as any).__landoutPendingAirport = airportData;
       window.dispatchEvent(new CustomEvent('landoutFlyToAirport', { detail: airportData }));
-      console.log('[MapPage] dropPin=1, dispatched landoutFlyToAirport');
     }
   }, [searchParams]);
 
-  return (
-    <div
-      className="h-[calc(100vh-3.5rem)] relative"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-    />
-  );
+  return null;
 }
 
-function MapPageLoading() {
-  return (
-    <div
-      className="h-[calc(100vh-3.5rem)] relative flex items-center justify-center"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
-      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-}
-
+// map/page.tsx — back to being a simple transparent container.
+// All map state, controls, and URL param handling lives in the layout.
 export default function MapPage() {
   return (
-    <Suspense fallback={<MapPageLoading />}>
-      <MapPageInner />
+    <Suspense>
+      <MapUrlHandler />
+      <div
+        className="h-[calc(100vh-3.5rem)] relative"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      />
     </Suspense>
   );
 }
