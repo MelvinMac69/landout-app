@@ -1013,6 +1013,9 @@ export function BackcountryMap({
     setDirectToDest({ lng, lat, name, type: 'map' });
     setActionMenu(null);
     setInfoCard(null);
+    // Start GPS tracking so the magenta line can be drawn.
+    // landoutDirectToGps starts GPS without changing follow/locate state.
+    window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
