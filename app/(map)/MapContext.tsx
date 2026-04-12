@@ -119,6 +119,10 @@ export function MapProvider({ children }: { children: ReactNode }) {
           console.warn('[MapContext] flyToSite: invalid coordinates', { lng, lat });
           return;
         }
+        // Exit GPS follow mode so the map doesn't snap back to the user's
+        // position after the flyTo animation completes.
+        // LocateButton listens for this event and disables followMode.
+        window.dispatchEvent(new CustomEvent('landoutExitFollowMode'));
         mapRef.current.flyTo({
           center: [lng, lat],
           zoom: zoom ?? mapRef.current.getZoom(),

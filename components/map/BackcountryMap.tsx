@@ -151,22 +151,27 @@ export function BackcountryMap({
       // transition before we ask the WebGL renderer to move the camera.
       directToRenderTimerRef.current = setTimeout(() => {
         directToRenderTimerRef.current = null;
-        // Draw destination point on the map
-        if (map.current) {
-          const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-          if (src) {
-            try {
-              src.setData({
-                type: 'FeatureCollection',
-                features: [
-                  { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] }, properties: {} },
-                ],
-              });
-            } catch (e) {
-              console.warn('[Map] deferred dest point setData error:', e);
-            }
+        if (!map.current) return;
+
+        // Frame 1: Draw destination point on the map (lightweight — 1 GeoJSON point)
+        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          try {
+            src.setData({
+              type: 'FeatureCollection',
+              features: [
+                { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] }, properties: {} },
+              ],
+            });
+          } catch (e) {
+            console.warn('[Map] deferred dest point setData error:', e);
           }
-          // Fly to destination
+        }
+
+        // Frame 2: Fly to destination (separate rAF so iOS Safari processes the
+        // source update before the camera move — prevents context loss)
+        requestAnimationFrame(() => {
+          if (!map.current) return;
           try {
             if (Number.isFinite(directToDest.lng) && Number.isFinite(directToDest.lat)) {
               map.current.flyTo({ center: [directToDest.lng, directToDest.lat], zoom: 12, duration: 1500, essential: true });
@@ -174,16 +179,19 @@ export function BackcountryMap({
           } catch (e) {
             console.warn('[Map] deferred flyTo error:', e);
           }
-        }
-        // Now dispatch event with currentPos so page.tsx can fitBounds if GPS is active
-        requestAnimationFrame(() => {
-          window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
-            detail: { dest: directToDest, currentPos: currentPosState },
-          }));
+          // Frame 3: Dispatch event so page.tsx can update panel with GPS data
+          requestAnimationFrame(() => {
+            window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+              detail: { dest: directToDest, currentPos: currentPosState },
+            }));
+          });
         });
       }, 1000);
     } else {
-      // DirectTo cancelled — clear everything immediately
+      // DirectTo cancelled — clean up ALL state
+      directToSettlingRef.current = false;
+      // Reset GPS state so second DirectTo attempt starts clean
+      window.dispatchEvent(new CustomEvent('landoutClearDirectToGps'));
       document.documentElement.style.setProperty('--direct-to-offset', '0px');
       requestAnimationFrame(() => {
         window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
@@ -1129,6 +1137,8 @@ export function BackcountryMap({
   }
 
   function handleDropPin(lng: number, lat: number, name?: string) {
+    // Exit GPS follow mode so the map doesn't snap back to the user's position
+    window.dispatchEvent(new CustomEvent('landoutExitFollowMode'));
     // Use instant setCenter instead of flyTo to avoid animation on mobile Safari
     const map = mapInstanceRef.current;
     if (map) {
@@ -1148,6 +1158,8 @@ export function BackcountryMap({
     const map = mapInstanceRef.current;
     // Clear any pending airport
     delete (window as any).__landoutPendingAirport;
+    // Exit GPS follow mode so the map doesn't snap back to the user's position
+    window.dispatchEvent(new CustomEvent('landoutExitFollowMode'));
     if (!map) {
       (window as any).__landoutPendingAirport = { lng, lat, name, ts: Date.now() };
       return;

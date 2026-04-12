@@ -453,6 +453,19 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     }
     window.addEventListener('landoutClearDirectToGps', onClearDirectToGps);
 
+    // External callers (flyToSite) dispatch this to exit follow mode before
+    // flying to a site. Without this, follow mode overrides the flyTo and
+    // snaps the map back to the user's GPS position.
+    function onExitFollowMode() {
+      if (followModeRef.current) {
+        followModeRef.current = false;
+        setFollowMode(false);
+        setState('active');
+        console.log('[Locate] landoutExitFollowMode — exited follow mode');
+      }
+    }
+    window.addEventListener('landoutExitFollowMode', onExitFollowMode);
+
     // Check for pending DirectTo GPS request from page.tsx effect that may have
     // fired before this listener was registered (React useEffect ordering: parent
     // effects run before child effects, so the URL-param effect fires before we
@@ -463,6 +476,7 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
       window.removeEventListener('landoutStartGpsTracking', onStartGpsOnly);
       window.removeEventListener('landoutDirectToGps', onDirectToGps);
       window.removeEventListener('landoutClearDirectToGps', onClearDirectToGps);
+      window.removeEventListener('landoutExitFollowMode', onExitFollowMode);
     };
   });
 
