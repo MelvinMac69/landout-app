@@ -95,8 +95,6 @@ export function BackcountryMap({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const mapInstanceRef = useRef<maplibregl.Map | null>(null);
-  // Module-level refs for map cleanup (needed because useEffect cleanup runs in different scope)
-  const mapStylesRef = useRef<HTMLStyleElement | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [basemap, setBasemap] = useState<BasemapId>('satellite');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -526,13 +524,13 @@ export function BackcountryMap({
 
     // Custom CSS: push MapLibre zoom controls down to align with the Layers panel at top-right.
     // top: 4px aligns with Layers panel. safe-area-inset-top handles notched phones.
-    mapStylesRef.current = document.createElement('style');
-    mapStylesRef.current.textContent = `
+    const style = document.createElement('style');
+    style.textContent = `
       .maplibregl-ctrl-top-left { top: max(4px, env(safe-area-inset-top)) !important; left: 8px !important; }
       .maplibregl-ctrl-bottom-left { bottom: 110px !important; left: 8px !important; }
       .maplibregl-ctrl-scale { border-color: #64748B !important; color: #64748B !important; background: rgba(255,255,255,0.85) !important; font-size: 10px !important; }
     `;
-    document.head.appendChild(mapStylesRef.current);
+    document.head.appendChild(style);
 
     mapInstance.on('load', async () => {
       map.current = mapInstance;
@@ -970,23 +968,6 @@ export function BackcountryMap({
         });
       } catch {}
     }
-
-    // NOTE: Map cleanup is intentionally omitted. The map removal + null assignment in
-    // useEffect cleanup was causing issues with React's StrictMode re-mounting, where
-    // the cleanup ran immediately after mount (double-mount in StrictMode), causing
-    // the map to be removed before it could render. Since the map component only
-    // unmounts on full page navigation (window.location.href reload), memory cleanup
-    // happens naturally via page context destruction.
-    //
-    // Cleanup: properly remove map when component unmounts or page unloads.
-    // This is critical for iOS Safari where WebView memory isn't always freed.
-    // return () => {
-    //   try { (window as any).__landoutMap = undefined; } catch {}
-    //   try { map.current?.remove(); } catch {}
-    //   map.current = null;
-    //   mapInstanceRef.current = null;
-    //   try { if (mapStylesRef.current) document.head.removeChild(mapStylesRef.current); } catch {}
-    // };
   });
 
 
