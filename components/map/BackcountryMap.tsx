@@ -1012,37 +1012,32 @@ export function BackcountryMap({
   // Used by "View on Map" from site detail page — replaces SiteInfoBox.
   // No marker, no popup — just center the map and show the InfoCard directly.
   function handleFlyToAirport(lng: number, lat: number, name?: string) {
-    // Defensive: wrap everything in try-catch — iOS Safari WebView can crash
-    // on seemingly innocuous React state updates after navigation.
-    try {
-      const map = mapInstanceRef.current;
-      // Clear any pending airport
-      delete (window as any).__landoutPendingAirport;
-      if (!map) {
-        (window as any).__landoutPendingAirport = { lng, lat, name, ts: Date.now() };
-        return;
-      }
-      // Instant center — no animation to avoid mobile Safari issues
-      try { map.setCenter([lng, lat]); } catch {}
-      try { map.setZoom(13); } catch {}
-      // Show InfoCard directly — defer to next tick to avoid React state conflict
-      setTimeout(() => {
-        try {
-          setInfoCard({
-            screenX: window.innerWidth / 2,
-            screenY: window.innerHeight / 2,
-            data: {
-              type: 'airport',
-              lng,
-              lat,
-              name: name || 'Airport',
-            },
-          });
-        } catch (e) { console.warn('[InfoCard] setInfoCard error:', e); }
-      }, 0);
-    } catch (e) {
-      console.warn('[handleFlyToAirport] error:', e);
+    const map = mapInstanceRef.current;
+    // Clear any pending airport
+    delete (window as any).__landoutPendingAirport;
+    if (!map) {
+      (window as any).__landoutPendingAirport = { lng, lat, name, ts: Date.now() };
+      return;
     }
+    // Instant center — no animation to avoid mobile Safari issues
+    try { map.setCenter([lng, lat]); } catch (e) { console.warn('[handleFlyToAirport] setCenter:', e); }
+    try { map.setZoom(13); } catch (e) { console.warn('[handleFlyToAirport] setZoom:', e); }
+    // Show InfoCard directly — same card as when tapping an airport dot
+    // Defer to next animation frame to avoid synchronous state conflict
+    requestAnimationFrame(() => {
+      try {
+        setInfoCard({
+          screenX: window.innerWidth / 2,
+          screenY: window.innerHeight / 2,
+          data: {
+            type: 'airport',
+            lng,
+            lat,
+            name: name || 'Airport',
+          },
+        });
+      } catch (e) { console.warn('[InfoCard] setInfoCard:', e); }
+    });
   }
 
   function handleClearDirectTo() {
