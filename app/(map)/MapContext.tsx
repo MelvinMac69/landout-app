@@ -70,8 +70,12 @@ export function MapProvider({ children }: { children: ReactNode }) {
         case 'flyTo': {
           const { lng, lat, zoom } = cmd.payload as { lng: number; lat: number; zoom?: number };
           try {
-            map.setCenter([lng, lat]);
-            if (zoom) map.setZoom(zoom);
+            map.flyTo({
+              center: [lng, lat],
+              zoom: zoom ?? map.getZoom(),
+              duration: 2000,
+              essential: true,
+            });
           } catch (e) {
             console.warn('[MapContext] flyTo error:', e);
           }
@@ -108,8 +112,12 @@ export function MapProvider({ children }: { children: ReactNode }) {
   const flyToSite = useCallback((lng: number, lat: number, zoom?: number) => {
     if (mapRef.current && mapLoaded) {
       try {
-        mapRef.current.setCenter([lng, lat]);
-        if (zoom) mapRef.current.setZoom(zoom);
+        mapRef.current.flyTo({
+          center: [lng, lat],
+          zoom: zoom ?? mapRef.current.getZoom(),
+          duration: 2000,
+          essential: true,
+        });
       } catch (e) {
         console.warn('[MapContext] flyTo error:', e);
       }

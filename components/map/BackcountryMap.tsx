@@ -1011,6 +1011,9 @@ export function BackcountryMap({
       console.log('[DirectTo] landoutSetDirectTo called');
       directToFitBoundsDoneRef.current = false;
 
+      // Close InfoCard when DirectTo starts from external caller
+      setInfoCard(null);
+
       // Start GPS tracking — this is the primary purpose for external callers.
       // InfoCard's handleDirectTo already sets directToDest directly.
       // Don't dispatch landoutDirectToChange here — SiteInfoBox already shows
@@ -1050,6 +1053,8 @@ export function BackcountryMap({
       setDebugStep('FAIL: invalid coords');
       return;
     }
+    // Close InfoCard when DirectTo starts — avoids z-index overlap with cancel button
+    setInfoCard(null);
     // DEBUG: log BEFORE state change to see if we even reach this point
     console.log('[DirectTo] handleDirectTo ENTERED', { lng, lat, name });
     setDebugStep('1/5: set dest');
