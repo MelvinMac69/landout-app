@@ -510,7 +510,24 @@ export function BackcountryMap({
   }, []);
 
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current) return;
+
+    // SINGLE INSTANCE GUARD: If a map already exists on this page session (from a
+    // previous mount that wasn't fully cleaned up), reuse it. This prevents
+    // accumulating multiple MapLibre instances when React remounts the component
+    // during navigation. On iOS Safari, multiple map instances cause memory
+    // pressure that leads to WebView crashes.
+    const existingMap = (window as any).__landoutMapInstance as maplibregl.Map | undefined;
+    if (existingMap && mapContainer.current && !map.current) {
+      // Reuse existing map instance — attach to this container
+      map.current = existingMap;
+      mapInstanceRef.current = existingMap;
+      (window as any).__landoutMap = existingMap;
+      existingMap.resize(); // Ensure map fills the new container size
+      setLoaded(true);
+      return;
+    }
+    if (map.current) return; // Already initialized
 
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
@@ -518,6 +535,9 @@ export function BackcountryMap({
       center: initialCenter,
       zoom: initialZoom,
     });
+
+    // Store on window so we can reuse this instance across React remounts
+    (window as any).__landoutMapInstance = mapInstance;
 
     mapInstance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
     mapInstance.addControl(new maplibregl.ScaleControl({ maxWidth: 80, unit: 'metric' }), 'bottom-left');
