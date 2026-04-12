@@ -1144,26 +1144,12 @@ export function BackcountryMap({
     <div className="relative w-full h-full">
       {/* Full-screen map container */}
       <div ref={mapContainer} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
-      {/* DirectTo debug step indicator — remove before production */}
-      {debugStep && (
-        <div style={{
-          position: 'fixed', top: 60, left: 0, right: 0,
-          background: debugStep.startsWith('FAIL') ? '#EF4444' : '#1D4ED8',
-          color: 'white', textAlign: 'center', fontSize: 11, fontFamily: 'monospace',
-          padding: '4px 8px', zIndex: 9999,
-        }}>
-          🔧 DIRECTTO: {debugStep}
-        </div>
-      )}
       {/* Debug grid overlay — press G to toggle */}
       <MapGrid visible={showGrid} cols={10} rows={8} />
       {!loaded && (
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <span className="text-slate-500">Loading map…</span>
         </div>
-      )}
-      {showDiagnostics && (
-        <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />
       )}
       {/* Locate button — bottom-right, keeps BasemapToggle clear on left side */}
       <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 90px + var(--direct-to-offset, 0px))', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
