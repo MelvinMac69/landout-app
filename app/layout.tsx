@@ -22,6 +22,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      {/* Global error handler — catches unhandled errors before iOS Safari kills the page */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.onerror = function(msg, src, line, col, err) {
+              console.error('[Global] Unhandled error:', { msg, src, line, col, err });
+              return true;
+            };
+            window.addEventListener('unhandledrejection', function(e) {
+              console.error('[Global] Unhandled promise rejection:', e.reason);
+              e.preventDefault();
+            });
+          `
+        }}
+      />
       <body className="min-h-screen flex flex-col">
         {children}
       </body>

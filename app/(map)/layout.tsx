@@ -43,21 +43,6 @@ export default function MapLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Global error handlers — catch unhandled errors/rejections to prevent
-  // iOS Safari from killing the page. Log instead of crash.
-  if (typeof window !== 'undefined') {
-    if (!(window as any).__landoutErrorHandlersInstalled) {
-      (window as any).__landoutErrorHandlersInstalled = true;
-      window.onerror = (msg, src, line, col, err) => {
-        console.error('[Global] Unhandled error:', { msg, src, line, col, err });
-        return true; // Prevent default browser error handling (page reload)
-      };
-      window.addEventListener('unhandledrejection', (e) => {
-        console.error('[Global] Unhandled promise rejection:', e.reason);
-        e.preventDefault(); // Prevent default (which would log to console AND potentially crash)
-      });
-    }
-  }
   return (
     <MapProvider>
       {/* Full-screen map — fills viewport, z-index 0 */}

@@ -107,10 +107,21 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
   const [speedUnit, setSpeedUnit] = useState<'kts' | 'mph'>('mph');
   const [landStatus, setLandStatus] = useState<LandStatus>(null);
   const landDataRef = useRef<Awaited<ReturnType<typeof loadLandData>> | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
 
   // Load land overlay data once
   useEffect(() => {
     loadLandData().then(data => { landDataRef.current = data; });
+  }, []);
+
+  // Cleanup ResizeObserver on unmount
+  useEffect(() => {
+    return () => {
+      if (roRef.current) {
+        try { roRef.current.disconnect(); } catch {}
+        roRef.current = null;
+      }
+    };
   }, []);
   const [bottomVisible, setBottomVisible] = useState(false);
   const prevDestRef = useRef<DirectToDest | null>(null);
@@ -132,7 +143,11 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
   function handleClear() {
     setVisible(false);
     setBottomVisible(false);
-    setTimeout(onClear, 300);
+    // Delay onClear to allow slide-out animation to complete.
+    // Guard against calling onClear after unmount.
+    setTimeout(() => {
+      try { onClear(); } catch (e) { console.warn('[DirectTo] onClear error:', e); }
+    }, 300);
   }
 
   // Update land status whenever position updates (via event from LocateButton)
@@ -177,6 +192,10 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
         ref={(el) => {
           if (!el) return;
           let lastH = 0;
+          // Disconnect previous observer if exists (prevents leak)
+          if (roRef.current) {
+            try { roRef.current.disconnect(); } catch {}
+          }
           const ro = new ResizeObserver(([entry]) => {
             const h = Math.round(entry.contentRect.height);
             // Only fire when height actually changes (ignore intermediate animation frames)
@@ -185,6 +204,7 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
               window.dispatchEvent(new CustomEvent('landoutDirectToHeight', { detail: h }));
             }
           });
+          roRef.current = ro;
           ro.observe(el);
         }}
         style={{

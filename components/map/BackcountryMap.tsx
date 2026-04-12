@@ -1155,10 +1155,15 @@ export function BackcountryMap({
     // Reset GPS state so second DirectTo attempt starts clean
     // (suppressNextInitialFlyToRef and directToGpsStartRef live in LocateButton)
     window.dispatchEvent(new CustomEvent('landoutClearDirectToGps'));
-    // Clear the line visually
+    // Clear the line visually — use requestAnimationFrame to batch with the
+    // useEffect that will also clear it (prevents double-draw on iOS Safari)
     if (map.current) {
       const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-      if (src) src.setData({ type: 'FeatureCollection', features: [] });
+      if (src) {
+        requestAnimationFrame(() => {
+          try { src.setData({ type: 'FeatureCollection', features: [] }); } catch (e) { console.warn('[Map] clear DirectTo source error:', e); }
+        });
+      }
     }
   }
 
