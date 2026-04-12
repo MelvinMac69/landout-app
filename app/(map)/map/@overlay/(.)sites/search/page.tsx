@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, MapPin, X } from 'lucide-react';
-import { Card } from '@/components/ui';
 import { useMapContext } from '../../../../MapContext';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -34,7 +33,7 @@ interface PlaceResult {
 
 type Result = AirportResult | PlaceResult;
 
-// ── Data loading (shared with full-page search) ────────────────────────────
+// ── Data loading (shared cache) ────────────────────────────────────────────
 
 let airportsCache: AirportResult[] | null = null;
 
@@ -127,12 +126,16 @@ export default function SearchOverlay() {
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [airportsReady, setAirportsReady] = useState(false);
   const allAirportsRef = useRef<AirportResult[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadAirports().then(a => { allAirportsRef.current = a; });
+    loadAirports().then(a => {
+      allAirportsRef.current = a;
+      setAirportsReady(true);
+    });
     // Auto-focus search input when overlay opens
     setTimeout(() => inputRef.current?.focus(), 100);
     setOverlayOpen(true);
@@ -185,13 +188,15 @@ export default function SearchOverlay() {
         position: 'fixed',
         inset: 0,
         zIndex: 200,
-        background: 'rgba(15, 23, 42, 0.85)',
+        background: 'rgba(15, 23, 42, 0.92)',
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
         paddingTop: 'max(env(safe-area-inset-top), 16px)',
         overflow: 'auto',
         pointerEvents: 'auto',
+        WebkitBackdropFilter: 'blur(8px)',
+        backdropFilter: 'blur(8px)',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
     >
@@ -254,13 +259,20 @@ export default function SearchOverlay() {
 
         {/* Content */}
         <div style={{ padding: '8px 12px 16px' }}>
+          {/* Airport data loading indicator */}
+          {!airportsReady && (
+            <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 11, color: '#94A3B8' }}>
+              Loading airport database…
+            </div>
+          )}
+
           {/* Loading */}
           {loading && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
               <div style={{
                 width: 28, height: 28,
                 border: '2px solid #E2E8F0',
-                borderTopColor: '#F97316',
+                borderTopColor: '#F97416',
                 borderRadius: '50%',
                 animation: 'spin 1s linear infinite',
               }} />

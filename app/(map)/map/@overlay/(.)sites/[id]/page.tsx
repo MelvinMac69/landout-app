@@ -122,7 +122,7 @@ export default function SiteInfoOverlay() {
   if (notFound) {
     return (
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15, 23, 42, 0.85)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15, 23, 42, 0.92)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
       >
         <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 360, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'center' }}>
@@ -138,7 +138,7 @@ export default function SiteInfoOverlay() {
   if (!site) {
     return (
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15, 23, 42, 0.85)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15, 23, 42, 0.92)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
       >
         <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 360, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
@@ -155,11 +155,13 @@ export default function SiteInfoOverlay() {
         position: 'fixed',
         inset: 0,
         zIndex: 200,
-        background: 'rgba(15, 23, 42, 0.85)',
+        background: 'rgba(15, 23, 42, 0.92)',
         pointerEvents: 'auto',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
+        WebkitBackdropFilter: 'blur(8px)',
+        backdropFilter: 'blur(8px)',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
     >
