@@ -277,7 +277,7 @@ export default function SiteInfoOverlay() {
               // settles before the route transition unmounts this component.
               // Immediate router.push can cause iOS Safari to crash if
               // React re-renders overlap with the route change.
-              setTimeout(() => closeOverlay(), 50);
+              setTimeout(() => closeOverlay(), 300);
             }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,

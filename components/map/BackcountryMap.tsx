@@ -108,6 +108,9 @@ export function BackcountryMap({
   useEffect(() => { directToDestRef.current = directToDest; });
   // Track whether fitBounds has been called for the current Direct To session — prevents zoom loop
   const directToFitBoundsDoneRef = useRef(false);
+  // Guard: suppress rapid WebGL mutations for 500ms after DirectTo starts.
+  // Prevents iOS Safari WebGL context loss from too many source/camera updates.
+  const directToSettlingRef = useRef(false);
   // Guard to prevent map operations (flyTo/setCenter) during an active flyTo animation
   const flyToInProgressRef = useRef(false);
   // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
@@ -115,10 +118,21 @@ export function BackcountryMap({
   const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
 
   // Fire window event when Direct To changes so page.tsx can render the panel
+  // and call fitBounds/flyTo. Wrapped in requestAnimationFrame to prevent
+  // overwhelming WebGL on iOS Safari — the fitBounds/flyTo must not happen
+  // in the same frame as source/layer data updates.
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
-      detail: { dest: directToDest, currentPos: currentPosState },
-    }));
+    // Set settling guard whenever directToDest changes (from any caller)
+    if (directToDest) {
+      directToSettlingRef.current = true;
+      setTimeout(() => { directToSettlingRef.current = false; }, 500);
+    }
+    const rafId = requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+        detail: { dest: directToDest, currentPos: currentPosState },
+      }));
+    });
+    return () => cancelAnimationFrame(rafId);
   }, [directToDest, currentPosState]);
   const [droppedPins, setDroppedPins] = useState<DroppedPin[]>([]);
   const [actionMenu, setActionMenu] = useState<{ x: number; y: number; lng: number; lat: number; airportName?: string } | null>(null);
@@ -807,30 +821,38 @@ export function BackcountryMap({
           setCurrentPosState(currentPosRef.current);
         }
         if (directToDestRef.current && map.current && !flyToInProgressRef.current) {
+          // Skip source update during settling period to prevent iOS Safari WebGL context loss.
+          // The useEffect will handle the initial draw via requestAnimationFrame.
+          if (directToSettlingRef.current) return;
           const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
           if (src) {
-            src.setData({
-              type: 'FeatureCollection',
-              features: [
-                {
-                  type: 'Feature',
-                  geometry: {
-                    type: 'LineString',
-                    coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDestRef.current!.lng, directToDestRef.current!.lat]],
-                  },
-                  properties: {},
-                },
-                {
-                  type: 'Feature',
-                  geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
-                  properties: {},
-                },
-                {
-                  type: 'Feature',
-                  geometry: { type: 'Point', coordinates: [directToDestRef.current!.lng, directToDestRef.current!.lat] },
-                  properties: {},
-                },
-              ],
+            // Schedule WebGL mutation for next animation frame to prevent context loss
+            requestAnimationFrame(() => {
+              try {
+                src.setData({
+                  type: 'FeatureCollection',
+                  features: [
+                    {
+                      type: 'Feature',
+                      geometry: {
+                        type: 'LineString',
+                        coordinates: [[currentPosRef.current!.lon, currentPosRef.current!.lat], [directToDestRef.current!.lng, directToDestRef.current!.lat]],
+                      },
+                      properties: {},
+                    },
+                    {
+                      type: 'Feature',
+                      geometry: { type: 'Point', coordinates: [currentPosRef.current!.lon, currentPosRef.current!.lat] },
+                      properties: {},
+                    },
+                    {
+                      type: 'Feature',
+                      geometry: { type: 'Point', coordinates: [directToDestRef.current!.lng, directToDestRef.current!.lat] },
+                      properties: {},
+                    },
+                  ],
+                });
+              } catch (e) { console.warn('[Map] GPS setData error:', e); }
             });
           }
         }
@@ -908,50 +930,61 @@ export function BackcountryMap({
   // Note: current position updates are handled exclusively in onGpsUpdate to avoid
   // double-redrawing the GeoJSON source (which would happen if currentPosState were
   // in the deps — it changes on every GPS tick, causing a redundant second setData call).
+  // IMPORTANT: Wrapped in requestAnimationFrame to prevent overwhelming WebGL on iOS Safari.
+  // Multiple map mutations (setData + fitBounds + flyTo) in a single frame can cause
+  // WebGL context loss on iOS, which kills the entire page (not catchable by JS).
   useEffect(() => {
     if (!map.current) return;
     const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
-    if (directToDest && currentPosRef.current) {
-      src.setData({
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDest.lng, directToDest.lat]] },
-            properties: {},
-          },
-          // Dot at current device position
-          {
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
-            properties: {},
-          },
-          // Dot at destination
-          {
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
-            properties: {},
-          },
-        ],
-      });
-    } else if (!directToDest) {
-      // No destination — clear the line and dots
-      src.setData({ type: 'FeatureCollection', features: [] });
-    } else {
-      // Destination set but no GPS position yet — draw destination dot only so
-      // the user sees something. Full line + device dot drawn when GPS fires.
-      src.setData({
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
-            properties: {},
-          },
-        ],
-      });
-    }
+
+    const updateData = () => {
+      try {
+        if (directToDest && currentPosRef.current) {
+          src.setData({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDest.lng, directToDest.lat]] },
+                properties: {},
+              },
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
+                properties: {},
+              },
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
+                properties: {},
+              },
+            ],
+          });
+        } else if (!directToDest) {
+          src.setData({ type: 'FeatureCollection', features: [] });
+        } else {
+          // Destination set but no GPS position yet — draw destination dot only
+          src.setData({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
+                properties: {},
+              },
+            ],
+          });
+        }
+      } catch (e) {
+        console.warn('[Map] directTo setData error:', e);
+      }
+    };
+
+    // Schedule map mutation for next animation frame — avoids WebGL context loss
+    // on iOS Safari when multiple mutations happen in one React render cycle.
+    const rafId = requestAnimationFrame(updateData);
+    return () => cancelAnimationFrame(rafId);
   }, [directToDest, currentPosState, loaded]);
 
   // Sync dropped pins to the pins source
@@ -1008,6 +1041,10 @@ export function BackcountryMap({
       // Close InfoCard when DirectTo starts from external caller
       setInfoCard(null);
 
+      // Guard: suppress rapid WebGL mutations for 500ms
+      directToSettlingRef.current = true;
+      setTimeout(() => { directToSettlingRef.current = false; }, 500);
+
       // Set the DirectTo destination state — needed for magenta line and DirectToPanel
       setDirectToDest(dest);
 
@@ -1054,6 +1091,9 @@ export function BackcountryMap({
     // Close InfoCard when DirectTo starts — avoids z-index overlap with cancel button
     setInfoCard(null);
     console.log('[DirectTo] handleDirectTo:', { lng, lat, name });
+    // Guard: suppress rapid WebGL mutations for 500ms
+    directToSettlingRef.current = true;
+    setTimeout(() => { directToSettlingRef.current = false; }, 500);
     setDirectToDest({ lng, lat, name, type: 'map' });
     // Dispatch GPS event synchronously — avoid queueMicrotask which may
     // schedule the callback after React's render phase completes,
