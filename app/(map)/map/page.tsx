@@ -268,40 +268,15 @@ export default function MapPage() {
   const layers = OVERLAY_LAYERS.map((l) => ({ ...l, visible: activeLayers[l.id] ?? true }));
 
   // Listen for Direct To panel activation to shift map controls down
-  // fitBounds/flyTo are wrapped in requestAnimationFrame to prevent iOS Safari
-  // WebGL context loss when multiple map mutations happen in one frame.
+  // NOTE: Camera movements (fitBounds/flyTo) are now handled by BackcountryMap's
+  // deferred timer (1 second after activation). This handler only updates the panel UI.
   useEffect(() => {
-    let cameraRafId: number | null = null;
-
     function onDirectToChange(e: Event) {
       const detail = (e as CustomEvent<{ dest: any; currentPos: any }>).detail;
       if (detail?.dest) {
         document.documentElement.style.setProperty('--direct-to-offset', '95px');
         setDirectToShift(95);
         setDirectToData(detail);
-
-        // Schedule camera movement for next animation frame — avoids WebGL crash
-        // on iOS Safari when fitBounds/flyTo runs in same frame as source updates
-        if (cameraRafId !== null) cancelAnimationFrame(cameraRafId);
-        cameraRafId = requestAnimationFrame(() => {
-          cameraRafId = null;
-          const map = mapRef.current;
-          if (!map) return;
-          const pos = detail.currentPos;
-          try {
-            if (pos?.lat && pos?.lon) {
-              const bounds: [[number, number], [number, number]] = [
-                [Math.min(pos.lon, detail.dest.lng), Math.min(pos.lat, detail.dest.lat)],
-                [Math.max(pos.lon, detail.dest.lng), Math.max(pos.lat, detail.dest.lat)],
-              ];
-              map.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 1500 });
-            } else if (Number.isFinite(detail.dest.lng) && Number.isFinite(detail.dest.lat)) {
-              map.flyTo({ center: [detail.dest.lng, detail.dest.lat], zoom: 12, duration: 1500 });
-            }
-          } catch (e) {
-            console.warn('[Page] DirectTo camera error:', e);
-          }
-        });
       } else {
         document.documentElement.style.setProperty('--direct-to-offset', '0px');
         setDirectToShift(0);
@@ -325,7 +300,6 @@ export default function MapPage() {
       window.removeEventListener('landoutDirectToChange', onDirectToChange);
       window.removeEventListener('landoutDirectToHeight', onDirectToHeight);
       window.removeEventListener('landoutDataDashboardHeight', onDataDashboardHeight);
-      if (cameraRafId !== null) cancelAnimationFrame(cameraRafId);
     };
   }, [mapRef]);
 

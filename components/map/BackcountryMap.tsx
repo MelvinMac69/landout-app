@@ -108,32 +108,103 @@ export function BackcountryMap({
   useEffect(() => { directToDestRef.current = directToDest; });
   // Track whether fitBounds has been called for the current Direct To session — prevents zoom loop
   const directToFitBoundsDoneRef = useRef(false);
-  // Guard: suppress rapid WebGL mutations for 500ms after DirectTo starts.
-  // Prevents iOS Safari WebGL context loss from too many source/camera updates.
+  // Guard: suppress rapid WebGL mutations for 1000ms after DirectTo starts.
+  // iOS Safari crashes (full page reload) when too many WebGL operations happen
+  // in rapid succession. This guard prevents source/layer updates during the
+  // critical first second when React re-renders, GPS starts, and the overlay transitions.
   const directToSettlingRef = useRef(false);
+  // Timer for deferred DirectTo rendering — after 1 second, draw the destination
+  // point on the map. The route line only appears when GPS data starts flowing.
+  const directToRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guard to prevent map operations (flyTo/setCenter) during an active flyTo animation
   const flyToInProgressRef = useRef(false);
   // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
   const currentPosRef = useRef<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
   const [currentPosState, setCurrentPosState] = useState<{ lat: number; lon: number; heading?: number; speed?: number } | null>(null);
 
-  // Fire window event when Direct To changes so page.tsx can render the panel
-  // and call fitBounds/flyTo. Wrapped in requestAnimationFrame to prevent
-  // overwhelming WebGL on iOS Safari — the fitBounds/flyTo must not happen
-  // in the same frame as source/layer data updates.
+  // Fire window event when Direct To changes so page.tsx can render the panel.
+  // CRITICAL for iOS Safari: Camera movements (fitBounds/flyTo) are DEFERRED by
+  // 1 second to avoid WebGL context loss from too many operations in one frame.
+  // The panel appears immediately (HTML), but the map camera waits.
   useEffect(() => {
-    // Set settling guard whenever directToDest changes (from any caller)
-    if (directToDest) {
-      directToSettlingRef.current = true;
-      setTimeout(() => { directToSettlingRef.current = false; }, 500);
+    // Clear any pending deferred render from a previous DirectTo
+    if (directToRenderTimerRef.current) {
+      clearTimeout(directToRenderTimerRef.current);
+      directToRenderTimerRef.current = null;
     }
-    const rafId = requestAnimationFrame(() => {
-      window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
-        detail: { dest: directToDest, currentPos: currentPosState },
-      }));
-    });
-    return () => cancelAnimationFrame(rafId);
-  }, [directToDest, currentPosState]);
+
+    if (directToDest) {
+      // Set settling guard — suppress all WebGL mutations for 1000ms
+      directToSettlingRef.current = true;
+      setTimeout(() => { directToSettlingRef.current = false; }, 1000);
+
+      // IMMEDIATE: dispatch event so DirectToPanel appears (HTML, no WebGL)
+      // But DON'T include camera movement yet — that comes after the settling period.
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+          detail: { dest: directToDest, currentPos: null }, // null currentPos = don't fitBounds yet
+        }));
+      });
+
+      // DEFERRED (1 second later): fly to destination and draw destination point.
+      // This gives iOS Safari time to complete the React re-render and overlay
+      // transition before we ask the WebGL renderer to move the camera.
+      directToRenderTimerRef.current = setTimeout(() => {
+        directToRenderTimerRef.current = null;
+        // Draw destination point on the map
+        if (map.current) {
+          const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+          if (src) {
+            try {
+              src.setData({
+                type: 'FeatureCollection',
+                features: [
+                  { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] }, properties: {} },
+                ],
+              });
+            } catch (e) {
+              console.warn('[Map] deferred dest point setData error:', e);
+            }
+          }
+          // Fly to destination
+          try {
+            if (Number.isFinite(directToDest.lng) && Number.isFinite(directToDest.lat)) {
+              map.current.flyTo({ center: [directToDest.lng, directToDest.lat], zoom: 12, duration: 1500, essential: true });
+            }
+          } catch (e) {
+            console.warn('[Map] deferred flyTo error:', e);
+          }
+        }
+        // Now dispatch event with currentPos so page.tsx can fitBounds if GPS is active
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+            detail: { dest: directToDest, currentPos: currentPosState },
+          }));
+        });
+      }, 1000);
+    } else {
+      // DirectTo cancelled — clear everything immediately
+      document.documentElement.style.setProperty('--direct-to-offset', '0px');
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+          detail: { dest: null, currentPos: null },
+        }));
+      });
+      // Clear the magenta line
+      if (map.current) {
+        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          try { src.setData({ type: 'FeatureCollection', features: [] }); } catch (e) { console.warn('[Map] clear DirectTo source error:', e); }
+        }
+      }
+    }
+    return () => {
+      if (directToRenderTimerRef.current) {
+        clearTimeout(directToRenderTimerRef.current);
+        directToRenderTimerRef.current = null;
+      }
+    };
+  }, [directToDest]); // NOTE: currentPosState is NOT in deps. GPS updates go through onGpsUpdate only.
   const [droppedPins, setDroppedPins] = useState<DroppedPin[]>([]);
   const [actionMenu, setActionMenu] = useState<{ x: number; y: number; lng: number; lat: number; airportName?: string } | null>(null);
   const [infoCard, setInfoCard] = useState<{ data: AirportInfo | LandInfo; screenX: number; screenY: number } | null>(null);
@@ -926,66 +997,18 @@ export function BackcountryMap({
     };
   }, []); // EMPTY DEPS — map only mounts once
 
-  // Update Direct To magenta line whenever destination changes.
-  // Note: current position updates are handled exclusively in onGpsUpdate to avoid
-  // double-redrawing the GeoJSON source (which would happen if currentPosState were
-  // in the deps — it changes on every GPS tick, causing a redundant second setData call).
-  // IMPORTANT: Wrapped in requestAnimationFrame to prevent overwhelming WebGL on iOS Safari.
-  // Multiple map mutations (setData + fitBounds + flyTo) in a single frame can cause
-  // WebGL context loss on iOS, which kills the entire page (not catchable by JS).
-  useEffect(() => {
-    if (!map.current) return;
-    const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-    if (!src) return;
-
-    const updateData = () => {
-      try {
-        if (directToDest && currentPosRef.current) {
-          src.setData({
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: [[currentPosRef.current.lon, currentPosRef.current.lat], [directToDest.lng, directToDest.lat]] },
-                properties: {},
-              },
-              {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [currentPosRef.current.lon, currentPosRef.current.lat] },
-                properties: {},
-              },
-              {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
-                properties: {},
-              },
-            ],
-          });
-        } else if (!directToDest) {
-          src.setData({ type: 'FeatureCollection', features: [] });
-        } else {
-          // Destination set but no GPS position yet — draw destination dot only
-          src.setData({
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
-                properties: {},
-              },
-            ],
-          });
-        }
-      } catch (e) {
-        console.warn('[Map] directTo setData error:', e);
-      }
-    };
-
-    // Schedule map mutation for next animation frame — avoids WebGL context loss
-    // on iOS Safari when multiple mutations happen in one React render cycle.
-    const rafId = requestAnimationFrame(updateData);
-    return () => cancelAnimationFrame(rafId);
-  }, [directToDest, currentPosState, loaded]);
+  // Direct To magenta line is now drawn ONLY from onGpsUpdate (when GPS data arrives)
+  // and from the deferred timer in the directToDest useEffect (1 second after activation).
+  // This useEffect has been removed to prevent iOS Safari WebGL crashes caused by
+  // multiple source/camera updates in a single render cycle.
+  //
+  // Previously this useEffect ran on every directToDest/currentPosState change,
+  // causing 4+ WebGL draws in rapid succession on DirectTo activation.
+  // Now the rendering flow is:
+  //   1. directToDest set → DirectToPanel appears (HTML, no WebGL)
+  //   2. 1 second later → flyTo destination + draw dest point (1 WebGL draw)
+  //   3. GPS data arrives → draw route line + current position point (1 WebGL draw per fix)
+  // This spreads the WebGL workload across time instead of cramming it into one frame.
 
   // Sync dropped pins to the pins source
   useEffect(() => {
@@ -1041,9 +1064,9 @@ export function BackcountryMap({
       // Close InfoCard when DirectTo starts from external caller
       setInfoCard(null);
 
-      // Guard: suppress rapid WebGL mutations for 500ms
+      // Guard: suppress rapid WebGL mutations for 1000ms
       directToSettlingRef.current = true;
-      setTimeout(() => { directToSettlingRef.current = false; }, 500);
+      setTimeout(() => { directToSettlingRef.current = false; }, 1000);
 
       // Set the DirectTo destination state — needed for magenta line and DirectToPanel
       setDirectToDest(dest);
@@ -1091,9 +1114,9 @@ export function BackcountryMap({
     // Close InfoCard when DirectTo starts — avoids z-index overlap with cancel button
     setInfoCard(null);
     console.log('[DirectTo] handleDirectTo:', { lng, lat, name });
-    // Guard: suppress rapid WebGL mutations for 500ms
+    // Guard: suppress rapid WebGL mutations for 1000ms
     directToSettlingRef.current = true;
-    setTimeout(() => { directToSettlingRef.current = false; }, 500);
+    setTimeout(() => { directToSettlingRef.current = false; }, 1000);
     setDirectToDest({ lng, lat, name, type: 'map' });
     // Dispatch GPS event synchronously — avoid queueMicrotask which may
     // schedule the callback after React's render phase completes,
@@ -1152,17 +1175,18 @@ export function BackcountryMap({
 
   function handleClearDirectTo() {
     setDirectToDest(null);
+    // Cancel any pending deferred render
+    if (directToRenderTimerRef.current) {
+      clearTimeout(directToRenderTimerRef.current);
+      directToRenderTimerRef.current = null;
+    }
     // Reset GPS state so second DirectTo attempt starts clean
-    // (suppressNextInitialFlyToRef and directToGpsStartRef live in LocateButton)
     window.dispatchEvent(new CustomEvent('landoutClearDirectToGps'));
-    // Clear the line visually — use requestAnimationFrame to batch with the
-    // useEffect that will also clear it (prevents double-draw on iOS Safari)
+    // Clear the line visually
     if (map.current) {
       const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
       if (src) {
-        requestAnimationFrame(() => {
-          try { src.setData({ type: 'FeatureCollection', features: [] }); } catch (e) { console.warn('[Map] clear DirectTo source error:', e); }
-        });
+        try { src.setData({ type: 'FeatureCollection', features: [] }); } catch (e) { console.warn('[Map] clear DirectTo source error:', e); }
       }
     }
   }
