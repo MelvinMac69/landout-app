@@ -318,22 +318,26 @@ export default function MapPage() {
       onClick={() => window.dispatchEvent(new Event('buildinfo-click'))}
     >
       {/* Persistent flight data dashboard — slides down from top when position available */}
-      <DataDashboard />
+      <div style={{ pointerEvents: 'auto' }}>
+        <DataDashboard />
+      </div>
 
       {/* NOTE: <BackcountryMap> is rendered in the parent (map)/layout.tsx, not here.
           This page only renders the UI controls that overlay the map. */}
 
       {/* Direct To navigation panel */}
       {directToData && (
-        <DirectToPanel
-          dest={directToData.dest}
-          currentPos={directToData.currentPos}
-          onClear={() => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const fn = (window as any).__landoutSetDirectToDest;
-            if (fn) fn(null);
-          }}
-        />
+        <div style={{ pointerEvents: 'auto' }}>
+          <DirectToPanel
+            dest={directToData.dest}
+            currentPos={directToData.currentPos}
+            onClear={() => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const fn = (window as any).__landoutSetDirectToDest;
+              if (fn) fn(null);
+            }}
+          />
+        </div>
       )}
 
       {/* Layers button — top-right */}
@@ -342,7 +346,9 @@ export default function MapPage() {
       </div>
 
       {/* Land Status legend — bottom-left */}
-      <MapLegend />
+      <div style={{ pointerEvents: 'auto' }}>
+        <MapLegend />
+      </div>
 
       {/* Compass — visible when track-up is active */}
       {trackUp && (
