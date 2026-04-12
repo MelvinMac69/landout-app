@@ -139,12 +139,16 @@ export function MapProvider({ children }: { children: ReactNode }) {
   }, [mapLoaded]);
 
   const startDirectTo = useCallback((lng: number, lat: number, name: string) => {
-    if (mapRef.current && mapLoaded) {
-      const fn = (window as any).__landoutSetDirectToDest; // eslint-disable-line @typescript-eslint/no-explicit-any
-      if (fn) fn({ lng, lat, name, type: 'map' });
-      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-    } else {
-      commandQueue.current.push({ type: 'setDirectTo', payload: { lng, lat, name } });
+    try {
+      if (mapRef.current && mapLoaded) {
+        const fn = (window as any).__landoutSetDirectToDest; // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (fn) fn({ lng, lat, name, type: 'map' });
+        window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+      } else {
+        commandQueue.current.push({ type: 'setDirectTo', payload: { lng, lat, name } });
+      }
+    } catch (e) {
+      console.error('[MapContext] startDirectTo error:', e);
     }
   }, [mapLoaded]);
 

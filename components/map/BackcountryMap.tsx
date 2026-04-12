@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { MapGrid } from './MapGrid';
 import { LocateButton } from './LocateButton';
 import { ActionMenu } from './DirectTo';
@@ -104,8 +103,6 @@ export function BackcountryMap({
 
   // Direct To state
   const [directToDest, setDirectToDest] = useState<DirectToDest | null>(null);
-  // Debug: visible step indicator for crash diagnosis
-  const [debugStep, setDebugStep] = useState<string>('');
   // Ref wrapper for directToDest to avoid stale closure in event listeners
   const directToDestRef = useRef(directToDest);
   useEffect(() => { directToDestRef.current = directToDest; });
@@ -801,7 +798,6 @@ export function BackcountryMap({
       try {
         const pos = (e as CustomEvent<{ lat: number; lon: number; heading?: number; speed?: number; altitude?: number | null }>).detail;
         if (!pos) return;
-        setDebugStep('5/5: GPS update received');
         if (!Number.isFinite(pos.lat) || !Number.isFinite(pos.lon) ||
             Math.abs(pos.lat) > 90 || Math.abs(pos.lon) > 180) {
           return;
@@ -836,13 +832,11 @@ export function BackcountryMap({
                 },
               ],
             });
-            setDebugStep('6/6: setData ok');
           }
         }
       }
       catch (err) {
         console.error('[GPS] onGpsUpdate crashed:', err);
-        setDebugStep('FAIL: onGpsUpdate crashed');
       }
     }
     window.addEventListener('landoutPositionUpdate', onGpsUpdate);
@@ -1008,17 +1002,21 @@ export function BackcountryMap({
     win.landoutSetDirectTo = (dest) => {
       if (!dest) return;
 
-      console.log('[DirectTo] landoutSetDirectTo called');
+      console.log('[DirectTo] landoutSetDirectTo called', dest);
       directToFitBoundsDoneRef.current = false;
 
       // Close InfoCard when DirectTo starts from external caller
       setInfoCard(null);
 
+      // Set the DirectTo destination state — needed for magenta line and DirectToPanel
+      setDirectToDest(dest);
+
       // Start GPS tracking — this is the primary purpose for external callers.
-      // InfoCard's handleDirectTo already sets directToDest directly.
-      // Don't dispatch landoutDirectToChange here — SiteInfoBox already shows
-      // an InfoCard with site info, so the DirectToPanel is redundant.
-      window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+      try {
+        window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+      } catch (e) {
+        console.error('[DirectTo] landoutDirectToGps dispatch error:', e);
+      }
     };
     // MeasureRuler calls this to drop a pin from right-click "Save Pin"
     win.landoutDropPin = (lng: number, lat: number, name?: string) => {
@@ -1050,24 +1048,20 @@ export function BackcountryMap({
   function handleDirectTo(lng: number, lat: number, name?: string) {
     // Validate coordinates before any state change — reject NaN/Infinity
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
-      setDebugStep('FAIL: invalid coords');
+      console.warn('[DirectTo] handleDirectTo: invalid coords', { lng, lat });
       return;
     }
     // Close InfoCard when DirectTo starts — avoids z-index overlap with cancel button
     setInfoCard(null);
-    // DEBUG: log BEFORE state change to see if we even reach this point
-    console.log('[DirectTo] handleDirectTo ENTERED', { lng, lat, name });
-    setDebugStep('1/5: set dest');
+    console.log('[DirectTo] handleDirectTo:', { lng, lat, name });
     setDirectToDest({ lng, lat, name, type: 'map' });
-    setDebugStep('2/5: dest set, start GPS');
     // Dispatch GPS event synchronously — avoid queueMicrotask which may
     // schedule the callback after React's render phase completes,
     // causing timing issues on iOS Safari WebView.
     try {
       window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
-      setDebugStep('GPSb: GPS event dispatched ok');
     } catch (e) {
-      setDebugStep('FAIL: GPS event threw');
+      console.error('[DirectTo] landoutDirectToGps dispatch error:', e);
     }
   }
 

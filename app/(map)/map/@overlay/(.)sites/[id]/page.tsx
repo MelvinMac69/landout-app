@@ -268,8 +268,16 @@ export default function SiteInfoOverlay() {
           </button>
           <button
             onClick={() => {
-              startDirectTo(site.lon, site.lat, site.name);
-              closeOverlay();
+              try {
+                startDirectTo(site.lon, site.lat, site.name);
+              } catch (err) {
+                console.error('[SiteOverlay] startDirectTo error:', err);
+              }
+              // Close overlay AFTER a tick so the DirectTo state change
+              // settles before the route transition unmounts this component.
+              // Immediate router.push can cause iOS Safari to crash if
+              // React re-renders overlap with the route change.
+              setTimeout(() => closeOverlay(), 50);
             }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,

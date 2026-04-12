@@ -278,13 +278,26 @@ export default function MapPage() {
         const map = mapRef.current;
         const pos = detail.currentPos;
         if (map && pos?.lat && pos?.lon) {
-          const bounds: [[number, number], [number, number]] = [
-            [Math.min(pos.lon, detail.dest.lng), Math.min(pos.lat, detail.dest.lat)],
-            [Math.max(pos.lon, detail.dest.lng), Math.max(pos.lat, detail.dest.lat)],
-          ];
-          map.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 1500 });
+          try {
+            const bounds: [[number, number], [number, number]] = [
+              [Math.min(pos.lon, detail.dest.lng), Math.min(pos.lat, detail.dest.lat)],
+              [Math.max(pos.lon, detail.dest.lng), Math.max(pos.lat, detail.dest.lat)],
+            ];
+            map.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 1500 });
+          } catch (e) {
+            console.warn('[Page] fitBounds error:', e);
+          }
         } else if (map) {
-          map.flyTo({ center: [detail.dest.lng, detail.dest.lat], zoom: 12, duration: 1500 });
+          try {
+            // Validate destination coordinates before flying
+            if (Number.isFinite(detail.dest.lng) && Number.isFinite(detail.dest.lat)) {
+              map.flyTo({ center: [detail.dest.lng, detail.dest.lat], zoom: 12, duration: 1500 });
+            } else {
+              console.warn('[Page] flyTo skipped: invalid dest coords', detail.dest);
+            }
+          } catch (e) {
+            console.warn('[Page] flyTo error:', e);
+          }
         }
       } else {
         document.documentElement.style.setProperty('--direct-to-offset', '0px');
