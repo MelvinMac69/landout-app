@@ -70,14 +70,16 @@ export function MapProvider({ children }: { children: ReactNode }) {
         case 'flyTo': {
           const { lng, lat, zoom } = cmd.payload as { lng: number; lat: number; zoom?: number };
           try {
+            if (!Number.isFinite(lng) || !Number.isFinite(lat)) break;
             map.flyTo({
               center: [lng, lat],
               zoom: zoom ?? map.getZoom(),
-              duration: 2000,
+              duration: 1500,
               essential: true,
             });
           } catch (e) {
             console.warn('[MapContext] flyTo error:', e);
+            try { map.setCenter([lng, lat]); if (zoom) map.setZoom(zoom); } catch {}
           }
           break;
         }
@@ -112,14 +114,24 @@ export function MapProvider({ children }: { children: ReactNode }) {
   const flyToSite = useCallback((lng: number, lat: number, zoom?: number) => {
     if (mapRef.current && mapLoaded) {
       try {
+        // Validate coordinates before flying
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+          console.warn('[MapContext] flyToSite: invalid coordinates', { lng, lat });
+          return;
+        }
         mapRef.current.flyTo({
           center: [lng, lat],
           zoom: zoom ?? mapRef.current.getZoom(),
-          duration: 2000,
+          duration: 1500,
           essential: true,
         });
       } catch (e) {
         console.warn('[MapContext] flyTo error:', e);
+        // Fallback to instant setCenter if flyTo fails
+        try {
+          mapRef.current.setCenter([lng, lat]);
+          if (zoom) mapRef.current.setZoom(zoom);
+        } catch {}
       }
     } else {
       commandQueue.current.push({ type: 'flyTo', payload: { lng, lat, zoom } });

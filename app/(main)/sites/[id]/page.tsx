@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin, ArrowLeft, Bookmark, Share2, AlertTriangle,
@@ -9,11 +9,11 @@ import {
 } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
 import { formatCoordinates } from '@/lib/utils/geo';
-import { useMapIfAvailable } from '../../MapContext';
 
 /**
  * Full-page site detail fallback — used when navigating to /sites/[id] directly
  * (deep link, bookmark, etc.) instead of via intercepting route from /map.
+ * This page is under (main)/ route group — NO map, just Header + MobileNav.
  */
 
 interface SiteData {
@@ -75,8 +75,6 @@ const mockReports = [
 
 export default function SiteDetailFallbackPage() {
   const params = useParams();
-  const router = useRouter();
-  const mapCtx = useMapIfAvailable();
 
   const [site, setSite] = useState<SiteData | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -172,19 +170,10 @@ export default function SiteDetailFallbackPage() {
         </Card>
       </div>
 
-      {/* View on Map */}
+      {/* View on Map — navigates to /map with site params */}
       <div className="grid grid-cols-1 gap-3 mb-6">
-        <button
-          onClick={() => {
-            if (mapCtx?.flyToSite) {
-              // We have map context — fly and navigate to map
-              mapCtx.flyToSite(site.lon, site.lat, 13);
-              router.push('/map');
-            } else {
-              // No map context — use full page reload (legacy behavior)
-              window.location.href = `/map?lat=${site.lat}&lon=${site.lon}&name=${encodeURIComponent(site.name)}&siteId=${encodeURIComponent(site.icao || site.faa_ident || '')}&elev=${site.elevation_ft || ''}&runway=${site.runway_length_ft || ''}&municipality=${encodeURIComponent(site.municipality || '')}&state=${encodeURIComponent(site.state || '')}&type=${encodeURIComponent(site.type_label)}&dropPin=1`;
-            }
-          }}
+        <Link
+          href={`/map?lat=${site.lat}&lon=${site.lon}&name=${encodeURIComponent(site.name)}&siteId=${encodeURIComponent(site.icao || site.faa_ident || '')}&elev=${site.elevation_ft || ''}&runway=${site.runway_length_ft || ''}&municipality=${encodeURIComponent(site.municipality || '')}&state=${encodeURIComponent(site.state || '')}&type=${encodeURIComponent(site.type_label)}&dropPin=1`}
         >
           <Card className="h-full hover:border-orange-300 transition-colors cursor-pointer">
             <div className="flex items-center gap-2">
@@ -193,7 +182,7 @@ export default function SiteDetailFallbackPage() {
               <ExternalLink className="w-3 h-3 text-slate-400 ml-auto" />
             </div>
           </Card>
-        </button>
+        </Link>
       </div>
 
       {/* Disclaimer */}
