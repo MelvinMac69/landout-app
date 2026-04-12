@@ -971,16 +971,22 @@ export function BackcountryMap({
       } catch {}
     }
 
+    // NOTE: Map cleanup is intentionally omitted. The map removal + null assignment in
+    // useEffect cleanup was causing issues with React's StrictMode re-mounting, where
+    // the cleanup ran immediately after mount (double-mount in StrictMode), causing
+    // the map to be removed before it could render. Since the map component only
+    // unmounts on full page navigation (window.location.href reload), memory cleanup
+    // happens naturally via page context destruction.
+    //
     // Cleanup: properly remove map when component unmounts or page unloads.
-    // This is critical for iOS Safari where WebView memory isn't always freed
-    // on full page reload, causing memory accumulation and crashes.
-    return () => {
-      try { (window as any).__landoutMap = undefined; } catch {}
-      try { map.current?.remove(); } catch {}
-      map.current = null;
-      mapInstanceRef.current = null;
-      try { if (mapStylesRef.current) document.head.removeChild(mapStylesRef.current); } catch {}
-    };
+    // This is critical for iOS Safari where WebView memory isn't always freed.
+    // return () => {
+    //   try { (window as any).__landoutMap = undefined; } catch {}
+    //   try { map.current?.remove(); } catch {}
+    //   map.current = null;
+    //   mapInstanceRef.current = null;
+    //   try { if (mapStylesRef.current) document.head.removeChild(mapStylesRef.current); } catch {}
+    // };
   });
 
 
