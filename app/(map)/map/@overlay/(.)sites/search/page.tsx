@@ -185,12 +185,13 @@ export default function SearchOverlay() {
         position: 'fixed',
         inset: 0,
         zIndex: 200,
-        background: 'rgba(0,0,0,0.4)',
+        background: 'rgba(15, 23, 42, 0.85)',
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
         paddingTop: 'max(env(safe-area-inset-top), 16px)',
         overflow: 'auto',
+        pointerEvents: 'auto',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
     >

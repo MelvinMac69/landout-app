@@ -4,16 +4,21 @@
  * (map) route group layout — wraps the map route group.
  *
  * This layout renders BackcountryMap ONCE and keeps it mounted across all
- * page transitions within the /map route group. This prevents the map from
- * remounting when navigating between map, search, and site-info pages.
+ * page transitions within the /map route group.
  *
  * Architecture:
- * - Map fills the entire viewport (position: fixed, inset: 0)
- * - UI overlay layer sits above the map
- *   - The map PAGE sets pointer-events: none so touches pass through
- *     to the map (individual controls set pointer-events: auto)
- *   - Overlay pages (search, site-info) are fully interactive
- * - MobileNav is always visible at the bottom for navigation
+ * - Map fills the entire viewport (position: fixed, inset: 0, z-index: 0)
+ * - Children render WITHOUT any wrapper — they sit at normal stacking
+ *   order on top of the map.
+ * - The map page wrapper has pointer-events: none so map gestures work;
+ *   individual controls opt in with pointer-events: auto.
+ * - Overlay pages (search, site-info) have their own fixed containers
+ *   with high z-index and are fully interactive.
+ * - MobileNav is always visible at the bottom.
+ *
+ * Key: no wrapper div around {children} — each child page manages its
+ * own pointer-events and stacking. This avoids a full-viewport overlay
+ * container accidentally blocking map interaction.
  */
 
 import { MapProvider } from './MapContext';
@@ -40,16 +45,13 @@ export default function MapLayout({
 }) {
   return (
     <MapProvider>
-      {/* Full-screen map — fills viewport, behind everything */}
+      {/* Full-screen map — fills viewport, z-index 0 */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
         <MapSlot />
       </div>
-      {/* UI overlay layer — sits above the map.
-          - Map page sets pointer-events: none (controls opt in with auto)
-          - Overlay pages (search, site-info) are fully interactive */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1 }}>
-        {children}
-      </div>
+      {/* Children render directly — no wrapper.
+          Each page manages its own pointer-events and z-index. */}
+      {children}
       {/* Bottom navigation — always visible on mobile */}
       <MobileNav />
     </MapProvider>

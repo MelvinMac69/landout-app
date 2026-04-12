@@ -87,7 +87,7 @@ const mockReports = [
 export default function SiteInfoOverlay() {
   const params = useParams();
   const router = useRouter();
-  const { flyToSite, startDirectTo, setOverlayOpen } = useMapContext();
+  const { flyToSite, startDirectTo, showInfoCard, setOverlayOpen } = useMapContext();
 
   const [site, setSite] = useState<SiteData | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -122,7 +122,7 @@ export default function SiteInfoOverlay() {
   if (notFound) {
     return (
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15, 23, 42, 0.85)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
       >
         <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 360, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'center' }}>
@@ -138,7 +138,7 @@ export default function SiteInfoOverlay() {
   if (!site) {
     return (
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15, 23, 42, 0.85)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
       >
         <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 360, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
@@ -155,7 +155,8 @@ export default function SiteInfoOverlay() {
         position: 'fixed',
         inset: 0,
         zIndex: 200,
-        background: 'rgba(0,0,0,0.4)',
+        background: 'rgba(15, 23, 42, 0.85)',
+        pointerEvents: 'auto',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
@@ -239,6 +240,17 @@ export default function SiteInfoOverlay() {
           <button
             onClick={() => {
               flyToSite(site.lon, site.lat, 14);
+              showInfoCard({
+                lng: site.lon,
+                lat: site.lat,
+                name: site.name,
+                faa_ident: site.faa_ident ?? undefined,
+                airportType: site.type_label,
+                municipality: site.municipality ?? undefined,
+                state: site.state ?? undefined,
+                runway_length_ft: site.runway_length_ft,
+                elevation_ft: site.elevation_ft,
+              });
               closeOverlay();
             }}
             style={{
