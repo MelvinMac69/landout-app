@@ -147,46 +147,71 @@ export function BackcountryMap({
       });
 
       // DEFERRED (1 second later): fly to destination and draw destination point.
-      // This gives iOS Safari time to complete the React re-render and overlay
+            // This gives iOS Safari time to complete the React re-render and overlay
       // transition before we ask the WebGL renderer to move the camera.
-      directToRenderTimerRef.current = setTimeout(() => {
-        directToRenderTimerRef.current = null;
-        if (!map.current) return;
-
-        // Frame 1: Draw destination point on the map (lightweight — 1 GeoJSON point)
-        const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
-        if (src) {
-          try {
-            src.setData({
-              type: 'FeatureCollection',
-              features: [
-                { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] }, properties: {} },
-              ],
-            });
-          } catch (e) {
-            console.warn('[Map] deferred dest point setData error:', e);
-          }
+      // Also includes a style-loaded gate — if the map style isn't fully loaded yet
+      // (common on first DirectTo after page load), we retry after 500ms.
+      const MAX_RETRIES = 5;
+      const deferredRender = (attempt: number) => {
+        if (attempt > MAX_RETRIES) {
+          console.warn('[Map] deferred DirectTo render: giving up after', MAX_RETRIES, 'retries — style not loaded');
+          return;
         }
-
-        // Frame 2: Fly to destination (separate rAF so iOS Safari processes the
-        // source update before the camera move — prevents context loss)
-        requestAnimationFrame(() => {
+        directToRenderTimerRef.current = setTimeout(() => {
+          directToRenderTimerRef.current = null;
           if (!map.current) return;
+
+          // Gate: check if style is loaded before any WebGL operations
+          // On first DirectTo after page load, the style may not be ready yet
           try {
-            if (Number.isFinite(directToDest.lng) && Number.isFinite(directToDest.lat)) {
-              map.current.flyTo({ center: [directToDest.lng, directToDest.lat], zoom: 12, duration: 1500, essential: true });
+            if (!map.current.isStyleLoaded()) {
+              console.warn('[Map] deferred DirectTo render: style not loaded, retry', attempt + 1);
+              deferredRender(attempt + 1);
+              return;
             }
           } catch (e) {
-            console.warn('[Map] deferred flyTo error:', e);
+            console.warn('[Map] isStyleLoaded check error:', e);
+            deferredRender(attempt + 1);
+            return;
           }
-          // Frame 3: Dispatch event so page.tsx can update panel with GPS data
+
+          // Frame 1: Draw destination point on the map (lightweight — 1 GeoJSON point)
+          const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
+          if (src) {
+            try {
+              src.setData({
+                type: 'FeatureCollection',
+                features: [
+                  { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] }, properties: {} },
+                ],
+              });
+            } catch (e) {
+              console.warn('[Map] deferred dest point setData error:', e);
+            }
+          }
+
+          // Frame 2: Fly to destination (separate rAF so iOS Safari processes the
+          // source update before the camera move — prevents context loss)
           requestAnimationFrame(() => {
-            window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
-              detail: { dest: directToDest, currentPos: currentPosState },
+            if (!map.current) return;
+            try {
+              if (Number.isFinite(directToDest.lng) && Number.isFinite(directToDest.lat)) {
+                map.current.flyTo({ center: [directToDest.lng, directToDest.lat], zoom: 12, duration: 1500, essential: true });
+              }
+            } catch (e) {
+              console.warn('[Map] deferred flyTo error:', e);
+            }
+            // Frame 3: Dispatch event so page.tsx can update panel with GPS data
+            requestAnimationFrame(() => {
+              window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+                detail: { dest: directToDest, currentPos: currentPosState },
             }));
           });
         });
-      }, 1000);
+      }, 1000 + (attempt * 500)); // Longer timeout on retries
+    }
+    // Kick off the deferred render (1 second delay, with style-loaded retries)
+    deferredRender(0);
     } else {
       // DirectTo cancelled — clean up ALL state
       directToSettlingRef.current = false;
