@@ -523,7 +523,9 @@ export function BackcountryMap({
       map.current = existingMap;
       mapInstanceRef.current = existingMap;
       (window as any).__landoutMap = existingMap;
-      existingMap.resize(); // Ensure map fills the new container size
+      // Debounce resize for iOS Safari — rapid resize calls cause WebGL issues
+      const resizeTimer = setTimeout(() => { existingMap.resize(); }, 200);
+      return () => { clearTimeout(resizeTimer); };
       setLoaded(true);
       return;
     }
@@ -857,6 +859,55 @@ export function BackcountryMap({
     }, 2000);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // ── iOS Safari hardening ──────────────────────────────────────────────
+    // Handle WebGL context loss — common on iOS Safari under memory pressure.
+    // Log the event and set loaded=false so the UI shows the loading state.
+    const mapCanvas = mapInstance.getCanvas();
+    const onWebGLContextLost = (e: Event) => {
+      console.error('[Map] WebGL context lost:', e);
+      e.preventDefault(); // Allow MapLibre to attempt recovery
+      setLoaded(false);
+    };
+    mapCanvas.addEventListener('webglcontextlost', onWebGLContextLost);
+    const onWebGLContextRestored = () => {
+      console.log('[Map] WebGL context restored');
+      setLoaded(true);
+    };
+    mapCanvas.addEventListener('webglcontextrestored', onWebGLContextRestored);
+
+    // Debounced resize handler for iOS Safari — rapid resize events
+    // (orientation change, split view) can overwhelm the WebGL renderer.
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        try { mapInstance.resize(); } catch (e) { console.warn('[Map] resize error:', e); }
+      }, 200);
+    };
+    window.addEventListener('resize', debouncedResize);
+
+    // ── Cleanup ──────────────────────────────────────────────────────────
+    // When this component unmounts (e.g. navigating away from /map entirely),
+    // clean up the map instance to free WebGL resources on iOS Safari.
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      mapCanvas.removeEventListener('webglcontextlost', onWebGLContextLost);
+      mapCanvas.removeEventListener('webglcontextrestored', onWebGLContextRestored);
+      if (resizeTimer) clearTimeout(resizeTimer);
+      clearInterval(gpsInterval);
+      window.removeEventListener('landoutPositionUpdate', onGpsUpdate);
+
+      // Destroy the map instance and clear the singleton reference
+      try {
+        mapInstance.remove();
+      } catch (e) {
+        console.warn('[Map] map.remove() error:', e);
+      }
+      delete (window as any).__landoutMapInstance;
+      delete (window as any).__landoutMap;
+      map.current = null;
+      mapInstanceRef.current = null;
+    };
   }, []); // EMPTY DEPS — map only mounts once
 
   // Update Direct To magenta line whenever destination changes.
