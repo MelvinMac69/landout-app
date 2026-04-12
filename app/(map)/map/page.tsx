@@ -443,10 +443,12 @@ export default function MapPage() {
 
       {/* Site Info box */}
       {siteInfo && (
-        <SiteInfoBox
-          site={siteInfo}
-          onClose={() => setSiteInfo(null)}
-        />
+        <div style={{ pointerEvents: 'auto' }}>
+          <SiteInfoBox
+            site={siteInfo}
+            onClose={() => setSiteInfo(null)}
+          />
+        </div>
       )}
 
       {/* DISCLAIMER */}
@@ -460,6 +462,7 @@ export default function MapPage() {
             zIndex: 40,
             maxWidth: 280,
             cursor: 'pointer',
+            pointerEvents: 'auto',
           }}
           onClick={() => setDisclaimerDismissed(true)}
           title="Click to dismiss"
@@ -493,6 +496,7 @@ export default function MapPage() {
             transform: 'translate(-50%, -50%)',
             zIndex: 9999,
             cursor: 'pointer',
+            pointerEvents: 'auto',
           }}
           onClick={() => setShowBuildInfo(false)}
         >

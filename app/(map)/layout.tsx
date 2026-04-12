@@ -9,10 +9,11 @@
  *
  * Architecture:
  * - Map fills the entire viewport (position: fixed, inset: 0)
- * - UI controls render in a pointer-events: none overlay (so touches
- *   pass through to the map underneath). Individual controls set
- *   pointer-events: auto on themselves.
- * - MobileNav is always visible at the bottom for navigation.
+ * - UI overlay layer sits above the map
+ *   - The map PAGE sets pointer-events: none so touches pass through
+ *     to the map (individual controls set pointer-events: auto)
+ *   - Overlay pages (search, site-info) are fully interactive
+ * - MobileNav is always visible at the bottom for navigation
  */
 
 import { MapProvider } from './MapContext';
@@ -43,9 +44,10 @@ export default function MapLayout({
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
         <MapSlot />
       </div>
-      {/* UI overlay layer — transparent to touch events so map interactions work.
-          Individual controls (buttons, panels) set pointer-events: auto on themselves. */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none' }}>
+      {/* UI overlay layer — sits above the map.
+          - Map page sets pointer-events: none (controls opt in with auto)
+          - Overlay pages (search, site-info) are fully interactive */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1 }}>
         {children}
       </div>
       {/* Bottom navigation — always visible on mobile */}
