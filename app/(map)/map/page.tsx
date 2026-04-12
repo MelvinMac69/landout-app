@@ -314,8 +314,7 @@ export default function MapPage() {
 
   return (
     <div
-      className="h-[calc(100vh-3.5rem)] relative"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ position: 'fixed', inset: 0, pointerEvents: 'none', paddingBottom: 'env(safe-area-inset-bottom)' }}
       onClick={() => window.dispatchEvent(new Event('buildinfo-click'))}
     >
       {/* Persistent flight data dashboard — slides down from top when position available */}
