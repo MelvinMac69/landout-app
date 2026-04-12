@@ -6,7 +6,7 @@ import { Map, Search, Route, User, Plus } from 'lucide-react';
 
 const navItems = [
   { href: '/map', label: 'Map', icon: Map },
-  { href: '/sites/search', label: 'Search', icon: Search },
+  { href: '/map/sites/search', label: 'Search', icon: Search },
   { href: '/routes/new', label: 'Route', icon: Route },
   { href: '/profile', label: 'Profile', icon: User },
 ];
