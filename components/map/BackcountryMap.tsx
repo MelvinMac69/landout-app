@@ -562,8 +562,12 @@ export function BackcountryMap({
         // This avoids potential iOS Safari click handler issues.
         if ((pendingAirport as any).autoDirectTo) {
           console.log('[Map] autoDirectTo: starting DirectTo');
-          setDirectToDest({ lng: pendingAirport.lng, lat: pendingAirport.lat, name: pendingAirport.name, type: 'map' });
-          window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+          try {
+            setDirectToDest({ lng: pendingAirport.lng, lat: pendingAirport.lat, name: pendingAirport.name, type: 'map' });
+          } catch (e) { console.warn('[Map] setDirectToDest error:', e); }
+          try {
+            window.dispatchEvent(new CustomEvent('landoutDirectToGps'));
+          } catch (e) { console.warn('[Map] GPS event error:', e); }
         }
       }
 
@@ -1008,27 +1012,37 @@ export function BackcountryMap({
   // Used by "View on Map" from site detail page — replaces SiteInfoBox.
   // No marker, no popup — just center the map and show the InfoCard directly.
   function handleFlyToAirport(lng: number, lat: number, name?: string) {
-    const map = mapInstanceRef.current;
-    // Clear any pending airport
-    delete (window as any).__landoutPendingAirport;
-    if (!map) {
-      (window as any).__landoutPendingAirport = { lng, lat, name, ts: Date.now() };
-      return;
+    // Defensive: wrap everything in try-catch — iOS Safari WebView can crash
+    // on seemingly innocuous React state updates after navigation.
+    try {
+      const map = mapInstanceRef.current;
+      // Clear any pending airport
+      delete (window as any).__landoutPendingAirport;
+      if (!map) {
+        (window as any).__landoutPendingAirport = { lng, lat, name, ts: Date.now() };
+        return;
+      }
+      // Instant center — no animation to avoid mobile Safari issues
+      try { map.setCenter([lng, lat]); } catch {}
+      try { map.setZoom(13); } catch {}
+      // Show InfoCard directly — defer to next tick to avoid React state conflict
+      setTimeout(() => {
+        try {
+          setInfoCard({
+            screenX: window.innerWidth / 2,
+            screenY: window.innerHeight / 2,
+            data: {
+              type: 'airport',
+              lng,
+              lat,
+              name: name || 'Airport',
+            },
+          });
+        } catch (e) { console.warn('[InfoCard] setInfoCard error:', e); }
+      }, 0);
+    } catch (e) {
+      console.warn('[handleFlyToAirport] error:', e);
     }
-    // Instant center — no animation to avoid mobile Safari issues
-    map.setCenter([lng, lat]);
-    map.setZoom(13);
-    // Show InfoCard directly — same card as when tapping an airport dot
-    setInfoCard({
-      screenX: window.innerWidth / 2,
-      screenY: window.innerHeight / 2,
-      data: {
-        type: 'airport',
-        lng,
-        lat,
-        name: name || 'Airport',
-      },
-    });
   }
 
   function handleClearDirectTo() {
