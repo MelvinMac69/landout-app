@@ -121,6 +121,10 @@ export function BackcountryMap({
   // Timer for deferred DirectTo rendering — after 1 second, draw the destination
   // point on the map. The route line only appears when GPS data starts flowing.
   const directToRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track whether this is the first DirectTo after page load.
+  // First activation gets longer delay (2s) to avoid iOS Safari WebGL crash
+  // during cold start when map resources are not yet cached.
+  const isFirstDirectToRef = useRef(true);
   // Guard to prevent map operations (flyTo/setCenter) during an active flyTo animation
   const flyToInProgressRef = useRef(false);
   // Current GPS position — ref for perf (no re-render on every GPS ping), state for panel re-renders
@@ -266,9 +270,10 @@ export function BackcountryMap({
               }, STAGGER_MS);
             }, STAGGER_MS);
           }, STAGGER_MS);
-        }, 1000 + (attempt * 500)); // Initial 1s delay, +500ms per retry
+        }, (isFirstDirectToRef.current ? 2000 : 1000) + (attempt * 500)); // Cold start: 2s, subsequent: 1s, +500ms per retry
       };
     // Kick off the deferred render (1 second delay, with style-loaded retries)
+    isFirstDirectToRef.current = false; // Mark first DirectTo as done
     deferredRender(0);
     } else {
       // DirectTo cancelled — clean up ALL state
