@@ -1370,8 +1370,9 @@ export function BackcountryMap({
           <span className="text-slate-500">Loading map…</span>
         </div>
       )}
-      {/* Locate button — bottom-right, keeps BasemapToggle clear on left side */}
-      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 90px + var(--direct-to-offset, 0px))', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+      {/* Locate button — bottom-right, clustered with North-Up and Compass in page.tsx */}
+      {/* offset: 90px North-Up + 8px gap + 44px LocateButton = 142px from bottom */}
+      <div style={{ position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 142px + var(--direct-to-offset, 0px))`, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
         <LocateButton mapRef={mapInstanceRef} />
       </div>
       {/* Direct To info card */}

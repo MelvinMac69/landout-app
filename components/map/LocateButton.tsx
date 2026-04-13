@@ -554,12 +554,12 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
   };
 
   const stateColors: Record<LocState, string> = {
-    idle: '#718096',
-    acquiring: '#D4621A',
-    active: '#C9B99A',
-    following: '#D4621A',
-    denied: '#EF4444',
-    unavailable: '#718096',
+    idle: 'var(--text-secondary)',
+    acquiring: 'var(--accent-primary)',
+    active: 'var(--text-secondary)',
+    following: 'white',
+    denied: 'var(--land-private)',
+    unavailable: 'var(--text-muted)',
   };
 
   const buttonTitle =
@@ -570,36 +570,34 @@ export function LocateButton({ mapRef }: LocateButtonProps) {
     state === 'denied' ? 'Location denied — tap to retry' :
     'GPS unavailable';
 
+  const isFollowing = state === 'following';
+  const isDenied = state === 'denied';
+  const isAcquiring = state === 'acquiring';
+  const iconColor = stateColors[state];
+  const strokeFill = isFollowing ? 'white' : 'none';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <button
         onClick={handleLocate}
         title={buttonTitle}
-        style={{
-          width: 42, height: 42, borderRadius: 8,
-          background: followMode ? '#141414' : state === 'active' ? '#1A1A1A' : state === 'denied' ? '#1A1A1A' : '#141414',
-          border: `1.5px solid ${followMode ? '#D4621A' : state === 'active' ? '#D4621A' : state === 'denied' ? '#EF4444' : '#4A5568'}`,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer',
-          color: followMode ? '#D4621A' : state === 'active' ? '#C9B99A' : state === 'denied' ? '#EF4444' : '#718096',
-          transition: 'all 0.2s',
-        }}
+        className={`ctrl-btn${isFollowing ? ' ctrl-btn--active' : ''}`}
+        style={isDenied ? { borderColor: 'var(--land-private)' } : isAcquiring ? { borderColor: 'var(--accent-primary)' } : {}}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill={followMode ? '#141414' : 'none'} stroke={followMode ? 'white' : stateColors[state]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill={strokeFill} stroke={iconColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {state === 'acquiring' ? (
-            <><circle cx="12" cy="12" r="10" strokeDasharray="5 3"/><circle cx="12" cy="12" r="3" fill="#F59E0B" stroke="none"/></>
+            <><circle cx="12" cy="12" r="10" strokeDasharray="5 3"/><circle cx="12" cy="12" r="3" fill="var(--accent-primary)" stroke="none"/></>
           ) : state === 'denied' ? (
             <><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></>
           ) : state === 'unavailable' ? (
             <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
           ) : (
             <>
-              <circle cx="12" cy="12" r={followMode ? 4 : 3} fill={followMode ? 'white' : 'none'} />
-              <line x1="12" y1="2" x2="12" y2={followMode ? 4 : 6}/>
-              <line x1="12" y1={followMode ? 20 : 18} x2="12" y2="22"/>
-              <line x1="2" y1="12" x2={followMode ? 4 : 6} y2="12"/>
-              <line x1={followMode ? 20 : 18} y1="12" x2="22" y2="12"/>
+              <circle cx="12" cy="12" r={isFollowing ? 4 : 3} fill={isFollowing ? 'white' : 'none'} />
+              <line x1="12" y1="2" x2="12" y2={isFollowing ? 4 : 6}/>
+              <line x1="12" y1={isFollowing ? 20 : 18} x2="12" y2="22"/>
+              <line x1="2" y1="12" x2={isFollowing ? 4 : 6} y2="12"/>
+              <line x1={isFollowing ? 20 : 18} y1="12" x2="22" y2="12"/>
             </>
           )}
         </svg>

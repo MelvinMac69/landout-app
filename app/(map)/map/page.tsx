@@ -343,67 +343,70 @@ export default function MapPage() {
         <MapLegend />
       </div>
 
-      {/* Compass — visible when track-up is active */}
-      {trackUp && (
-        <div style={{
-          position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom) + 182px + var(--direct-to-offset, 0px))',
-          right: 8,
-          zIndex: 60,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-          pointerEvents: 'none',
-        }}>
-          <div style={{
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            background: 'rgba(20,20,20,0.95)',
-            border: '1.5px solid #4A5568',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <span style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', fontSize: 8, fontWeight: 700, color: '#EF4444', fontFamily: 'system-ui' }}>N</span>
-            <span style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: '#94A3B8', fontFamily: 'system-ui' }}>S</span>
-            <span style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', fontSize: 7, fontWeight: 600, color: '#94A3B8', fontFamily: 'system-ui' }}>W</span>
-            <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', fontSize: 7, fontWeight: 600, color: '#94A3B8', fontFamily: 'system-ui' }}>E</span>
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              width: 2,
-              height: 20,
-              transformOrigin: '50% 100%',
-              transform: `translate(-50%, -100%) rotate(${-compassBearing}deg)`,
-            }}>
+      {/* ── Right-side control clusters ─────────────────────────────────────── */}
+      {/* Cluster 2: Compass + North-Up + Locate (bottom-right, clustered together) */}
+      <div style={{
+        position: 'fixed',
+        right: 8,
+        zIndex: 60,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 'var(--space-2)',
+        bottom: `calc(env(safe-area-inset-bottom) + 90px + var(--direct-to-offset, 0px))`,
+        pointerEvents: 'auto',
+      }}>
+        {/* Compass — visible when track-up is active */}
+        {trackUp && (
+          <div
+            className="ctrl-btn"
+            style={{ width: 44, height: 44, pointerEvents: 'none', flexDirection: 'column', gap: 0, padding: 0 }}
+          >
+            <div style={{ position: 'relative', width: 44, height: 44 }}>
+              {/* Cardinal labels */}
+              <span style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', fontSize: 8, fontWeight: 700, color: 'var(--land-private)', fontFamily: 'system-ui', lineHeight: 1 }}>N</span>
+              <span style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'system-ui', lineHeight: 1 }}>S</span>
+              <span style={{ position: 'absolute', left: 3, top: '50%', transform: 'translateY(-50%)', fontSize: 7, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'system-ui', lineHeight: 1 }}>W</span>
+              <span style={{ position: 'absolute', right: 3, top: '50%', transform: 'translateY(-50%)', fontSize: 7, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'system-ui', lineHeight: 1 }}>E</span>
+              {/* Rotating needle */}
               <div style={{
-                width: 0, height: 0,
-                borderLeft: '3px solid transparent',
-                borderRight: '3px solid transparent',
-                borderBottom: '12px solid #EF4444',
-                margin: '0 auto',
-              }} />
-              <div style={{
-                width: 0, height: 0,
-                borderLeft: '2.5px solid transparent',
-                borderRight: '2.5px solid transparent',
-                borderTop: '8px solid #94A3B8',
-                margin: '0 auto',
-              }} />
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                width: 2,
+                height: 18,
+                transformOrigin: '50% 100%',
+                transform: `translate(-50%, -100%) rotate(${-compassBearing}deg)`,
+              }}>
+                <div style={{
+                  width: 0, height: 0,
+                  borderLeft: '3px solid transparent',
+                  borderRight: '3px solid transparent',
+                  borderBottom: '10px solid var(--land-private)',
+                  margin: '0 auto',
+                }} />
+                <div style={{
+                  width: 0, height: 0,
+                  borderLeft: '2px solid transparent',
+                  borderRight: '2px solid transparent',
+                  borderTop: '7px solid var(--text-secondary)',
+                  margin: '0 auto',
+                }} />
+              </div>
+              {/* Center dot */}
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: 4, height: 4, borderRadius: '50%', background: 'var(--accent-primary)', transform: 'translate(-50%, -50%)' }} />
             </div>
-            <div style={{ position: 'absolute', top: '50%', left: '50%', width: 5, height: 5, borderRadius: '50%', background: '#D4621A', transform: 'translate(-50%, -50%)' }} />
           </div>
-          <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#3B82F6', fontWeight: 600 }}>
+        )}
+
+        {/* Bearing label — shown below compass when track-up active */}
+        {trackUp && (
+          <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--gps-active)', fontWeight: 600, marginTop: -2 }}>
             {Math.round(compassBearing)}°
           </span>
-        </div>
-      )}
+        )}
 
-      {/* North-Up button — bottom-right */}
-      <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 136px + var(--direct-to-offset, 0px))', right: 8, zIndex: 60, pointerEvents: 'auto' }}>
+        {/* North-Up toggle button */}
         <button
           onClick={() => {
             const next = !trackUp;
@@ -413,32 +416,21 @@ export default function MapPage() {
             if (fn) fn(next);
           }}
           title={trackUp ? 'North-Up ON — tap for Track-Up' : 'North-Up — tap for Track-Up'}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 8,
-            background: '#141414',
-            border: `1.5px solid ${trackUp ? '#3B82F6' : '#4A5568'}`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: trackUp ? '#3B82F6' : '#718096',
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.02em',
-            transition: 'all 0.2s',
-          }}
+          className={`ctrl-btn${trackUp ? ' ctrl-btn--active' : ''}`}
+          style={trackUp ? {} : {}}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <g transform={`rotate(${-compassBearing})`}>
-              <polygon points="9,2 12,9 9,7 6,9" fill={trackUp ? '#3B82F6' : '#718096'} />
-              <polygon points="9,16 12,9 9,11 6,9" fill={trackUp ? '#1E40AF' : '#4A5568'} />
+              <polygon points="9,2 12,9 9,7 6,9" fill={trackUp ? 'white' : 'var(--text-secondary)'} />
+              <polygon points="9,16 12,9 9,11 6,9" fill={trackUp ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)'} />
             </g>
           </svg>
         </button>
       </div>
+
+      {/* Note: LocateButton is rendered in BackcountryMap.tsx at bottom-right.
+          It uses the same ctrl-btn class and is clustered here via shared positioning.
+          Layers button is in the MapLayerToggle component, top-right. */}
 
       {/* Site Info box */}
       {siteInfo && (

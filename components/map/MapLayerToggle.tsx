@@ -63,7 +63,7 @@ function SectionHeader({
         <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-muted)' }} />
       )}
       {icon && <span style={{ fontSize: 14 }}>{icon}</span>}
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--landout-aviation)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
     </button>
   );
 }
@@ -112,21 +112,21 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
         <div
           style={{
             position: 'absolute',
-            top: 48,
+            top: 52,
             right: 0,
             zIndex: 50,
             width: 260,
-            background: 'var(--landout-charcoal-light)',
-            borderRadius: 12,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            border: '1px solid #4A5568',
+            background: 'var(--surface-raised)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-lg)',
+            border: '1px solid var(--border-default)',
             padding: 14,
           }}
         >
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Layers style={{ width: 16, height: 16, color: 'var(--landout-aviation)' }} />
+              <Layers style={{ width: 16, height: 16, color: 'var(--accent-primary)' }} />
               <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>Layers</span>
             </div>
             <button
@@ -136,7 +136,7 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
                 border: 'none',
                 cursor: 'pointer',
                 padding: 4,
-                borderRadius: 6,
+                borderRadius: 'var(--radius-sm)',
                 color: 'var(--text-muted)',
               }}
             >
@@ -162,18 +162,17 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
                       onClick={() => handleBasemap(id)}
                       style={{
                         padding: '5px 8px',
-                        borderRadius: 6,
+                        borderRadius: 'var(--radius-sm)',
                         border: 'none',
                         cursor: 'pointer',
                         fontSize: 11,
                         fontWeight: 700,
-                        background: isActive ? 'var(--landout-aviation)' : '#141414',
+                        background: isActive ? 'var(--accent-primary)' : '#141414',
                         color: isActive ? 'white' : '#A0998F',
-                        transition: 'all 0.15s',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 3,
-                        boxShadow: isActive ? '0 2px 6px rgba(212,98,26,0.4)' : 'none',
+                        boxShadow: isActive ? 'var(--shadow-md)' : 'none',
                       }}
                       title={label}
                     >
@@ -187,7 +186,7 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
           </div>
 
           {/* Divider */}
-          <div style={{ borderTop: '1px solid #4A5568', marginBottom: 10 }} />
+          <div style={{ borderTop: '1px solid var(--border-default)', marginBottom: 10 }} />
 
           {/* Overlays section */}
           <div>
@@ -208,18 +207,18 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
                         alignItems: 'center',
                         gap: 8,
                         padding: '5px 6px',
-                        borderRadius: 6,
+                        borderRadius: 'var(--radius-sm)',
                         cursor: 'pointer',
                         transition: 'background 0.1s',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#3D4A5C')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-overlay)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       <input
                         type="checkbox"
                         checked={layer.visible}
                         onChange={() => onToggle(layer.id)}
-                        style={{ width: 14, height: 14, accentColor: 'var(--landout-aviation)' }}
+                        style={{ width: 14, height: 14, accentColor: 'var(--accent-primary)' }}
                       />
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -249,43 +248,33 @@ export function MapLayerToggle({ layers, onToggle }: MapLayerToggleProps) {
           </div>
 
           {/* Footer */}
-          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #4A5568' }}>
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--border-default)' }}>
             <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               Verify accuracy before use. Not for navigation.
             </p>
           </div>
         </div>
       ) : (
-        /* Closed button — dark, floating top-right */
+        /* Closed button — unified ctrl-btn style */
         <button
           onClick={() => setIsOpen(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '7px 12px',
-            borderRadius: 8,
-            border: '1px solid #4A5568',
-            background: 'var(--landout-charcoal-light)',
-            color: '#C9B99A',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            transition: 'all 0.15s',
-          }}
+          className="ctrl-btn"
+          style={{ gap: 6 }}
+          title="Map layers"
         >
-          <Layers style={{ width: 15, height: 15, color: 'var(--landout-aviation)' }} />
-          <span>Layers</span>
+          <Layers style={{ width: 15, height: 15 }} />
+          <span style={{ fontSize: 12, fontWeight: 600 }}>Layers</span>
           {visibleCount > 0 && (
             <span
               style={{
-                background: 'var(--landout-aviation)',
+                background: 'var(--accent-primary)',
                 color: 'white',
                 fontSize: 10,
                 fontWeight: 700,
                 padding: '1px 5px',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-full)',
+                minWidth: 16,
+                textAlign: 'center',
               }}
             >
               {visibleCount}

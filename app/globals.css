@@ -3,56 +3,109 @@
 @tailwind utilities;
 
 /* ─── MapLibre dark-mode overrides ───────────────────────────────────────── */
-/* Zoom in/out buttons: dark bg, light text for contrast */
-.maplibregl-ctrl-group {
-  background: #1a1f2e !important;
-  border: 1px solid rgba(255,255,255,0.1) !important;
-  border-radius: 8px !important;
-  overflow: hidden;
-}
-
-/* MapLibre control containers — use margin-top (not transform) to avoid stacking */
+/* NavigationControl (zoom in/out): unified control style via design tokens */
 .maplibregl-ctrl-top-left,
 .maplibregl-ctrl-top-right {
   margin-top: var(--direct-to-offset, 0px) !important;
   transition: margin-top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
+.maplibregl-ctrl-top-left {
+  top: max(4px, env(safe-area-inset-top)) !important;
+  left: 8px !important;
+}
+.maplibregl-ctrl-bottom-left {
+  bottom: 110px !important;
+  left: 8px !important;
+}
+
+.maplibregl-ctrl-group {
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border-default) !important;
+  box-shadow: var(--shadow-md) !important;
+}
 .maplibregl-ctrl-group button {
-  background-color: transparent !important;
-  color: #e2e8f0 !important;
-  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
-  width: 32px !important;
-  height: 32px !important;
+  width: 44px !important;
+  height: 44px !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  border-bottom: 1px solid var(--border-muted) !important;
+  transition: background 0.15s, color 0.15s;
 }
 .maplibregl-ctrl-group button:last-child {
   border-bottom: none !important;
 }
 .maplibregl-ctrl-group button:hover {
-  background-color: rgba(255,255,255,0.08) !important;
+  background: var(--surface-overlay) !important;
+  color: var(--text-primary) !important;
+}
+.maplibregl-ctrl-group button:active {
+  background: var(--surface-overlay) !important;
 }
 .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-  filter: invert(1) !important;
+  filter: invert(0.55) sepia(0.1) saturate(0.6) hue-rotate(180deg) !important;
 }
 .maplibregl-ctrl-scale {
-  background: rgba(20,20,20,0.85) !important;
-  color: #c9b99a !important;
-  border-color: rgba(255,255,255,0.2) !important;
+  background: var(--surface-elevated) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-default) !important;
   font-size: 10px !important;
   padding: 0 4px !important;
 }
 .maplibregl-ctrl-attrib {
-  background: rgba(20,20,20,0.75) !important;
-  color: #4a5568 !important;
+  background: var(--surface-base) !important;
+  color: var(--text-muted) !important;
   font-size: 9px !important;
 }
 .maplibregl-ctrl-attrib a {
-  color: #718096 !important;
+  color: var(--text-secondary) !important;
 }
 
 /* ─── Scrollbar ─────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #1a1f2e; }
-::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+::-webkit-scrollbar-track { background: var(--surface-base); }
+::-webkit-scrollbar-thumb { background: var(--surface-overlay); border-radius: 3px; }
+
+/* ─── Floating control button styles (unified across all map controls) ──── */
+/* Applied via className to LocateButton, North-Up, and other control buttons */
+.ctrl-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-md);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.ctrl-btn:hover {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+}
+.ctrl-btn:active {
+  background: var(--surface-overlay);
+}
+/* Active state — GPS following */
+.ctrl-btn--active {
+  background: var(--gps-active);
+  border-color: var(--gps-active);
+  color: white;
+}
+.ctrl-btn--active:hover {
+  opacity: 0.9;
+  color: white;
+}
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -176,60 +229,16 @@ body {
 }
 
 .maplibregl-popup-content {
-  border-radius: 0.75rem;
-  padding: 1rem;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
   font-family: 'Inter', system-ui, sans-serif;
-  background: var(--landout-charcoal-light) !important;
+  background: var(--surface-raised) !important;
   color: var(--text-primary) !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-lg);
 }
 
 .maplibregl-popup-tip {
-  border-top-color: var(--landout-charcoal-light) !important;
-}
-
-.maplibregl-ctrl-group {
-  border-radius: 0.5rem !important;
-  overflow: hidden;
-  min-width: 42px !important;
-  min-height: 42px !important;
-  background: var(--landout-charcoal-light) !important;
-  border: 1px solid #4A5568 !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
-}
-
-.maplibregl-ctrl-group button {
-  width: 40px !important;
-  height: 40px !important;
-  background: var(--landout-charcoal-light) !important;
-  border-bottom: 1px solid #4A5568 !important;
-}
-
-.maplibregl-ctrl-group button:hover {
-  background: #3D4A5C !important;
-}
-
-.maplibregl-ctrl-group button .maplibregl-ctrl-zoom-in .maplibregl-ctrl-zoom-out {
-  fill: var(--text-primary) !important;
-}
-
-/* Dark map attribution */
-.maplibregl-ctrl-attrib {
-  background: rgba(26, 32, 44, 0.8) !important;
-  color: #718096 !important;
-  font-size: 10px !important;
-}
-
-.maplibregl-ctrl-attrib a {
-  color: #A0998F !important;
-}
-
-/* Scale control dark */
-.maplibregl-ctrl-scale {
-  background: rgba(26, 32, 44, 0.85) !important;
-  border-color: #4A5568 !important;
-  color: #C9B99A !important;
-  font-size: 10px !important;
+  border-top-color: var(--surface-raised) !important;
 }
 
 /* ============================================
@@ -244,13 +253,13 @@ body {
   }
 
   .maplibregl-ctrl-group {
-    min-width: 42px !important;
-    min-height: 42px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
   }
 
   .maplibregl-ctrl-group button {
-    min-width: 42px !important;
-    min-height: 42px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
   }
 }
 
