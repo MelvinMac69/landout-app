@@ -152,11 +152,23 @@ export function BackcountryMap({
         }));
       });
 
-      // DEFERRED (1 second later): draw destination + origin on the map and
-      // fit bounds to show the entire flight path.
-      // Also includes a style-loaded gate — if the map style isn't fully loaded yet
-      // (common on first DirectTo after page load), we retry after 500ms.
+      // DEFERRED RENDER: Stagger all WebGL operations across multiple timeouts
+      // to prevent iOS Safari WebGL context loss. Each operation gets its own
+      // timeout with at least 200ms between them.
+      //
+      // Timeline (from DirectTo activation):
+      //   T+1000ms: style-loaded check
+      //   T+1000ms: Frame 1 — draw destination point (1 GeoJSON point)
+      //   T+1200ms: Frame 2 — camera move (fitBounds or flyTo)
+      //   T+1400ms: Frame 3 — draw origin point + route line (if GPS available)
+      //   T+1600ms: Frame 4 — dispatch event for panel UI update
+      //   GPS fixes: draw current-position dot (naturally spaced, 1+ second apart)
+      //
+      const STAGGER_MS = 200; // minimum delay between WebGL operations
       const MAX_RETRIES = 5;
+      const directToDestCapture = directToDest; // capture for closure
+      const directToOriginCapture = directToOriginRef.current; // capture for closure
+
       const deferredRender = (attempt: number) => {
         if (attempt > MAX_RETRIES) {
           console.warn('[Map] deferred DirectTo render: giving up after', MAX_RETRIES, 'retries — style not loaded');
@@ -179,80 +191,84 @@ export function BackcountryMap({
             return;
           }
 
-          const origin = directToOriginRef.current;
-
-          // Frame 1: Draw source data on the map
+          // Frame 1: Draw destination point only (lightweight — 1 GeoJSON point)
           const src = map.current.getSource('directto-source') as maplibregl.GeoJSONSource | undefined;
           if (src) {
             try {
-              if (origin) {
-                // Draw FIXED line from origin → destination + both endpoint dots
-                src.setData({
-                  type: 'FeatureCollection',
-                  features: [
-                    {
-                      type: 'Feature',
-                      geometry: {
-                        type: 'LineString',
-                        coordinates: [[origin.lon, origin.lat], [directToDest.lng, directToDest.lat]],
-                      },
-                      properties: {},
-                    },
-                    {
-                      type: 'Feature',
-                      geometry: { type: 'Point', coordinates: [origin.lon, origin.lat] },
-                      properties: { role: 'origin' },
-                    },
-                    {
-                      type: 'Feature',
-                      geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] },
-                      properties: { role: 'destination' },
-                    },
-                  ],
-                });
-              } else {
-                // No GPS position — draw destination point only
-                src.setData({
-                  type: 'FeatureCollection',
-                  features: [
-                    { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDest.lng, directToDest.lat] }, properties: { role: 'destination' } },
-                  ],
-                });
-              }
+              src.setData({
+                type: 'FeatureCollection',
+                features: [
+                  { type: 'Feature', geometry: { type: 'Point', coordinates: [directToDestCapture.lng, directToDestCapture.lat] }, properties: { role: 'destination' } },
+                ],
+              });
             } catch (e) {
-              console.warn('[Map] deferred dest point setData error:', e);
+              console.warn('[Map] Frame 1 — dest point setData error:', e);
             }
           }
 
-          // Frame 2: Fit bounds to show entire flight path (origin + destination)
-          // or fly to destination if no origin (no GPS)
-          requestAnimationFrame(() => {
+          // Frame 2: Camera move (fitBounds or flyTo) — 200ms later
+          setTimeout(() => {
             if (!map.current) return;
             try {
-              if (origin && Number.isFinite(origin.lon) && Number.isFinite(origin.lat)
-                  && Number.isFinite(directToDest.lng) && Number.isFinite(directToDest.lat)) {
+              if (directToOriginCapture && Number.isFinite(directToOriginCapture.lon) && Number.isFinite(directToOriginCapture.lat)
+                  && Number.isFinite(directToDestCapture.lng) && Number.isFinite(directToDestCapture.lat)) {
                 // fitBounds to show origin → destination with padding
                 const bounds: [[number, number], [number, number]] = [
-                  [Math.min(origin.lon, directToDest.lng), Math.min(origin.lat, directToDest.lat)],
-                  [Math.max(origin.lon, directToDest.lng), Math.max(origin.lat, directToDest.lat)],
+                  [Math.min(directToOriginCapture.lon, directToDestCapture.lng), Math.min(directToOriginCapture.lat, directToDestCapture.lat)],
+                  [Math.max(directToOriginCapture.lon, directToDestCapture.lng), Math.max(directToOriginCapture.lat, directToDestCapture.lat)],
                 ];
                 map.current.fitBounds(bounds, { padding: 80, maxZoom: 13, duration: 1500 });
-              } else if (Number.isFinite(directToDest.lng) && Number.isFinite(directToDest.lat)) {
+              } else if (Number.isFinite(directToDestCapture.lng) && Number.isFinite(directToDestCapture.lat)) {
                 // No origin — fly to destination only
-                map.current.flyTo({ center: [directToDest.lng, directToDest.lat], zoom: 12, duration: 1500, essential: true });
+                map.current.flyTo({ center: [directToDestCapture.lng, directToDestCapture.lat], zoom: 12, duration: 1500, essential: true });
               }
             } catch (e) {
-              console.warn('[Map] deferred fitBounds/flyTo error:', e);
+              console.warn('[Map] Frame 2 — fitBounds/flyTo error:', e);
             }
-            // Frame 3: Dispatch event so page.tsx can update panel with GPS data
-            requestAnimationFrame(() => {
-              window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
-                detail: { dest: directToDest, currentPos: currentPosState, origin },
-              }));
-            });
-          });
-        }, 1000 + (attempt * 500)); // Longer timeout on retries
-      }
+
+            // Frame 3: Draw origin point + route line — 200ms after camera
+            setTimeout(() => {
+              if (!map.current || !src) return;
+              if (directToOriginCapture) {
+                try {
+                  src.setData({
+                    type: 'FeatureCollection',
+                    features: [
+                      {
+                        type: 'Feature',
+                        geometry: {
+                          type: 'LineString',
+                          coordinates: [[directToOriginCapture.lon, directToOriginCapture.lat], [directToDestCapture.lng, directToDestCapture.lat]],
+                        },
+                        properties: {},
+                      },
+                      {
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: [directToOriginCapture.lon, directToOriginCapture.lat] },
+                        properties: { role: 'origin' },
+                      },
+                      {
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: [directToDestCapture.lng, directToDestCapture.lat] },
+                        properties: { role: 'destination' },
+                      },
+                    ],
+                  });
+                } catch (e) {
+                  console.warn('[Map] Frame 3 — route line setData error:', e);
+                }
+              }
+
+              // Frame 4: Dispatch event for panel UI update — 200ms after route line
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
+                  detail: { dest: directToDestCapture, currentPos: currentPosState, origin: directToOriginCapture },
+                }));
+              }, STAGGER_MS);
+            }, STAGGER_MS);
+          }, STAGGER_MS);
+        }, 1000 + (attempt * 500)); // Initial 1s delay, +500ms per retry
+      };
     // Kick off the deferred render (1 second delay, with style-loaded retries)
     deferredRender(0);
     } else {
