@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui';
 
 export interface AirportInfo {
   type: 'airport';
@@ -172,25 +171,25 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
     const identifier = card.faa_ident || card.gps_code || card.iata || '—';
     return (
       <div ref={ref} style={airportStyle}>
-        {/* Header — accent primary background */}
-        <div style={{ background: 'var(--accent-primary)', padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        {/* Header — elevated surface background */}
+        <div style={{ background: 'var(--surface-elevated)', padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ color: 'var(--text-inverse)', fontWeight: 700, fontSize: 15 }}>{card.name || 'Unknown Airport'}</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 15 }}>{card.name || 'Unknown Airport'}</span>
               <TypePill type={card.airportType} />
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: 'var(--text-secondary)' }}>{identifier}{card.iata ? ` / ${card.iata}` : ''} · {capitalize(card.airportType)}</span>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>{identifier}{card.iata ? ` / ${card.iata}` : ''} · {capitalize(card.airportType)}</span>
               <button
                 onClick={() => copyToClipboard(identifier, setIdCopied)}
                 title="Copy identifier"
                 style={{
                   fontSize: 10,
                   padding: '1px 5px',
-                  background: idCopied ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)',
-                  border: '1px solid rgba(255,255,255,0.3)',
+                  background: idCopied ? 'rgba(34,197,94,0.15)' : 'transparent',
+                  border: `1px solid ${idCopied ? '#22C55E' : 'var(--border-default)'}`,
                   borderRadius: 'var(--radius-sm)',
-                  color: idCopied ? 'white' : 'rgba(255,255,255,0.9)',
+                  color: idCopied ? '#22C55E' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   minWidth: 40,
                   textAlign: 'center' as const,
@@ -205,28 +204,28 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {card.elevation_ft != null && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Elevation</span>
-              <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{card.elevation_ft.toLocaleString()} ft</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Elevation</span>
+              <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{card.elevation_ft.toLocaleString()} ft</span>
             </div>
           )}
           {(card.municipality || card.state) && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</span>
-              <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{[card.municipality, card.state].filter(Boolean).join(', ')}</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</span>
+              <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{[card.municipality, card.state].filter(Boolean).join(', ')}</span>
             </div>
           )}
           {/* Runway length (or coordinates fallback) + copy */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {card.runway_length_ft ? 'Runway Length' : 'Coordinates'}
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {card.runway_length_ft ? (
-                <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-primary)' }}>
+                <span style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-primary)' }}>
                   {card.runway_length_ft.toLocaleString()} ft
                 </span>
               ) : (
-                <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
                   {card.lat.toFixed(4)}, {card.lng.toFixed(4)}
                 </span>
               )}
@@ -249,11 +248,39 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
           </div>
         </div>
 
-        <div style={{ padding: '8px 14px 14px', display: 'flex', gap: 8 }}>
-          <Button variant="aviation" size="sm" onClick={() => onDirectTo(card.lng, card.lat, card.name)} className="flex-1">
+        <div style={{ padding: '8px 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button
+            onClick={() => onDirectTo(card.lng, card.lat, card.name)}
+            style={{
+              width: '100%',
+              height: 44,
+              background: 'var(--accent-primary)',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              color: 'white',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
             ✈ Direct To
-          </Button>
-          <Button variant="ghost-dark" size="sm" onClick={onClose}>Close</Button>
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              width: '100%',
+              height: 44,
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-secondary)',
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            Close
+          </button>
         </div>
       </div>
     );

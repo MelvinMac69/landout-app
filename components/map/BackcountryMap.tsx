@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapGrid } from './MapGrid';
-import { LocateButton } from './LocateButton';
 import { ActionMenu } from './DirectTo';
 import { MeasureRuler } from './MeasureRuler';
 import { InfoCard } from './InfoCard';
@@ -749,7 +748,7 @@ export function BackcountryMap({
     style.textContent = `
       .maplibregl-ctrl-top-left { top: max(4px, env(safe-area-inset-top)) !important; left: 8px !important; }
       .maplibregl-ctrl-bottom-left { bottom: 110px !important; left: 8px !important; }
-      .maplibregl-ctrl-scale { border-color: #64748B !important; color: #64748B !important; background: rgba(255,255,255,0.85) !important; font-size: 10px !important; }
+      .maplibregl-ctrl-scale { border-color: var(--border-default) !important; color: var(--text-secondary) !important; background: var(--surface-elevated) !important; font-size: 10px !important; }
     `;
     document.head.appendChild(style);
 
@@ -1370,11 +1369,7 @@ export function BackcountryMap({
           <span className="text-slate-500">Loading map…</span>
         </div>
       )}
-      {/* Locate button — bottom-right, clustered with North-Up and Compass in page.tsx */}
-      {/* offset: 90px North-Up + 8px gap + 44px LocateButton = 142px from bottom */}
-      <div style={{ position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 142px + var(--direct-to-offset, 0px))`, right: 8, zIndex: 60, pointerEvents: 'auto' }}>
-        <LocateButton mapRef={mapInstanceRef} />
-      </div>
+      {/* LocateButton is now rendered in page.tsx inside the control cluster */}
       {/* Direct To info card */}
       {/* MeasureRuler — handles right-click menu, two-finger measure, draggable endpoints */}
       <MeasureRuler

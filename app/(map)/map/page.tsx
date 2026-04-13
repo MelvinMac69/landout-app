@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { MapLegend, MapLayerToggle, DataDashboard, OVERLAY_LAYERS } from '@/components/map';
+import { LocateButton } from '@/components/map/LocateButton';
 import { DirectToPanel } from '@/components/map/DirectTo';
 import { SiteInfoBox } from '@/components/map/SiteInfoBox';
 import { useMapContext } from '../MapContext';
@@ -353,9 +354,12 @@ export default function MapPage() {
         flexDirection: 'column',
         alignItems: 'center',
         gap: 'var(--space-2)',
-        bottom: `calc(env(safe-area-inset-bottom) + 90px + var(--direct-to-offset, 0px))`,
+        bottom: `calc(env(safe-area-inset-bottom) + 64px + var(--direct-to-offset, 0px))`,
         pointerEvents: 'auto',
       }}>
+        {/* Locate/GPS button */}
+        <LocateButton mapRef={mapRef} />
+
         {/* Compass — visible when track-up is active */}
         {trackUp && (
           <div

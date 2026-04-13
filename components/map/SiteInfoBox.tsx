@@ -95,7 +95,7 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
     <div
       style={{
         position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom) + 190px)',
+        bottom: 'calc(env(safe-area-inset-bottom) + 180px)',
         left: 8,
         zIndex: 50,
         width: 240,
