@@ -345,7 +345,8 @@ export function BackcountryMap({
     function onSearchSelect(e: Event) {
       const detail = (e as CustomEvent<{
         lng: number; lat: number; name: string;
-        faa_ident?: string; airportType?: string; elevation_ft?: number;
+        faa_ident?: string; gps_code?: string; iata?: string;
+        airportType?: string; elevation_ft?: number;
         municipality?: string; state?: string; runway_length_ft?: number | null;
         directTo?: boolean;
       }>).detail;
@@ -359,6 +360,8 @@ export function BackcountryMap({
           lat: detail.lat,
           name: detail.name,
           faa_ident: detail.faa_ident,
+          gps_code: detail.gps_code,
+          iata: detail.iata,
           airportType: detail.airportType,
           elevation_ft: detail.elevation_ft,
           municipality: detail.municipality,

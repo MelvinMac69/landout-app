@@ -24,6 +24,8 @@ interface SiteData {
   name: string;
   icao: string | null;
   faa_ident: string | null;
+  gps_code: string | null;
+  iata: string | null;
   municipality: string | null;
   state: string | null;
   type_label: string;
@@ -47,6 +49,8 @@ async function loadAirports(): Promise<SiteData[]> {
       name: f.properties.name || f.properties.icao || f.properties.faa_ident || 'Unknown',
       icao: f.properties.icao || null,
       faa_ident: f.properties.faa_ident || null,
+      gps_code: f.properties.gps_code || null,
+      iata: f.properties.iata || null,
       municipality: f.properties.municipality || null,
       state: f.properties.state || null,
       type_label: f.properties.type?.replace(/_/g, ' ') || 'airport',
@@ -121,8 +125,9 @@ export default function SiteInfoOverlay() {
       const found = sites.find(s => s.id.toLowerCase() === id.toLowerCase());
       if (found) {
         setSite(found);
-        // Fly map to this site when overlay opens
-        flyToSite(found.lon, found.lat, 13);
+        // Fly map to this site when overlay opens — offset center upward so site
+        // appears in the visible top portion of the map (not behind the overlay panel)
+        flyToSite(found.lon, found.lat, 13, window.innerHeight * 0.5);
       } else {
         setNotFound(true);
       }
@@ -268,12 +273,14 @@ export default function SiteInfoOverlay() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 16px 12px' }}>
           <button
             onClick={() => {
-              flyToSite(site.lon, site.lat, 14);
+              flyToSite(site.lon, site.lat, 14, window.innerHeight * 0.5);
               showInfoCard({
                 lng: site.lon,
                 lat: site.lat,
                 name: site.name,
                 faa_ident: site.faa_ident ?? undefined,
+                gps_code: site.gps_code ?? undefined,
+                iata: site.iata ?? undefined,
                 airportType: site.type_label,
                 municipality: site.municipality ?? undefined,
                 state: site.state ?? undefined,

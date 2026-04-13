@@ -28,7 +28,7 @@ export interface MapContextValue {
   /** Whether the map has finished loading */
   mapLoaded: boolean;
   /** Fly to a site by coordinates — queues if map not ready */
-  flyToSite: (lng: number, lat: number, zoom?: number) => void;
+  flyToSite: (lng: number, lat: number, zoom?: number, offsetBottom?: number) => void;
   /** Start Direct To navigation to a site */
   startDirectTo: (lng: number, lat: number, name: string) => void;
   /** Drop a pin on the map */
@@ -39,6 +39,8 @@ export interface MapContextValue {
     lat: number;
     name: string;
     faa_ident?: string;
+    gps_code?: string;
+    iata?: string;
     airportType?: string;
     municipality?: string;
     state?: string;
@@ -111,7 +113,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
     processQueue(map);
   }, [processQueue]);
 
-  const flyToSite = useCallback((lng: number, lat: number, zoom?: number) => {
+  const flyToSite = useCallback((lng: number, lat: number, zoom?: number, offsetBottom?: number) => {
     if (mapRef.current && mapLoaded) {
       try {
         // Validate coordinates before flying
@@ -123,11 +125,15 @@ export function MapProvider({ children }: { children: ReactNode }) {
         // position after the flyTo animation completes.
         // LocateButton listens for this event and disables followMode.
         window.dispatchEvent(new CustomEvent('landoutExitFollowMode'));
+        // When offsetBottom is provided, shift the center point upward so the site
+        // appears at 1/4 from the top instead of dead center (behind the overlay).
+        const offset = offsetBottom ? [0, -offsetBottom / 2] as [number, number] : undefined;
         mapRef.current.flyTo({
           center: [lng, lat],
           zoom: zoom ?? mapRef.current.getZoom(),
           duration: 1500,
           essential: true,
+          offset,
         });
       } catch (e) {
         console.warn('[MapContext] flyTo error:', e);
