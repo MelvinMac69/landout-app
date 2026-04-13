@@ -111,8 +111,8 @@ export function BackcountryMap({
   // This is aviation behavior: the line shows the intended course, not the current path.
   const [directToOrigin, setDirectToOrigin] = useState<{ lat: number; lon: number } | null>(null);
   const directToOriginRef = useRef<{ lat: number; lon: number } | null>(null);
-  // Track whether fitBounds has been called for the current Direct To session — prevents zoom loop
-  const directToFitBoundsDoneRef = useRef(false);
+  // Track whether flyTo has been called for the current Direct To session — prevents zoom loop
+  const directToCameraDoneRef = useRef(false);
   // Guard: suppress rapid WebGL mutations for 1000ms after DirectTo starts.
   // iOS Safari crashes (full page reload) when too many WebGL operations happen
   // in rapid succession. This guard prevents source/layer updates during the
@@ -157,17 +157,22 @@ export function BackcountryMap({
 
       // DEFERRED RENDER: Stagger all WebGL operations across multiple timeouts
       // to prevent iOS Safari WebGL context loss. Each operation gets its own
-      // timeout with at least 200ms between them.
+      // timeout with at least 300ms between them.
       //
       // Timeline (from DirectTo activation):
       //   T+1000ms: style-loaded check
       //   T+1000ms: Frame 1 — draw destination point (1 GeoJSON point)
-      //   T+1200ms: Frame 2 — camera move (fitBounds or flyTo)
-      //   T+1400ms: Frame 3 — draw origin point + route line (if GPS available)
-      //   T+1600ms: Frame 4 — dispatch event for panel UI update
+      //   T+1300ms: Frame 2 — draw origin point + route line (if GPS available)
+      //   T+1600ms: Frame 3 — camera move (flyTo only — fitBounds removed, too heavy)
+      //   T+1900ms: Frame 4 — dispatch event for panel UI update
       //   GPS fixes: draw current-position dot (naturally spaced, 1+ second apart)
       //
-      const STAGGER_MS = 200; // minimum delay between WebGL operations
+      // IMPORTANT: Route line draws BEFORE camera move. The GPU needs to finish
+      // rendering the GeoJSON before we ask it to animate the viewport.
+      // fitBounds was replaced with flyTo — fitBounds calculates viewport bounds
+      // AND animates, which overloads the WebGL context on iOS Safari.
+      //
+      const STAGGER_MS = 300; // minimum delay between WebGL operations
       const MAX_RETRIES = 5;
       const directToDestCapture = directToDest; // capture for closure
       const directToOriginCapture = directToOriginRef.current; // capture for closure
@@ -209,60 +214,70 @@ export function BackcountryMap({
             }
           }
 
-          // Frame 2: Camera move (fitBounds or flyTo) — 200ms later
+          // Frame 2: Draw origin point + route line — 300ms after dest point
+          // (GeoJSON draw BEFORE camera move — GPU finishes rendering data before animating viewport)
           setTimeout(() => {
-            if (!map.current) return;
-            try {
-              if (directToOriginCapture && Number.isFinite(directToOriginCapture.lon) && Number.isFinite(directToOriginCapture.lat)
-                  && Number.isFinite(directToDestCapture.lng) && Number.isFinite(directToDestCapture.lat)) {
-                // fitBounds to show origin → destination with padding
-                const bounds: [[number, number], [number, number]] = [
-                  [Math.min(directToOriginCapture.lon, directToDestCapture.lng), Math.min(directToOriginCapture.lat, directToDestCapture.lat)],
-                  [Math.max(directToOriginCapture.lon, directToDestCapture.lng), Math.max(directToOriginCapture.lat, directToDestCapture.lat)],
-                ];
-                map.current.fitBounds(bounds, { padding: 80, maxZoom: 13, duration: 1500 });
-              } else if (Number.isFinite(directToDestCapture.lng) && Number.isFinite(directToDestCapture.lat)) {
-                // No origin — fly to destination only
-                map.current.flyTo({ center: [directToDestCapture.lng, directToDestCapture.lat], zoom: 12, duration: 1500, essential: true });
+            if (!map.current || !src) return;
+            if (directToOriginCapture) {
+              try {
+                src.setData({
+                  type: 'FeatureCollection',
+                  features: [
+                    {
+                      type: 'Feature',
+                      geometry: {
+                        type: 'LineString',
+                        coordinates: [[directToOriginCapture.lon, directToOriginCapture.lat], [directToDestCapture.lng, directToDestCapture.lat]],
+                      },
+                      properties: {},
+                    },
+                    {
+                      type: 'Feature',
+                      geometry: { type: 'Point', coordinates: [directToOriginCapture.lon, directToOriginCapture.lat] },
+                      properties: { role: 'origin' },
+                    },
+                    {
+                      type: 'Feature',
+                      geometry: { type: 'Point', coordinates: [directToDestCapture.lng, directToDestCapture.lat] },
+                      properties: { role: 'destination' },
+                    },
+                  ],
+                });
+              } catch (e) {
+                console.warn('[Map] Frame 2 — route line setData error:', e);
               }
-            } catch (e) {
-              console.warn('[Map] Frame 2 — fitBounds/flyTo error:', e);
             }
 
-            // Frame 3: Draw origin point + route line — 200ms after camera
+            // Frame 3: Camera move (flyTo only) — 300ms after route line draw
+            // fitBounds removed — it calculates viewport bounds AND animates,
+            // which overloads the WebGL context on iOS Safari causing crashes.
+            // flyTo with midpoint center and zoom 10 shows the full route context
+            // without the bound-calculation overhead.
             setTimeout(() => {
-              if (!map.current || !src) return;
-              if (directToOriginCapture) {
-                try {
-                  src.setData({
-                    type: 'FeatureCollection',
-                    features: [
-                      {
-                        type: 'Feature',
-                        geometry: {
-                          type: 'LineString',
-                          coordinates: [[directToOriginCapture.lon, directToOriginCapture.lat], [directToDestCapture.lng, directToDestCapture.lat]],
-                        },
-                        properties: {},
-                      },
-                      {
-                        type: 'Feature',
-                        geometry: { type: 'Point', coordinates: [directToOriginCapture.lon, directToOriginCapture.lat] },
-                        properties: { role: 'origin' },
-                      },
-                      {
-                        type: 'Feature',
-                        geometry: { type: 'Point', coordinates: [directToDestCapture.lng, directToDestCapture.lat] },
-                        properties: { role: 'destination' },
-                      },
-                    ],
-                  });
-                } catch (e) {
-                  console.warn('[Map] Frame 3 — route line setData error:', e);
+              if (!map.current) return;
+              try {
+                if (directToOriginCapture && Number.isFinite(directToOriginCapture.lon) && Number.isFinite(directToOriginCapture.lat)
+                    && Number.isFinite(directToDestCapture.lng) && Number.isFinite(directToDestCapture.lat)) {
+                  // Calculate midpoint and adaptive zoom for the route
+                  const midLat = (directToOriginCapture.lat + directToDestCapture.lat) / 2;
+                  const midLon = (directToOriginCapture.lon + directToDestCapture.lng) / 2;
+                  // Rough zoom based on distance: shorter routes = higher zoom
+                  const dist = Math.sqrt(
+                    Math.pow(directToDestCapture.lng - directToOriginCapture.lon, 2) +
+                    Math.pow(directToDestCapture.lat - directToOriginCapture.lat, 2)
+                  );
+                  // ~0.5° span → zoom 10, ~2° span → zoom 8, ~5° span → zoom 6
+                  const zoom = Math.max(6, Math.min(11, Math.round(10 - Math.log2(dist / 0.3))));
+                  map.current.flyTo({ center: [midLon, midLat], zoom, duration: 1500, essential: true });
+                } else if (Number.isFinite(directToDestCapture.lng) && Number.isFinite(directToDestCapture.lat)) {
+                  // No origin — fly to destination at zoom 12
+                  map.current.flyTo({ center: [directToDestCapture.lng, directToDestCapture.lat], zoom: 12, duration: 1500, essential: true });
                 }
+              } catch (e) {
+                console.warn('[Map] Frame 3 — flyTo error:', e);
               }
 
-              // Frame 4: Dispatch event for panel UI update — 200ms after route line
+              // Frame 4: Dispatch event for panel UI update — 300ms after camera
               setTimeout(() => {
                 window.dispatchEvent(new CustomEvent('landoutDirectToChange', {
                   detail: { dest: directToDestCapture, currentPos: currentPosState, origin: directToOriginCapture },
@@ -1197,7 +1212,6 @@ export function BackcountryMap({
       if (!dest) return;
 
       console.log('[DirectTo] landoutSetDirectTo called', dest);
-      directToFitBoundsDoneRef.current = false;
 
       // Close InfoCard when DirectTo starts from external caller
       setInfoCard(null);
