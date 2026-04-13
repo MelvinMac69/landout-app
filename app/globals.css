@@ -57,7 +57,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Landout dark theme palette */
+  /* ─── Landout legacy palette (retained for backward compatibility) ─── */
   --landout-charcoal: #141414;
   --landout-charcoal-light: #1A1A1A;
   --landout-sand: #C9B99A;
@@ -65,13 +65,87 @@
   --landout-aviation: #D4621A;
   --landout-forest: #1B3D2F;
 
-  /* Semantic */
-  --surface-primary: var(--landout-charcoal);
-  --surface-secondary: var(--landout-charcoal-light);
-  --text-primary: #F7F4EF;
-  --text-secondary: #C9B99A;
-  --text-muted: #718096;
-  --accent: var(--landout-aviation);
+  /* ─── Design tokens — Phase 1 ───────────────────────────────────── */
+
+  /* Surfaces */
+  --surface-base: #0D1117;
+  --surface-raised: #161B22;
+  --surface-elevated: #21262D;
+  --surface-overlay: #30363D;
+
+  /* Text */
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-muted: #484F58;
+  --text-inverse: #0D1117;
+
+  /* Accent */
+  --accent-primary: #C6752A;
+  --accent-hover: #D4822A;
+  --accent-muted: rgba(198,117,42,0.15);
+  --accent-active: #E8922A;
+
+  /* Borders */
+  --border-default: #30363D;
+  --border-muted: #21262D;
+  --border-active: #58A6FF;
+
+  /* GPS / Route */
+  --gps-active: #3B82F6;
+  --gps-trail: rgba(59,130,246,0.3);
+  --route-primary: #F472B6;
+  --route-origin: #34D399;
+  --route-dest: #FBBF24;
+
+  /* Land semantics */
+  --land-private: #EF4444;
+  --land-private-bg: rgba(239,68,68,0.12);
+  --land-USFS: #22C55E;
+  --land-USFS-bg: rgba(34,197,94,0.12);
+  --land-state: #3B82F6;
+  --land-state-bg: rgba(59,130,246,0.12);
+  --land-wilderness: #A855F7;
+  --land-wilderness-bg: rgba(168,85,247,0.12);
+  --land-BLM: #F97316;
+  --land-BLM-bg: rgba(249,115,22,0.12);
+  --land-unknown: #6B7280;
+  --land-unknown-bg: rgba(107,114,128,0.12);
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 0 1px rgba(88,166,255,0.3);
+
+  /* Z-index */
+  --z-map: 0;
+  --z-overlay: 10;
+  --z-controls: 20;
+  --z-panels: 30;
+  --z-header: 40;
+  --z-nav: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+
+  /* ─── Legacy semantic aliases (reference new tokens) ─── */
+  --surface-primary: var(--surface-base);
+  --surface-secondary: var(--surface-raised);
+  --accent: var(--accent-primary);
 }
 
 body {
