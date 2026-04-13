@@ -87,11 +87,15 @@ function DirectToPrompt({ onClose }: { onClose: () => void }) {
   );
 }
 
-// Build version indicator — injected at deploy time by Vercel's auto-injected env vars:
-const BUILD_SHA = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? '';
-const BUILD_BRANCH = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF ?? '';
+// Build version indicator — from next.config.js env vars (populated at build time)
+const BUILD_SHA = process.env.NEXT_PUBLIC_GIT_SHA ?? process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? '';
+const BUILD_BRANCH = process.env.NEXT_PUBLIC_GIT_BRANCH ?? process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF ?? '';
+const BUILD_MESSAGE = process.env.NEXT_PUBLIC_GIT_MESSAGE ?? '';
+const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME ?? '';
+const DEPLOY_URL = process.env.NEXT_PUBLIC_VERCEL_URL ?? '';
+const DEPLOY_ID = process.env.NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID ?? '';
 const BUILD_VERSION = BUILD_SHA
-  ? `${BUILD_BRANCH || '?'} @ ${BUILD_SHA.slice(0, 7)}`
+  ? `${BUILD_BRANCH || '?'} @ ${BUILD_SHA}`
   : '';
 
 function BuildTag() {
@@ -497,30 +501,36 @@ export default function MapPage() {
         >
           <div
             style={{
-              background: 'rgba(26, 32, 44, 0.95)',
-              border: '1.5px solid #D4621A',
-              borderRadius: 10,
-              padding: '16px 24px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-              textAlign: 'center',
-              minWidth: 200,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--accent-primary)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px 20px',
+              boxShadow: 'var(--shadow-lg)',
+              textAlign: 'left',
+              minWidth: 240,
+              maxWidth: 320,
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#D4621A', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
-              Build Info
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
+              Diagnostics
             </div>
-            <div style={{ fontSize: 12, color: '#C9B99A', fontFamily: 'monospace', marginBottom: 4 }}>
-              {BUILD_VERSION || 'dev build (local)'}
+            <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-primary)', lineHeight: 1.8 }}>
+              <div><span style={{ color: 'var(--text-muted)' }}>COMMIT:</span> {BUILD_SHA || 'unknown'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>BRANCH:</span> {BUILD_BRANCH || 'unknown'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>BUILD:</span> {BUILD_TIME ? new Date(BUILD_TIME).toLocaleString() : 'unknown'}</div>
+              {DEPLOY_URL && <div><span style={{ color: 'var(--text-muted)' }}>URL:</span> {DEPLOY_URL}</div>}
+              {DEPLOY_ID && <div><span style={{ color: 'var(--text-muted)' }}>DEPLOY:</span> {DEPLOY_ID}</div>}
+              <div style={{ marginTop: 4, color: 'var(--text-secondary)', fontSize: 10 }}>{BUILD_MESSAGE || 'unknown'}</div>
             </div>
             <button
               onClick={() => { (window as any).landoutToggleGrid?.(); }}
               style={{
-                marginTop: 8,
+                marginTop: 10,
                 padding: '4px 10px',
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                borderRadius: 6,
-                color: '#94A3B8',
+                background: 'var(--surface-overlay)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-secondary)',
                 fontSize: 11,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -529,8 +539,8 @@ export default function MapPage() {
             >
               TOGGLE GRID
             </button>
-            <div style={{ fontSize: 10, color: '#718096', marginTop: 8 }}>
-              Click to dismiss
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>
+              Tap to dismiss
             </div>
           </div>
         </div>
