@@ -1,7 +1,7 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'aviation';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'ghost-dark' | 'danger' | 'aviation';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -16,6 +16,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-500',
       danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
       aviation: 'bg-landout-aviation text-white hover:bg-landout-aviation-dark focus:ring-landout-aviation',
+      // Dark-theme ghost for use inside InfoCard and other dark panels
+      'ghost-dark': 'text-[var(--text-secondary)] hover:bg-[var(--surface-overlay)] hover:text-[var(--text-primary)] focus:ring-[var(--accent-primary)]',
 
     };
 

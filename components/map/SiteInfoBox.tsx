@@ -99,10 +99,10 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
         left: 8,
         zIndex: 50,
         width: 240,
-        background: 'rgba(20, 20, 20, 0.95)',
-        border: '1.5px solid #4A5568',
-        borderRadius: 10,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+        background: 'var(--surface-raised)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: 'var(--shadow-lg)',
         overflow: 'hidden',
       }}
     >
@@ -112,13 +112,13 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '8px 10px 6px',
-        borderBottom: '1px solid #4A5568',
+        borderBottom: '1px solid var(--border-default)',
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 700,
-            color: '#D4621A',
+            color: 'var(--accent-primary)',
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
           }}>
@@ -127,7 +127,7 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
           <div style={{
             fontSize: 13,
             fontWeight: 600,
-            color: '#F7FAFC',
+            color: 'var(--text-primary)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -141,7 +141,7 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
           style={{
             background: 'none',
             border: 'none',
-            color: '#718096',
+            color: 'var(--text-muted)',
             cursor: 'pointer',
             padding: '2px 4px',
             fontSize: 16,
@@ -158,32 +158,32 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
       <div style={{ padding: '6px 10px 8px' }}>
         {/* Distance */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ fontSize: 11, color: '#718096' }}>Distance</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#F7FAFC' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distance</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
             {distance !== null ? formatDistance(distance) : '—'}
           </span>
         </div>
 
         {/* Field elevation */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ fontSize: 11, color: '#718096' }}>Elevation</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#F7FAFC' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Elevation</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
             {site.elev ? `${parseInt(site.elev).toLocaleString()} ft` : '—'}
           </span>
         </div>
 
         {/* Runway */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ fontSize: 11, color: '#718096' }}>Runway</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#F7FAFC' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Runway</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-primary)' }}>
             {site.runway ? `${parseInt(site.runway).toLocaleString()} ft` : '—'}
           </span>
         </div>
 
         {/* Identifier */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 11, color: '#718096' }}>Identifier</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#F7FAFC', fontFamily: 'monospace' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Identifier</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
             {site.siteId || '—'}
           </span>
         </div>
@@ -194,10 +194,11 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
             onClick={handleDirectTo}
             style={{
               flex: 1,
-              padding: '6px 8px',
-              background: '#D4621A',
+              height: 44,
+              padding: '0 8px',
+              background: 'var(--accent-primary)',
               border: 'none',
-              borderRadius: 6,
+              borderRadius: 'var(--radius-sm)',
               color: 'white',
               fontSize: 11,
               fontWeight: 700,
@@ -211,11 +212,12 @@ export function SiteInfoBox({ site, onClose }: SiteInfoBoxProps) {
             onClick={handleInfo}
             style={{
               flex: 1,
-              padding: '6px 8px',
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid #4A5568',
-              borderRadius: 6,
-              color: '#CBD5E1',
+              height: 44,
+              padding: '0 8px',
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-secondary)',
               fontSize: 11,
               fontWeight: 600,
               cursor: 'pointer',

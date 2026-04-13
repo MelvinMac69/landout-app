@@ -47,16 +47,27 @@ function capitalize(str?: string): string {
 }
 
 function TypePill({ type }: { type?: string }) {
-  const colors: Record<string, string> = {
-    heliport: 'bg-purple-100 text-purple-700',
-    seaplane_base: 'bg-blue-100 text-blue-700',
-    closed: 'bg-gray-100 text-gray-500',
-    private: 'bg-amber-100 text-amber-700',
-    public: 'bg-green-100 text-green-700',
+  const colors: Record<string, { bg: string; text: string; border: string }> = {
+    heliport:      { bg: 'rgba(168,85,247,0.15)', text: '#A855F7', border: 'rgba(168,85,247,0.3)' },
+    seaplane_base: { bg: 'rgba(59,130,246,0.15)', text: '#58A6FF', border: 'rgba(59,130,246,0.3)' },
+    closed:        { bg: 'var(--surface-overlay)', text: 'var(--text-muted)', border: 'var(--border-default)' },
+    private:       { bg: 'rgba(198,117,42,0.15)', text: 'var(--accent-primary)', border: 'rgba(198,117,42,0.3)' },
+    public:        { bg: 'rgba(34,197,94,0.15)', text: '#22C55E', border: 'rgba(34,197,94,0.3)' },
   };
-  const cls = colors[type ?? ''] ?? 'bg-gray-100 text-gray-600';
+  const c = colors[type ?? ''] ?? { bg: 'var(--surface-overlay)', text: 'var(--text-secondary)', border: 'var(--border-default)' };
   return (
-    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${cls}`}>
+    <span style={{
+      display: 'inline-block',
+      padding: '1px 6px',
+      borderRadius: 'var(--radius-sm)',
+      fontSize: 10,
+      fontWeight: 600,
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.05em',
+      background: c.bg,
+      color: c.text,
+      border: `1px solid ${c.border}`,
+    }}>
       {type ?? 'unknown'}
     </span>
   );
@@ -64,19 +75,34 @@ function TypePill({ type }: { type?: string }) {
 
 function RestrictionBadge({ restriction }: { restriction: string }) {
   let emoji = '⚠️';
-  let cls = 'bg-red-50 text-red-700 border border-red-200';
+  let bg = 'rgba(239,68,68,0.12)';
+  let text = '#EF4444';
+  let border = 'rgba(239,68,68,0.3)';
   let label = 'Restricted — verify before landing';
   if (restriction === 'no-landing') {
     emoji = '🚫';
-    cls = 'bg-red-100 text-red-700 border border-red-200';
-    label = 'No landing';
+    bg = 'rgba(239,68,68,0.18)';
+    border = 'rgba(239,68,68,0.4)';
   } else if (restriction === 'multiple-use') {
     emoji = '✅';
-    cls = 'bg-green-100 text-green-700 border border-green-200';
+    bg = 'rgba(34,197,94,0.12)';
+    text = '#22C55E';
+    border = 'rgba(34,197,94,0.3)';
     label = 'Landing generally OK';
   }
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${cls}`}>
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      padding: '4px 10px',
+      borderRadius: 'var(--radius-sm)',
+      fontSize: 12,
+      fontWeight: 700,
+      background: bg,
+      color: text,
+      border: `1px solid ${border}`,
+    }}>
       {emoji} {label}
     </span>
   );
@@ -111,34 +137,34 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
     return () => { document.removeEventListener('mousedown', handler); };
   }, [onCloseOutside]);
 
-  // Airport card: position near click, respect screen edges
-  const flipUp = screenY > window.innerHeight - 200;
-  const flipLeft = screenX > window.innerWidth - 200;
-  const airportStyle: React.CSSProperties = {
+  // Shared card style — dark surface, design tokens
+  const cardBase: React.CSSProperties = {
     position: 'fixed',
-    top: flipUp ? screenY - 20 : screenY + 20,
     left: '50%',
     transform: 'translateX(-50%)',
-    width: 280,
     zIndex: 200,
-    background: 'white',
-    borderRadius: 16,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border-default)',
+    borderRadius: 'var(--radius-lg)',
+    boxShadow: 'var(--shadow-lg)',
     overflow: 'hidden',
+    maxHeight: 'calc(100vh - 40px)',
+  };
+
+  // Airport card: position near click, respect screen edges
+  const flipUp = screenY > window.innerHeight - 200;
+  const airportStyle: React.CSSProperties = {
+    ...cardBase,
+    top: flipUp ? screenY - 20 : screenY + 20,
+    width: 280,
   };
 
   // Land card: centered horizontally, slightly below screen center
   const landCardStyle: React.CSSProperties = {
-    position: 'fixed',
+    ...cardBase,
     top: '50%',
-    left: '50%',
     transform: 'translate(-50%, calc(-50% + 80px))',
     width: 240,
-    zIndex: 200,
-    background: 'white',
-    borderRadius: 14,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-    overflow: 'hidden',
   };
 
   // ── Airport card ─────────────────────────────────────────────────────────
@@ -146,14 +172,15 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
     const identifier = card.faa_ident || card.gps_code || card.iata || '—';
     return (
       <div ref={ref} style={airportStyle}>
-        <div style={{ background: '#D4621A', padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        {/* Header — accent primary background */}
+        <div style={{ background: 'var(--accent-primary)', padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>{card.name || 'Unknown Airport'}</span>
+              <span style={{ color: 'var(--text-inverse)', fontWeight: 700, fontSize: 15 }}>{card.name || 'Unknown Airport'}</span>
               <TypePill type={card.airportType} />
             </div>
             <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>{identifier}{card.iata ? ` / ${card.iata}` : ''} · {capitalize(card.airportType)}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{identifier}{card.iata ? ` / ${card.iata}` : ''} · {capitalize(card.airportType)}</span>
               <button
                 onClick={() => copyToClipboard(identifier, setIdCopied)}
                 title="Copy identifier"
@@ -162,11 +189,11 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
                   padding: '1px 5px',
                   background: idCopied ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)',
                   border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: 4,
+                  borderRadius: 'var(--radius-sm)',
                   color: idCopied ? 'white' : 'rgba(255,255,255,0.9)',
                   cursor: 'pointer',
                   minWidth: 40,
-                  textAlign: 'center',
+                  textAlign: 'center' as const,
                 }}
               >
                 {idCopied ? '✓ Copied!' : '📋'}
@@ -178,28 +205,28 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {card.elevation_ft != null && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Elevation</span>
-              <span style={{ fontSize: 12, color: '#475569' }}>{card.elevation_ft.toLocaleString()} ft</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Elevation</span>
+              <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{card.elevation_ft.toLocaleString()} ft</span>
             </div>
           )}
           {(card.municipality || card.state) && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</span>
-              <span style={{ fontSize: 12, color: '#475569' }}>{[card.municipality, card.state].filter(Boolean).join(', ')}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</span>
+              <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{[card.municipality, card.state].filter(Boolean).join(', ')}</span>
             </div>
           )}
           {/* Runway length (or coordinates fallback) + copy */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {card.runway_length_ft ? 'Runway Length' : 'Coordinates'}
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {card.runway_length_ft ? (
-                <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 600, color: '#D4621A' }}>
+                <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-primary)' }}>
                   {card.runway_length_ft.toLocaleString()} ft
                 </span>
               ) : (
-                <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#475569' }}>
+                <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
                   {card.lat.toFixed(4)}, {card.lng.toFixed(4)}
                 </span>
               )}
@@ -209,10 +236,10 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
                 style={{
                   fontSize: 10,
                   padding: '1px 5px',
-                  background: coordsCopied ? '#dcfce7' : '#f1f5f9',
-                  border: `1px solid ${coordsCopied ? '#86efac' : '#cbd5e1'}`,
-                  borderRadius: 4,
-                  color: coordsCopied ? '#16a34a' : '#64748b',
+                  background: coordsCopied ? 'rgba(34,197,94,0.15)' : 'var(--surface-overlay)',
+                  border: `1px solid ${coordsCopied ? '#22C55E' : 'var(--border-default)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  color: coordsCopied ? '#22C55E' : 'var(--text-secondary)',
                   cursor: 'pointer',
                 }}
               >
@@ -226,7 +253,7 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
           <Button variant="aviation" size="sm" onClick={() => onDirectTo(card.lng, card.lat, card.name)} className="flex-1">
             ✈ Direct To
           </Button>
-          <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+          <Button variant="ghost-dark" size="sm" onClick={onClose}>Close</Button>
         </div>
       </div>
     );
@@ -267,16 +294,16 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
       {/* Body — land name + restriction badge + coordinates */}
       <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {card.name && (
-          <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.4, fontWeight: 500 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.4, fontWeight: 500 }}>
             {card.name}
           </div>
         )}
         <RestrictionBadge restriction={card.restriction} />
         {/* Coordinates + copy */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coordinates</span>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coordinates</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#475569' }}>
+            <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
               {card.lat.toFixed(4)}, {card.lng.toFixed(4)}
             </span>
             <button
@@ -285,10 +312,10 @@ export function InfoCard({ card, screenX, screenY, onClose, onCloseOutside, onDi
               style={{
                 fontSize: 10,
                 padding: '1px 5px',
-                background: coordsCopied ? '#dcfce7' : '#f1f5f9',
-                border: `1px solid ${coordsCopied ? '#86efac' : '#cbd5e1'}`,
-                borderRadius: 4,
-                color: coordsCopied ? '#16a34a' : '#64748b',
+                background: coordsCopied ? 'rgba(34,197,94,0.15)' : 'var(--surface-overlay)',
+                border: `1px solid ${coordsCopied ? '#22C55E' : 'var(--border-default)'}`,
+                borderRadius: 'var(--radius-sm)',
+                color: coordsCopied ? '#22C55E' : 'var(--text-secondary)',
                 cursor: 'pointer',
               }}
             >
