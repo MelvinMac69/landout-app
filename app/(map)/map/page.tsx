@@ -201,6 +201,7 @@ export default function MapPage() {
   const [directToData, setDirectToData] = useState<{
     dest: { lng: number; lat: number; name?: string; type: 'map' | 'airport' | 'pin' };
     currentPos: { lat: number; lon: number; heading?: number; speed?: number } | null;
+    origin: { lat: number; lon: number } | null;
   } | null>(null);
   const buildClickRef = useRef(0);
   const setCompassBearingRef = useRef(setCompassBearing);
@@ -272,7 +273,7 @@ export default function MapPage() {
   // deferred timer (1 second after activation). This handler only updates the panel UI.
   useEffect(() => {
     function onDirectToChange(e: Event) {
-      const detail = (e as CustomEvent<{ dest: any; currentPos: any }>).detail;
+      const detail = (e as CustomEvent<{ dest: any; currentPos: any; origin: any }>).detail;
       if (detail?.dest) {
         document.documentElement.style.setProperty('--direct-to-offset', '95px');
         setDirectToShift(95);
@@ -322,6 +323,7 @@ export default function MapPage() {
           <DirectToPanel
             dest={directToData.dest}
             currentPos={directToData.currentPos}
+            origin={directToData.origin}
             onClear={() => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const fn = (window as any).__landoutSetDirectToDest;

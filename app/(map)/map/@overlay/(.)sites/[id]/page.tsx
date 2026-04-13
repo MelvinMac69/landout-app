@@ -11,9 +11,10 @@ import {
   Clock,
   User,
   ExternalLink,
+  Navigation,
 } from 'lucide-react';
 import { Card } from '@/components/ui';
-import { formatCoordinates } from '@/lib/utils/geo';
+import { formatCoordinates, haversineDistance } from '@/lib/utils/geo';
 import { useMapContext } from '../../../../MapContext';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -93,8 +94,21 @@ export default function SiteInfoOverlay() {
   const [notFound, setNotFound] = useState(false);
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'reports' | 'info'>('reports');
+  const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null);
 
   const id = typeof params.id === 'string' ? params.id : '';
+
+  // Listen for GPS position updates to calculate distance to site
+  useEffect(() => {
+    function onPositionUpdate(e: Event) {
+      const pos = (e as CustomEvent<{ lat: number; lon: number }>).detail;
+      if (pos && pos.lat != null && pos.lon != null) {
+        setUserPos({ lat: pos.lat, lon: pos.lon });
+      }
+    }
+    window.addEventListener('landoutPositionUpdate', onPositionUpdate);
+    return () => window.removeEventListener('landoutPositionUpdate', onPositionUpdate);
+  }, []);
 
   useEffect(() => {
     setOverlayOpen(true);
@@ -122,7 +136,7 @@ export default function SiteInfoOverlay() {
   if (notFound) {
     return (
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15, 23, 42, 0.92)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'transparent', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
       >
         <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 360, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'center' }}>
@@ -138,7 +152,7 @@ export default function SiteInfoOverlay() {
   if (!site) {
     return (
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15, 23, 42, 0.92)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'transparent', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
       >
         <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 360, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
@@ -155,13 +169,11 @@ export default function SiteInfoOverlay() {
         position: 'fixed',
         inset: 0,
         zIndex: 200,
-        background: 'rgba(15, 23, 42, 0.92)',
+        background: 'transparent',
         pointerEvents: 'auto',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        WebkitBackdropFilter: 'blur(8px)',
-        backdropFilter: 'blur(8px)',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
     >
@@ -216,7 +228,7 @@ export default function SiteInfoOverlay() {
         </div>
 
         {/* Quick stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '12px 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, padding: '12px 16px' }}>
           <div style={{ textAlign: 'center', padding: 8, borderRadius: 8, border: '1px solid #E2E8F0' }}>
             <p style={{ fontSize: 10, color: '#94A3B8' }}>Runway</p>
             <p style={{ fontSize: 16, fontWeight: 600, color: '#0F172A' }}>
@@ -233,6 +245,21 @@ export default function SiteInfoOverlay() {
             <p style={{ fontSize: 10, color: '#94A3B8' }}>Type</p>
             <p style={{ fontSize: 13, fontWeight: 600, color: typeColor(site.type_label), textTransform: 'capitalize' }}>
               {site.type_label}
+            </p>
+          </div>
+          <div style={{ textAlign: 'center', padding: 8, borderRadius: 8, border: userPos ? '1px solid #DBEAFE' : '1px solid #E2E8F0', background: userPos ? '#F0F9FF' : 'transparent' }}>
+            <p style={{ fontSize: 10, color: '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+              <Navigation className="w-3 h-3" />
+              Dist
+            </p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: userPos ? '#2563EB' : '#CBD5E1' }}>
+              {userPos
+                ? (() => {
+                    const miles = haversineDistance(userPos.lat, userPos.lon, site.lat, site.lon);
+                    const nm = miles * 0.868976;
+                    return nm < 10 ? `${nm.toFixed(1)} NM` : `${Math.round(nm)} NM`;
+                  })()
+                : '—'}
             </p>
           </div>
         </div>

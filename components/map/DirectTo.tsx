@@ -80,6 +80,7 @@ interface DirectToDest {
 interface DirectToPanelProps {
   dest: DirectToDest;
   currentPos: { lat: number; lon: number; heading?: number; speed?: number } | null;
+  origin: { lat: number; lon: number } | null;
   onClear: () => void;
 }
 
@@ -102,7 +103,7 @@ function formatDist(nm: number): string {
   return `${Math.round(nm)} NM`;
 }
 
-export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps) {
+export function DirectToPanel({ dest, currentPos, origin, onClear }: DirectToPanelProps) {
   const [visible, setVisible] = useState(false);
   const [speedUnit, setSpeedUnit] = useState<'kts' | 'mph'>('mph');
   const [landStatus, setLandStatus] = useState<LandStatus>(null);
@@ -326,6 +327,25 @@ export function DirectToPanel({ dest, currentPos, onClear }: DirectToPanelProps)
             </div>
           </div>
         </div>
+
+        {/* GPS required warning — shown when no origin captured */}
+        {!origin && (
+          <div style={{
+            marginTop: 8,
+            padding: '6px 10px',
+            background: 'rgba(239,68,68,0.15)',
+            border: '1px solid rgba(239,68,68,0.4)',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}>
+            <span style={{ fontSize: 14, flexShrink: 0 }}>📡</span>
+            <span style={{ fontSize: 11, color: '#FCA5A5', fontWeight: 500 }}>
+              GPS position required for Direct To. Course line will appear once position is acquired.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Bottom cancel button — slides up from behind nav */}
